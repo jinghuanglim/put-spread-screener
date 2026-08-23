@@ -1757,7 +1757,8 @@ th:first-child,td:first-child{text-align:left}
 td.num{font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:15.5px}
 tr.grp td{background:var(--chip);font-size:12.5px;text-transform:uppercase;
   letter-spacing:.07em;color:var(--dim);font-weight:600;text-align:left}
-tr.grp td .over{color:var(--alarm);margin-left:8px}
+tr.grp td .cnt{color:var(--dim);font-weight:400;margin-left:8px;
+  text-transform:none;letter-spacing:0}
 tr:last-child td{border-bottom:none}
 .tk{font-weight:600}
 .chips{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
@@ -1975,9 +1976,6 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         H.append('<div class="banner alarm"><b>Macro calendar incomplete</b>'
                  'CPI/NFP dates are missing. A clear macro line is NOT a '
                  'clearance.</div>')
-    H.append('<div class="banner warn"><b>Caps and hedge not computed</b>'
-             'Part 2 needs IBKR. Exposure, per-name and cluster caps are '
-             'unchecked here.</div>')
 
     # ------------------------------------------------ table
     H.append('<h2>Candidates — gates 1–2 passed</h2>')
@@ -1997,13 +1995,13 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
             grp = by_c.get(c)
             if not grp:
                 continue
-            cap = CLUSTER_MAX.get(c)
-            over = ('<span class="over">** over cap **</span>'
-                    if cap and len(grp) > cap else "")
+            # Grouping only. How many of a cluster anyone may hold is a
+            # portfolio rule belonging to whoever is reading, not a property
+            # of the market, so the page states the correlation and stops.
+            n = len(grp)
             H.append(f'<tr class="grp"><td colspan="11">{_esc(c)} '
-                     f'<span title="names shown / max distinct names this '
-                     f'cluster may hold">{len(grp)}/{cap or "–"}</span>'
-                     f'{over}</td></tr>')
+                     f'<span class="cnt">{n} name{"" if n == 1 else "s"}'
+                     f'</span></td></tr>')
             for r in sorted(grp, key=lambda x: -(x["iv"] or 0)):
                 flags = [f for f in r["notes"].split(",") if f]
                 used += flags
@@ -2034,26 +2032,18 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                  f'{_esc(rows[0]["expiry"])}. The 11%W floor is yours to '
                  f'enforce at ticket.</p>')
 
-        capped = [c for c in CLUSTER_ORDER
-                  if by_c.get(c) and CLUSTER_MAX.get(c)
-                  and len(by_c[c]) > CLUSTER_MAX[c]]
-        H.append('<h2>Reading the cluster line</h2><dl class="legend">')
-        H.append('<dt>2/1</dt><dd>Two names from this cluster passed the '
-                 'gates; the cluster is allowed one. Clusters cap distinct '
-                 '<em>names</em>, not position size, because the risk being '
-                 'capped is correlation — two high-beta names fall together, '
-                 'so holding both is closer to one double-sized bet than to '
-                 'two bets.</dd>')
-        H.append('<dt>** over cap **</dt><dd>Marks that breach. It is '
-                 '<strong>advisory</strong>: the row is still shown and you '
-                 'decide. Nothing here blocks an entry.</dd>')
-        if capped:
+        multi = [c for c in CLUSTER_ORDER
+                 if len(by_c.get(c, [])) > 1 and c != "Unclustered"]
+        if multi:
             names = "; ".join(
-                f"{c} — " + ", ".join(r["t"] for r in by_c[c]) +
-                f" (max {CLUSTER_MAX[c]})" for c in capped)
-            H.append(f'<dt>now</dt><dd>{_esc(names)}. Passing the gates is not '
-                     f'permission to hold them all.</dd>')
-        H.append('</dl>')
+                f"{c} ({', '.join(r['t'] for r in by_c[c])})" for c in multi)
+            H.append('<h2>Rows are grouped by what moves together</h2>')
+            H.append(f'<p class="sub">{_esc(names)}. Names inside a group tend '
+                     f'to fall on the same days, so holding several is closer '
+                     f'to one larger position than to several independent '
+                     f'ones. Passing the gates says nothing about how much of '
+                     f'any of it to hold \u2014 that is position sizing, and '
+                     f'this page does not do it.</p>')
 
         seen = []
         for f in used:
@@ -2802,8 +2792,11 @@ Producer Price Index for October 2026
     chk("wide table can scroll without the page scrolling",
         "overflow-x:auto" in html)
     chk("every candidate appears", all(r["t"] in html for r in rows))
-    chk("caps-not-computed is stated on the page",
-        "not computed" in html.lower())
+    chk("the page carries no IBKR or account-specific banner",
+        not any(k in html for k in ("IBKR", "Part 2", "hedge")),
+        "generic")
+    chk("it still says sizing is not covered",
+        "does not do it" in html or "position sizing" in html)
     chk("Gate 3 is declared unapplied", "veto by hand" in html.lower())
     chk("headlines are collapsed, not dumped", html.count("<details>") > 0)
     chk("headlines are clickable links",
@@ -2836,18 +2829,26 @@ Producer Price Index for October 2026
         not data_loss({"data": [], "trend": ["X"] * 22}, 22))
     chk("no names requested cannot divide by zero", not data_loss({}, 0))
 
-    print("CLUSTER CAP EXPLAINED ON THE PAGE")
-    chk("the page explains what n/max means",
-        "Reading the cluster line" in html)
-    chk("it says clusters cap NAMES, not size", "not position size" in html)
-    chk("it says the breach is advisory, not a block",
-        "advisory" in html and "Nothing here blocks" in html)
-    over = [c for c in CLUSTER_ORDER if by_c_test.get(c)
-            and CLUSTER_MAX.get(c) and len(by_c_test[c]) > CLUSTER_MAX[c]]
-    if over:
-        chk("a live breach names the offending tickers",
-            all(r["t"] in html for c in over for r in by_c_test[c]),
-            f"{over}")
+    print("SHARED PAGE CARRIES NO PERSONAL LIMITS")
+    chk("no cap ratio like 2/1 on the page",
+        not re.search(r">\s*\d+/\d+\s*<", html),
+        "clean")
+    chk("no OVER CAP alarm on the page", "over cap" not in html.lower())
+    chk("cluster grouping is kept, as a plain count",
+        any(f"{len(v)} name" in html for v in by_c_test.values()))
+    multi_t = [c for c in CLUSTER_ORDER
+               if len(by_c_test.get(c, [])) > 1 and c != "Unclustered"]
+    if multi_t:
+        chk("groups holding more than one name are called out by correlation",
+            "moves together" in html)
+        chk("and the names in them are listed",
+            all(r["t"] in html for c in multi_t for r in by_c_test[c]))
+    chk("the terminal report KEEPS the caps, it is JH's own view",
+        "OVER CAP" in txt or not any(
+            CLUSTER_MAX.get(c) and len(v) > CLUSTER_MAX[c]
+            for c, v in by_c_test.items()))
+    chk("the terminal report keeps the IBKR note",
+        "NOT COMPUTED" in txt)
 
     print("TYPOGRAPHY")
     chk("base font is comfortable on a phone", "font:17px/1.62" in html)
