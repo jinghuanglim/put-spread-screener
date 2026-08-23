@@ -1814,6 +1814,10 @@ tr:last-child td{border-bottom:none}
   opacity:.9;animation:pulse 1.1s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
 .runstat{font-size:15px;color:var(--dim)}
+.bar{display:none;height:6px;background:var(--chip);border-radius:99px;
+  overflow:hidden;margin:2px 0 6px}
+.bar>div{height:100%;width:4%;background:var(--accent);border-radius:99px;
+  transition:width .5s ease}
 .runstat b{color:var(--ink)}
 .fresh{background:var(--warnbg);border:1px solid var(--warn);border-radius:10px;
   padding:13px 16px;margin:12px 0;font-size:16px;display:none}
@@ -1873,69 +1877,136 @@ def _js(x):
 # than one that just hides the status line.
 _RUN_JS = """
 function initRun(cfg){
-  var API='https://api.github.com/repos/'+cfg.repo+'/actions/workflows/'+cfg.wf+'/runs?per_page=1';
+  var BASE='https://api.github.com/repos/'+cfg.repo;
+  var API=BASE+'/actions/workflows/'+cfg.wf+'/runs?per_page=1';
   var stat=document.getElementById('stat'),go=document.getElementById('go'),
-      fresh=document.getElementById('fresh'),timer=null,polls=0;
+      fresh=document.getElementById('fresh'),bar=document.getElementById('bar'),
+      fill=document.getElementById('fill');
+  var timer=null,polls=0,baseline=null,awaiting=0,seenId=null;
+
   function say(h){stat.innerHTML=h;}
   function stop(){if(timer){clearInterval(timer);timer=null;}}
+  function arm(ms){stop();timer=setInterval(look,ms||10000);}
+  function busy(label){
+    if(go.tagName==='BUTTON'){go.disabled=true;
+      go.innerHTML='<span class="dot"></span>'+(label||'Running');}
+  }
+  function idle(){
+    if(go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
+  }
+  function progress(pct,text){
+    if(!bar)return;
+    bar.style.display=pct===null?'none':'block';
+    if(pct!==null)fill.style.width=Math.max(4,Math.min(100,pct))+'%';
+    if(text!==undefined)fill.title=text;
+  }
+  function secs(t){return Math.max(0,Math.round((Date.now()-new Date(t))/1000));}
+
+  // Which step is it on? The runs endpoint only says in_progress; the jobs
+  // endpoint names the step, which is the difference between a spinner and
+  // knowing the thing is on "Run screen" rather than stuck installing.
+  function steps(run){
+    fetch(BASE+'/actions/runs/'+run.id+'/jobs',
+          {headers:{'Accept':'application/vnd.github+json'}})
+      .then(function(r){return r.ok?r.json():Promise.reject(0);})
+      .then(function(d){
+        var job=(d.jobs||[])[0];if(!job||!job.steps)return;
+        var all=job.steps,done=0,cur=null;
+        for(var i=0;i<all.length;i++){
+          if(all[i].conclusion)done++;
+          if(all[i].status==='in_progress'&&!cur)cur=all[i];
+        }
+        progress(100*done/all.length,'');
+        say('<b>'+(cur?cur.name:'Working')+'</b> \u00b7 step '+
+            Math.min(done+1,all.length)+' of '+all.length+' \u00b7 '+
+            secs(run.run_started_at||run.created_at)+'s');
+      })
+      .catch(function(){});
+  }
+
   function look(){
-    if(++polls>60){stop();return;}
+    if(++polls>60){stop();progress(null);return;}
     fetch(API,{headers:{'Accept':'application/vnd.github+json'}})
-      .then(function(r){return r.ok?r.json():Promise.reject(r.status);})
+      .then(function(r){
+        if(r.status===403)return Promise.reject('rate');
+        return r.ok?r.json():Promise.reject(r.status);})
       .then(function(d){
         var run=(d.workflow_runs||[])[0];
         if(!run){say('');stop();return;}
-        var live=run.status==='queued'||run.status==='in_progress';
-        if(live){
-          var secs=Math.max(0,Math.round((Date.now()-new Date(run.created_at))/1000));
-          say('<b>Running</b> &middot; '+secs+'s &middot; started by '+
-              (run.actor&&run.actor.login?run.actor.login:'someone'));
-          if(go.tagName==='BUTTON'){go.disabled=true;
-            go.innerHTML='<span class="dot"></span>Running';}
-        }else{
-          if(go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
-          if(run.conclusion!=='success'){
-            say('Last run <b>'+run.conclusion+'</b> &middot; '+
-                '<a href="'+run.html_url+'" target="_blank" rel="noopener">log</a>');
-          }else if(cfg.runId&&String(run.id)!==cfg.runId){
-            say('');
-            // location.reload() asks the GitHub Pages CDN for the same
-            // URL, and the edge happily serves the copy it already has —
-            // which is the OLD page, whose runId is still stale, so the
-            // banner comes straight back. Pressing it four or five times
-            // "works" only because the edge eventually catches up. A query
-            // string the edge has never seen is a different cache key, so
-            // the fetch has to reach the origin. Keyed on the run number
-            // rather than a timestamp, so it settles instead of minting a
-            // fresh URL on every click.
-            fresh.innerHTML='Run #'+run.run_number+' finished. '+
-              '<a href="?r='+encodeURIComponent(run.run_number)+'">'+
-              '<b>Reload</b></a>';
-            fresh.className='fresh show';
-          }else{
-            say('Showing the latest run'+(cfg.runNumber?' (#'+cfg.runNumber+')':''));
+
+        // A dispatched run takes seconds to appear in this list. Treating
+        // "newest run" as "the run I just started" reads the PREVIOUS,
+        // finished run, concludes the job is done, and resets the button
+        // about six seconds after the click - which is exactly what it did.
+        // Hold until an id newer than the pre-dispatch baseline shows up.
+        if(awaiting&&baseline!==null&&String(run.id)===baseline){
+          if(Date.now()-awaiting>120000){
+            awaiting=0;idle();progress(null);
+            say('GitHub never registered it \u2014 <a href="'+cfg.actions+
+                '" target="_blank" rel="noopener">check Actions</a>');
+            stop();return;
           }
-          stop();
+          busy('Starting');progress(3,'');
+          say('Waiting for GitHub to register the run\u2026');
+          return;
         }
+        awaiting=0;
+        seenId=String(run.id);
+
+        // conclusion===null covers queued, pending, in_progress and waiting
+        // without having to enumerate GitHub's status vocabulary.
+        if(run.conclusion===null){
+          busy('Running');
+          say('<b>Running</b> \u00b7 '+secs(run.created_at)+'s');
+          steps(run);
+          arm(6000);
+          return;
+        }
+        idle();progress(null);
+        if(run.conclusion!=='success'){
+          say('Last run <b>'+run.conclusion+'</b> \u00b7 <a href="'+
+              run.html_url+'" target="_blank" rel="noopener">log</a>');
+        }else if(cfg.runId&&String(run.id)!==cfg.runId){
+          say('');
+          fresh.innerHTML='Run #'+run.run_number+' finished. '+
+            '<a href="?r='+encodeURIComponent(run.run_number)+'">'+
+            '<b>Reload</b></a>';
+          fresh.className='fresh show';
+        }else{
+          say('Showing the latest run'+(cfg.runNumber?' (#'+cfg.runNumber+')':''));
+        }
+        stop();
       })
-      .catch(function(){say('');stop();});
+      .catch(function(e){
+        // 60 requests/hour unauthenticated. Say so rather than going blank,
+        // or a rate limit is indistinguishable from nothing happening.
+        if(e==='rate'){say('GitHub rate limit \u2014 <a href="'+cfg.actions+
+          '" target="_blank" rel="noopener">check Actions</a>');}
+        else{say('');}
+        progress(null);stop();
+      });
   }
+
   if(go.tagName==='BUTTON'){
     go.addEventListener('click',function(){
-      go.disabled=true;go.innerHTML='<span class="dot"></span>Starting';
+      busy('Starting');progress(3,'');say('Starting\u2026');
+      baseline=seenId;
       fetch(cfg.dispatch,{method:'POST'})
         .then(function(r){
-          if(r.status===409){go.disabled=false;go.textContent='Run screen';
-            say('A run is already going \u2014 watching it.');
-            polls=0;stop();timer=setInterval(look,12000);look();return;}
+          if(r.status===409){
+            awaiting=0;say('A run is already going \u2014 watching it.');
+            polls=0;arm(6000);look();return;}
           if(!r.ok)throw r.status;
-          say('Queued. This takes about a minute.');
-          polls=0;stop();timer=setInterval(look,12000);setTimeout(look,6000);})
-        .catch(function(){go.disabled=false;go.textContent='Run screen';
+          awaiting=Date.now();polls=0;
+          say('Queued\u2026');
+          arm(6000);setTimeout(look,3000);})
+        .catch(function(){
+          awaiting=0;idle();progress(null);
           say('Could not start it \u2014 <a href="'+cfg.actions+
               '" target="_blank" rel="noopener">run it from Actions</a>');});
     });
   }
+
   var b=document.getElementById('built');
   if(b&&b.dataset.utc){
     try{
@@ -1948,7 +2019,7 @@ function initRun(cfg){
     }catch(e){}
   }
   look();
-  timer=setInterval(look,12000);
+  arm(10000);
 }
 """
 
@@ -2014,6 +2085,7 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
             H.append(f'<a class="btn" id="go" href="{_esc(actions_url)}" '
                      f'target="_blank" rel="noopener">Run screen &rarr;</a>')
         H.append('<span class="runstat" id="stat"></span></div>')
+        H.append('<div class="bar" id="bar"><div id="fill"></div></div>')
         H.append('<div class="fresh" id="fresh">New results are ready. '
                  '<a href="." id="reload"><b>Reload</b></a></div>')
         H.append(f'<script>{_RUN_JS}</script>')
@@ -2886,10 +2958,18 @@ Producer Price Index for October 2026
                 ("authorization", "token", "bearer", "secret", "ghp_")))
     # Only fetch() targets matter for "who does this page talk to". Link hrefs
     # are inert until a human taps them.
-    fetched = re.findall(r"fetch\(\s*['\"]?(https?://[a-z0-9.\-]+)", withbtn)
-    fetched += re.findall(r"API\s*=\s*'(https?://[a-z0-9.\-]+)", withbtn)
+    # Every absolute host literal inside the script block, however the URL is
+    # later assembled. Link hrefs in the HTML are inert and excluded.
+    script_src = "".join(re.findall(r"<script>(.*?)</script>", withbtn, re.S))
+    # Hosts the script REQUESTS: the API base plus any literal fetch target.
+    called = set(re.findall(r"BASE\s*=\s*'(https?://[a-z0-9.\-]+)", script_src))
+    called |= set(re.findall(r"fetch\(\s*'(https?://[a-z0-9.\-]+)", script_src))
     chk("the only host the page CALLS is the public GitHub API",
-        set(fetched) == {"https://api.github.com"}, str(sorted(set(fetched))))
+        called == {"https://api.github.com"}, str(sorted(called)))
+    # github.com also appears, but only as somewhere to send a human.
+    others = set(re.findall(r"https?://[a-z0-9.\-]+", script_src)) - called
+    chk("any other host in the script is a link target, never a request",
+        others <= {"https://github.com"}, str(sorted(others)))
     chk("still loads no external stylesheet, font, script or image",
         loads_external(withbtn) == [], f"{loads_external(withbtn)}")
     dsp = render_html(rows, dropped, conflicts, news,
@@ -3021,6 +3101,26 @@ Producer Price Index for October 2026
     chk("every clustered name is in the universe",
         all(t in UNIVERSE for v in CLUSTERS.values() for t in v))
     chk("the Semis cap did not silently move", CLUSTER_MAX["Semis"] == 2)
+
+    print("THE BUTTON MUST NOT DECLARE VICTORY EARLY")
+    chk("a pre-dispatch baseline is recorded", "baseline=seenId" in stamped)
+    chk("the newest run is not assumed to be the one just started",
+        "String(run.id)===baseline" in stamped)
+    chk("it keeps waiting instead of concluding", "Waiting for GitHub" in stamped)
+    chk("but gives up rather than spinning forever",
+        "never registered it" in stamped)
+    chk("liveness uses conclusion, not a status whitelist",
+        "run.conclusion===null" in stamped)
+    chk("a rate limit is reported, not silently blank",
+        "rate limit" in stamped and "403" in stamped)
+
+    print("PROGRESS IS SHOWN, NOT IMPLIED")
+    chk("the jobs endpoint is polled for the current step",
+        "/actions/runs/'+run.id+'/jobs" in stamped)
+    chk("the step name is displayed", "cur.name" in stamped)
+    chk("step n of m is displayed", "step '+" in stamped)
+    chk("there is a progress bar", 'id="bar"' in stamped and 'id="fill"' in stamped)
+    chk("the bar is hidden until a run is live", ".bar{display:none" in stamped)
 
     print("RELOAD MUST BYPASS THE CDN")
     chk("the reload link carries a cache-busting key",
