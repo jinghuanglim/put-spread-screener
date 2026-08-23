@@ -6,6 +6,8 @@ no broker account, nothing about your positions or exposure.
 Runs **only when you press the button**. There is no schedule.
 
 - **Page:** `docs/index.html` → your GitHub Pages URL
+- **Worker:** `worker/` → optional, makes the button work for people who do
+  not have access to your GitHub account
 - **History:** `runs/screen_log.csv`, `runs/regime_log.csv`, appended per run
 - **Archive:** `docs/archive/YYYY-MM-DD-HHMM.html`, one frozen page per run
 
@@ -38,45 +40,71 @@ Your URL is `https://<user>.github.io/<repo>/`. Bookmark it on your phone.
 The page carries a **Run screen** button and a live status line that polls the
 public GitHub API — no token, so nothing secret is shipped to the browser.
 
-Out of the box the button opens the Actions tab, where you press *Run workflow*
-(GitHub does the authenticating). The page then shows `Running · 34s`, and
-offers **Reload** when new results land. That is two extra taps.
+It works in one of two modes, chosen automatically:
 
-### True one-click (optional, free)
+| `DISPATCH_URL` set? | Button | Who can use it |
+|---|---|---|
+| no | opens the Actions tab | only people with write access to this repo |
+| yes | starts the run directly | anyone who can open the page |
 
-To make the button fire the run directly, you need something that holds a
-token — it cannot live in the page, because a token in a page anyone can view
-is a token anyone can use. A Cloudflare Worker on the free tier does it in
-about fifteen lines:
+If you are sharing this with anyone, you want the second mode. Setting it up is
+below and takes about ten minutes, once.
 
-```js
-export default {
-  async fetch(req, env) {
-    const cors = { "Access-Control-Allow-Origin": env.ORIGIN,
-                   "Access-Control-Allow-Methods": "POST, OPTIONS" };
-    if (req.method === "OPTIONS") return new Response(null, { headers: cors });
-    if (req.method !== "POST") return new Response("no", { status: 405, headers: cors });
-    const r = await fetch(
-      "https://api.github.com/repos/OWNER/REPO/actions/workflows/screen.yml/dispatches",
-      { method: "POST",
-        headers: { Authorization: `Bearer ${env.GH_TOKEN}`,
-                   Accept: "application/vnd.github+json",
-                   "User-Agent": "pcs-dispatch" },
-        body: JSON.stringify({ ref: "main" }) });
-    return new Response(r.ok ? "ok" : await r.text(),
-                        { status: r.ok ? 202 : 502, headers: cors });
-  }
-};
+### Why the page cannot just do it
+
+Starting a workflow needs a GitHub token. A token in a page anyone can view is
+a token anyone can use, and there is no way to hide one in client-side
+JavaScript — "obfuscated" is not "hidden". So the token has to live somewhere
+the browser cannot read, and something has to sit between the two. That is all
+the Worker in `worker/` is.
+
+### Setting up the one-click button
+
+**1 — Make a token.** GitHub → Settings (your account, not the repo) →
+Developer settings → Personal access tokens → **Fine-grained tokens** →
+Generate new token.
+
+- Repository access: **Only select repositories** → this repo alone
+- Permissions → Repository permissions → **Actions: Read and write**
+- Nothing else. Not contents, not workflows.
+- Expiration: your call; the button stops working when it lapses.
+
+Copy the token — it is shown once.
+
+**2 — Edit the Worker.** In `worker/worker.js`, set `OWNER_REPO` to
+`yourname/put-spread-screener`.
+
+**3 — Deploy it.**
+
+```
+cd worker
+npx wrangler login
+npx wrangler secret put GH_TOKEN     # paste the token when prompted
+npx wrangler deploy
 ```
 
-- `GH_TOKEN` — a **fine-grained** PAT scoped to this one repo with
-  *Actions: read and write* and nothing else. Store it as a Worker secret.
-- `ORIGIN` — your Pages origin, so other sites cannot use your Worker.
-- Then set repository **variable** `DISPATCH_URL` to the Worker URL (a
-  variable, not a secret — it ends up in the page either way).
+Set `ORIGIN` in `wrangler.toml` to your Pages origin
+(`https://yourname.github.io`, no trailing path) before deploying, or the
+Worker will refuse the browser's request. Deploy prints the Worker URL.
 
-Anyone who can open the page can then start a run. That is the point if you are
-sharing it, and the reason to scope the token to exactly one workflow.
+**4 — Point the page at it.** Repo → Settings → Secrets and variables →
+Actions → **Variables** tab → New repository variable:
+
+- Name: `DISPATCH_URL`
+- Value: the Worker URL
+
+A variable, not a secret — it ends up in the published page either way, and
+pretending otherwise would be theatre. It is a URL that starts a run; that is
+all it can do.
+
+**5 — Run the workflow once** so the page rebuilds with the real button.
+
+### What a stranger can do with it
+
+Start a screen. That is the whole surface. The token cannot push, cannot read
+your other repos, cannot see the secret. The Worker refuses requests from other
+origins, and refuses to queue a second run while one is already going, so the
+button cannot be used to pile up runs or spam the log.
 
 ## Local
 

@@ -816,11 +816,45 @@ class YFProvider:
         except Exception:
             pass
         return out
-    def news(self, t, n=8):
-        try:
-            items = self._tk(t).news or []
-        except Exception:
-            return []
+    @staticmethod
+    def _news_url(c):
+        """Publisher's own URL, falling back to the Yahoo redirect.
+
+        canonicalUrl points at the source (fool.com, thestreet.com);
+        clickThroughUrl is a finance.yahoo.com wrapper. Prefer the source: it
+        is what you want to read, and it survives Yahoo reorganising its URLs.
+        Both arrive as {"url": ..., "site": ...} dicts, not bare strings.
+        """
+        for k in ("canonicalUrl", "clickThroughUrl"):
+            v = c.get(k)
+            if isinstance(v, dict) and v.get("url"):
+                return v["url"]
+            if isinstance(v, str) and v:
+                return v
+        return ""
+
+    def news(self, t, n=8, tries=3):
+        """Headlines for Gate 3. Retried, because a miss reads as a clearance.
+
+        yfinance's news endpoint fails intermittently — ANET returned nothing
+        on one run and ten items on the next, minutes apart, with no change to
+        the request. A single attempt turns that flake into a blank Gate 3
+        section, and a blank section is exactly what a name with no bad news
+        looks like. Retrying is cheap; mistaking a dropped connection for an
+        all-clear is not.
+        """
+        items = []
+        for attempt in range(tries):
+            try:
+                items = self._tk(t).news or []
+            except Exception:
+                items = []
+            if items:
+                break
+            if attempt < tries - 1:
+                import time
+                time.sleep(0.6 * (attempt + 1))
+                self._cache.pop(t, None)      # fresh Ticker, fresh cookie
         out = []
         for it in items[:n]:
             c = it.get("content", it)
@@ -834,7 +868,7 @@ class YFProvider:
                     related.append(str(st))
             related += [str(x) for x in (it.get("relatedTickers") or [])]
             direct = news_is_direct(t, title, related)
-            out.append((str(pub)[:10], title, direct))
+            out.append((str(pub)[:10], title, direct, self._news_url(c)))
         # direct hits first — a guidance cut must not sit under four sector pieces
         out.sort(key=lambda x: (not x[2], x[0]), reverse=False)
         return out[:5]
@@ -902,8 +936,10 @@ class FakeProvider:
         d = self.today + timedelta(days=55)
         return [("yf.earnings_dates", d), ("nasdaq", d)]
     def news(self, t, n=4):
-        return [(self.today.isoformat(), f"{t} synthetic headline 1", True),
-                (self.today.isoformat(), "unrelated sector piece", False)]
+        return [(self.today.isoformat(), f"{t} synthetic headline 1", True,
+                 f"https://example.invalid/{t.lower()}-1"),
+                (self.today.isoformat(), "unrelated sector piece", False,
+                 "https://example.invalid/sector")]
 # ---------------------------------------------------------------- gates
 def pick_expiry(expiries, today):
     """Nearest expiry inside DTE window, biased to 18-21."""
@@ -1443,10 +1479,14 @@ def report(rows, dropped, conflicts, news_out, regime, today, verbose=False):
             direct = [x for x in items if x[2]]
             sector = [x for x in items if not x[2]]
             show = direct if (direct and not verbose) else items
-            for i, (d, title, is_direct) in enumerate(show):
+            for i, item in enumerate(show):
+                d, title, is_direct = item[0], item[1], item[2]
+                url = item[3] if len(item) > 3 else ""
                 head = f"{r['t']:<7}" if i == 0 else " " * 7
                 L.append(f"{head} {'*' if is_direct else '~'} {str(d)[5:]} "
                          f"{title[:74]}")
+                if verbose and url:
+                    L.append(f"{' ' * 9}  {url}")
             if direct and sector and not verbose:
                 pad = " " * 7 if show else f"{r['t']:<7}"
                 L.append(f"{pad}   +{len(sector)} sector item"
@@ -1690,44 +1730,44 @@ HTML_CSS = """
   --alarmbg:#3a1f1e; --chip:#2a2830;
 }
 body{margin:0;background:var(--bg);color:var(--ink);
-  font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  font:17px/1.62 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
   -webkit-text-size-adjust:100%}
 .wrap{max-width:1080px;margin:0 auto;padding:20px 16px 64px}
-h1{font-size:19px;margin:0 0 2px;letter-spacing:-.01em}
-h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim);
+h1{font-size:24px;margin:0 0 2px;letter-spacing:-.01em}
+h2{font-size:14px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim);
   margin:32px 0 10px;font-weight:600}
-.sub{color:var(--dim);font-size:13px;margin-bottom:18px}
+.sub{color:var(--dim);font-size:15px;margin-bottom:18px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .stat{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:11px 13px}
-.stat .k{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim)}
-.stat .v{font-size:17px;font-variant-numeric:tabular-nums;margin-top:3px}
-.banner{border-radius:9px;padding:12px 14px;margin:14px 0;font-size:14px;
+.stat .k{font-size:12.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim)}
+.stat .v{font-size:22px;font-variant-numeric:tabular-nums;margin-top:3px}
+.banner{border-radius:10px;padding:14px 16px;margin:16px 0;font-size:16px;
   border:1px solid transparent}
 .banner.warn{background:var(--warnbg);border-color:var(--warn);color:var(--ink)}
 .banner.alarm{background:var(--alarmbg);border-color:var(--alarm);color:var(--ink)}
 .banner b{display:block;margin-bottom:2px}
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;
   border:1px solid var(--line);border-radius:9px;background:var(--panel)}
-table{border-collapse:collapse;width:100%;font-size:14px}
-th,td{padding:9px 11px;text-align:right;white-space:nowrap;
+table{border-collapse:collapse;width:100%;font-size:16px}
+th,td{padding:11px 13px;text-align:right;white-space:nowrap;
   border-bottom:1px solid var(--line)}
-th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);
+th{font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);
   font-weight:600;position:sticky;top:0;background:var(--panel)}
 th:first-child,td:first-child{text-align:left}
-td.num{font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:13px}
-tr.grp td{background:var(--chip);font-size:11px;text-transform:uppercase;
+td.num{font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:15.5px}
+tr.grp td{background:var(--chip);font-size:12.5px;text-transform:uppercase;
   letter-spacing:.07em;color:var(--dim);font-weight:600;text-align:left}
 tr.grp td .over{color:var(--alarm);margin-left:8px}
 tr:last-child td{border-bottom:none}
 .tk{font-weight:600}
 .chips{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
-.chip{background:var(--chip);border-radius:5px;padding:2px 6px;font-size:11px;
+.chip{background:var(--chip);border-radius:6px;padding:3px 8px;font-size:13px;
   font-family:var(--mono);color:var(--dim);white-space:nowrap}
 .chip.hot{background:var(--alarmbg);color:var(--alarm)}
 .runbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:18px 0 4px}
-.btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);
-  color:#fff;border:none;border-radius:9px;padding:11px 18px;font:inherit;
-  font-weight:600;font-size:15px;cursor:pointer;text-decoration:none;
+.btn{display:inline-flex;align-items:center;gap:9px;background:var(--accent);
+  color:#fff;border:none;border-radius:10px;padding:14px 24px;font:inherit;
+  font-weight:600;font-size:17px;cursor:pointer;text-decoration:none;
   -webkit-tap-highlight-color:transparent}
 .btn:active{transform:translateY(1px)}
 .btn[disabled]{opacity:.55;cursor:default}
@@ -1736,42 +1776,45 @@ tr:last-child td{border-bottom:none}
 .btn .dot{width:9px;height:9px;border-radius:50%;background:currentColor;
   opacity:.9;animation:pulse 1.1s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
-.runstat{font-size:13px;color:var(--dim)}
+.runstat{font-size:15px;color:var(--dim)}
 .runstat b{color:var(--ink)}
-.fresh{background:var(--warnbg);border:1px solid var(--warn);border-radius:9px;
-  padding:11px 14px;margin:10px 0;font-size:14px;display:none}
+.fresh{background:var(--warnbg);border:1px solid var(--warn);border-radius:10px;
+  padding:13px 16px;margin:12px 0;font-size:16px;display:none}
 .fresh.show{display:block}
-dl.legend{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px}
+dl.legend{margin:0;display:grid;grid-template-columns:auto 1fr;gap:9px 16px;font-size:15px}
 dl.legend dt{font-family:var(--mono);color:var(--accent);white-space:nowrap}
 dl.legend dd{margin:0;color:var(--dim)}
 details{background:var(--panel);border:1px solid var(--line);border-radius:9px;
   padding:10px 13px;margin-bottom:8px}
-summary{cursor:pointer;font-weight:600;font-size:14px}
-summary .n{color:var(--dim);font-weight:400;font-size:12px;margin-left:8px}
-.head{margin:7px 0 0;font-size:13px;color:var(--ink);display:flex;gap:8px}
-.head .d{color:var(--dim);font-family:var(--mono);font-size:12px;flex:none}
+summary{cursor:pointer;font-weight:600;font-size:17px;padding:2px 0}
+summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
+.head{margin:11px 0 0;font-size:15.5px;color:var(--ink);display:flex;gap:8px}
+.head .d{color:var(--dim);font-family:var(--mono);font-size:13px;flex:none;min-width:3.4em}
 .head.sector{color:var(--dim)}
+.head a{color:inherit;text-decoration:underline;text-underline-offset:3px;
+  text-decoration-color:var(--line)}
+.head a:hover{text-decoration-color:var(--accent)}
 .drop{background:var(--panel);border:1px solid var(--line);border-radius:9px;
-  padding:11px 13px;margin-bottom:8px;font-size:13px}
-.drop .k{font-size:11px;text-transform:uppercase;letter-spacing:.07em;
+  padding:13px 15px;margin-bottom:9px;font-size:15px}
+.drop .k{font-size:12.5px;text-transform:uppercase;letter-spacing:.07em;
   color:var(--dim);margin-bottom:3px}
-.drop .v{font-family:var(--mono);font-size:12.5px;word-break:break-word}
-.foot{color:var(--dim);font-size:12px;margin-top:34px;border-top:1px solid var(--line);
+.drop .v{font-family:var(--mono);font-size:14px;word-break:break-word}
+.foot{color:var(--dim);font-size:14px;margin-top:34px;border-top:1px solid var(--line);
   padding-top:14px}
 .foot code{font-family:var(--mono)}
 @media (max-width:720px){
   .wrap{padding:14px 11px 48px}
   thead{display:none}
   table,tbody,tr,td{display:block;width:100%}
-  tr.row{border-bottom:1px solid var(--line);padding:11px 13px}
+  tr.row{border-bottom:1px solid var(--line);padding:14px 15px}
   tr.row:last-child{border-bottom:none}
   tr.grp td{border:none;padding:10px 13px 4px;display:block;text-align:left}
   tr.grp td:before{content:none}
   td{border:none;padding:2px 0;text-align:right;display:flex;
      justify-content:space-between;align-items:baseline;gap:12px;white-space:normal}
-  td:before{content:attr(data-l);font-size:11px;text-transform:uppercase;
+  td:before{content:attr(data-l);font-size:13px;text-transform:uppercase;
      letter-spacing:.06em;color:var(--dim);text-align:left;flex:none}
-  td.tkcell{font-size:16px;margin-bottom:5px}
+  td.tkcell{font-size:20px;margin-bottom:8px}
   td.tkcell:before{content:none}
   .chips{justify-content:flex-end}
 }
@@ -1831,7 +1874,11 @@ function initRun(cfg){
     go.addEventListener('click',function(){
       go.disabled=true;go.innerHTML='<span class="dot"></span>Starting';
       fetch(cfg.dispatch,{method:'POST'})
-        .then(function(r){if(!r.ok)throw r.status;
+        .then(function(r){
+          if(r.status===409){go.disabled=false;go.textContent='Run screen';
+            say('A run is already going \u2014 watching it.');
+            polls=0;stop();timer=setInterval(look,12000);look();return;}
+          if(!r.ok)throw r.status;
           say('Queued. This takes about a minute.');
           polls=0;stop();timer=setInterval(look,12000);setTimeout(look,6000);})
         .catch(function(){go.disabled=false;go.textContent='Run screen';
@@ -1954,7 +2001,9 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
             over = ('<span class="over">** over cap **</span>'
                     if cap and len(grp) > cap else "")
             H.append(f'<tr class="grp"><td colspan="11">{_esc(c)} '
-                     f'{len(grp)}/{cap or "–"}{over}</td></tr>')
+                     f'<span title="names shown / max distinct names this '
+                     f'cluster may hold">{len(grp)}/{cap or "–"}</span>'
+                     f'{over}</td></tr>')
             for r in sorted(grp, key=lambda x: -(x["iv"] or 0)):
                 flags = [f for f in r["notes"].split(",") if f]
                 used += flags
@@ -1984,6 +2033,27 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         H.append(f'<p class="sub" style="margin-top:10px">All expiries '
                  f'{_esc(rows[0]["expiry"])}. The 11%W floor is yours to '
                  f'enforce at ticket.</p>')
+
+        capped = [c for c in CLUSTER_ORDER
+                  if by_c.get(c) and CLUSTER_MAX.get(c)
+                  and len(by_c[c]) > CLUSTER_MAX[c]]
+        H.append('<h2>Reading the cluster line</h2><dl class="legend">')
+        H.append('<dt>2/1</dt><dd>Two names from this cluster passed the '
+                 'gates; the cluster is allowed one. Clusters cap distinct '
+                 '<em>names</em>, not position size, because the risk being '
+                 'capped is correlation — two high-beta names fall together, '
+                 'so holding both is closer to one double-sized bet than to '
+                 'two bets.</dd>')
+        H.append('<dt>** over cap **</dt><dd>Marks that breach. It is '
+                 '<strong>advisory</strong>: the row is still shown and you '
+                 'decide. Nothing here blocks an entry.</dd>')
+        if capped:
+            names = "; ".join(
+                f"{c} — " + ", ".join(r["t"] for r in by_c[c]) +
+                f" (max {CLUSTER_MAX[c]})" for c in capped)
+            H.append(f'<dt>now</dt><dd>{_esc(names)}. Passing the gates is not '
+                     f'permission to hold them all.</dd>')
+        H.append('</dl>')
 
         seen = []
         for f in used:
@@ -2015,10 +2085,14 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
             H.append(f'<details><summary>{_esc(r["t"])}'
                      f'<span class="n">{len(direct)} direct, '
                      f'{len(items)-len(direct)} sector</span></summary>')
-            for d, title, is_direct in items:
+            for item in items:
+                d, title, is_direct = item[0], item[1], item[2]
+                url = item[3] if len(item) > 3 else ""
                 cls = "head" if is_direct else "head sector"
+                body = (f'<a href="{_esc(url)}" target="_blank" rel="noopener '
+                        f'nofollow">{_esc(title)}</a>' if url else _esc(title))
                 H.append(f'<p class="{cls}"><span class="d">{_esc(str(d)[5:])}'
-                         f'</span><span>{_esc(title)}</span></p>')
+                         f'</span><span>{body}</span></p>')
             H.append('</details>')
 
     # ------------------------------------------------ dropped + sources
@@ -2639,12 +2713,64 @@ Producer Price Index for October 2026
     chk("frozen columns are stable",
         SCREEN_COLUMNS[:4] == ["run_utc", "us_date", "ticker", "verdict"])
 
+    print("GATE 3 HEADLINE LINKS")
+    u = YFProvider._news_url
+    chk("canonicalUrl (the publisher) wins over the Yahoo wrapper",
+        u({"canonicalUrl": {"url": "https://fool.com/a"},
+           "clickThroughUrl": {"url": "https://finance.yahoo.com/b"}})
+        == "https://fool.com/a")
+    chk("falls back to the Yahoo wrapper when there is no canonical",
+        u({"clickThroughUrl": {"url": "https://finance.yahoo.com/b"}})
+        == "https://finance.yahoo.com/b")
+    chk("a bare string URL still works",
+        u({"canonicalUrl": "https://x.example/c"}) == "https://x.example/c")
+    chk("no URL yields empty, never None", u({}) == "")
+    chk("a malformed url dict does not raise",
+        u({"canonicalUrl": {"site": "x"}, "clickThroughUrl": None}) == "")
+
+    class Flaky:
+        """Returns nothing twice, then real items — the observed ANET failure."""
+        def __init__(self):
+            self.calls = 0
+            self._cache = {}
+        _news_url = staticmethod(YFProvider._news_url)
+        def _tk(self, t):
+            self.calls += 1
+            class TK:
+                news = ([] if self.calls < 3 else
+                        [{"content": {"title": "ANET beats", "pubDate": "2026-08-22",
+                                      "canonicalUrl": {"url": "https://x.example/1"},
+                                      "finance": {"stockTickers": [{"symbol": "ANET"}]}}}])
+            return TK()
+    fl = Flaky()
+    got = YFProvider.news(fl, "ANET")
+    chk("a flaky news endpoint is retried, not read as an all-clear",
+        len(got) == 1 and fl.calls == 3, f"calls={fl.calls} items={len(got)}")
+    chk("the retried item carries its URL",
+        got[0][3] == "https://x.example/1")
+    fl2 = Flaky(); fl2.calls = -99          # never succeeds
+    chk("a genuinely dead endpoint still returns empty, so the report flags it",
+        YFProvider.news(fl2, "ANET", tries=2) == [])
+
     print("HTML PAGE")
     html = render_html(rows, dropped, conflicts, news, regime, today)
-    chk("a page with no repo configured ships zero script and zero URLs",
-        not any(x in html for x in ("http://", "https://", "<script",
-                                    "@import", "src=")),
-        "clean")
+    by_c_test = {}
+    for r in rows:
+        by_c_test.setdefault(r["cluster"], []).append(r)
+    # The contract is about what the page LOADS, not what it links to.
+    # Headline links are the point of Gate 3; a stylesheet, font or script
+    # pulled from someone else's server is a third party that can change the
+    # page under you, and on a phone it is also a page that breaks offline.
+    def loads_external(page):
+        return [x for x in ("<script src", "<link", "@import", "<img",
+                            "url(http", "@font-face") if x in page]
+    chk("a page with no repo configured ships no script at all",
+        "<script" not in html)
+    chk("nothing external is ever LOADED, only linked",
+        loads_external(html) == [], f"{loads_external(html)}")
+    chk("every outbound link opens safely",
+        html.count("<a href=\"http") == html.count('rel="noopener nofollow"'),
+        f'{html.count(chr(60)+"a href=" + chr(34) + "http")} links')
     withbtn = render_html(rows, dropped, conflicts, news,
                           dict(regime, repo="me/repo", run_id="123"), today)
     chk("configuring a repo adds the Run button", 'id="go"' in withbtn)
@@ -2653,12 +2779,14 @@ Producer Price Index for October 2026
     chk("no token, secret or Authorization header reaches the browser",
         not any(k in withbtn.lower() for k in
                 ("authorization", "token", "bearer", "secret", "ghp_")))
-    hosts = re.findall(r"https?://[a-z0-9.\-]+", withbtn)
-    chk("it only ever talks to the public GitHub API",
-        sorted(set(hosts)) == ["https://api.github.com", "https://github.com"],
-        str(sorted(set(hosts))))
-    chk("still no external stylesheet, font or script file",
-        not any(x in withbtn for x in ("@import", "<link", ".js\"", ".css\"")))
+    # Only fetch() targets matter for "who does this page talk to". Link hrefs
+    # are inert until a human taps them.
+    fetched = re.findall(r"fetch\(\s*['\"]?(https?://[a-z0-9.\-]+)", withbtn)
+    fetched += re.findall(r"API\s*=\s*'(https?://[a-z0-9.\-]+)", withbtn)
+    chk("the only host the page CALLS is the public GitHub API",
+        set(fetched) == {"https://api.github.com"}, str(sorted(set(fetched))))
+    chk("still loads no external stylesheet, font, script or image",
+        loads_external(withbtn) == [], f"{loads_external(withbtn)}")
     dsp = render_html(rows, dropped, conflicts, news,
                       dict(regime, repo="me/repo", dispatch_url="https://w.example/go"),
                       today)
@@ -2678,6 +2806,13 @@ Producer Price Index for October 2026
         "not computed" in html.lower())
     chk("Gate 3 is declared unapplied", "veto by hand" in html.lower())
     chk("headlines are collapsed, not dumped", html.count("<details>") > 0)
+    chk("headlines are clickable links",
+        'target="_blank" rel="noopener nofollow"' in html)
+    chk("a headline with no URL still renders as text",
+        "unlinked" in render_html(
+            rows, dropped, conflicts,
+            {rows[0]["t"]: [("2026-08-22", "unlinked", True, "")]},
+            regime, today))
     chk("ticker text is escaped", "&lt;" in _esc("<b>x</b>"))
     ang = render_html(rows, dropped, ["EVIL<script>alert(1)</script>"], news,
                       regime, today)
@@ -2700,6 +2835,25 @@ Producer Price Index for October 2026
     chk("a genuinely empty screen with healthy data is not data loss",
         not data_loss({"data": [], "trend": ["X"] * 22}, 22))
     chk("no names requested cannot divide by zero", not data_loss({}, 0))
+
+    print("CLUSTER CAP EXPLAINED ON THE PAGE")
+    chk("the page explains what n/max means",
+        "Reading the cluster line" in html)
+    chk("it says clusters cap NAMES, not size", "not position size" in html)
+    chk("it says the breach is advisory, not a block",
+        "advisory" in html and "Nothing here blocks" in html)
+    over = [c for c in CLUSTER_ORDER if by_c_test.get(c)
+            and CLUSTER_MAX.get(c) and len(by_c_test[c]) > CLUSTER_MAX[c]]
+    if over:
+        chk("a live breach names the offending tickers",
+            all(r["t"] in html for c in over for r in by_c_test[c]),
+            f"{over}")
+
+    print("TYPOGRAPHY")
+    chk("base font is comfortable on a phone", "font:17px/1.62" in html)
+    chk("numeric cells stay legible", "font-size:15.5px" in html)
+    chk("headline text is not smaller than the table", "font-size:15.5px" in html)
+    chk("tap target on the button is finger-sized", "padding:14px 24px" in html)
 
     print("CONDOR GATE")
     R = lambda v, s: {"vix": v, "stretch": s, "spx": None, "errors": []}

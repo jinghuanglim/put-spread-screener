@@ -1,0 +1,8 @@
+name = "pcs-dispatch"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# Set with:  npx wrangler secret put GH_TOKEN
+# Never put the token in this file — it is committed.
+[vars]
+ORIGIN = "https://YOURNAME.github.io"
