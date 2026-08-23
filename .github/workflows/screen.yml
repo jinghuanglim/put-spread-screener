@@ -1,0 +1,70 @@
+name: screen
+
+# No schedule. This runs only when you press the button — from the page, or
+# from the "Run workflow" control on this tab.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write           # commits the log and the page back
+
+concurrency:
+  group: screen
+  cancel-in-progress: false # never let a second press clobber a run mid-commit
+
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install --quiet yfinance requests
+
+      - name: Selftest
+        # A broken build must never publish. Runs offline, ~1 second.
+        run: python pcs_screen.py --selftest
+
+      - name: Run screen
+        env:
+          BLS_CONTACT_EMAIL: ${{ secrets.BLS_CONTACT_EMAIL }}
+          DISPATCH_URL: ${{ vars.DISPATCH_URL }}
+        # Yahoo rate-limits cloud IPs and GitHub runners are Azure. Three
+        # attempts with a real gap; if all three fail the script exits 2 on data
+        # loss and the job goes red rather than publishing an empty screen that
+        # reads like a quiet market.
+        run: |
+          for attempt in 1 2 3; do
+            echo "::group::attempt $attempt"
+            if python pcs_screen.py --quiet --csv-dir runs --html docs/index.html
+            then
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "attempt $attempt failed"
+            # `[ ... ] && sleep` would abort the step on the last pass, because
+            # GitHub runs `run:` blocks under `bash -e`. An explicit `if` keeps
+            # the loop's exit path readable.
+            if [ "$attempt" -lt 3 ]; then sleep 90; fi
+          done
+          echo "::error::all three attempts failed - not publishing"
+          exit 1
+
+      - name: Archive a dated copy
+        run: |
+          mkdir -p docs/archive
+          cp docs/index.html "docs/archive/$(date -u +%F-%H%M).html"
+
+      - name: Commit
+        run: |
+          git config user.name  "screener-bot"
+          git config user.email "screener-bot@users.noreply.github.com"
+          git add runs docs
+          git diff --staged --quiet && echo "nothing changed" && exit 0
+          git commit -m "screen $(date -u +%F\ %H:%M)"
+          git push
