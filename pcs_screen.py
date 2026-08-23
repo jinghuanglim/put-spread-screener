@@ -20,17 +20,49 @@ UNIVERSE = ["AAPL","AMD","AMZN","ANET","AVGO","CRWD","GOOGL","JNJ","JPM","LLY",
             "META","MSFT","NFLX","NVDA","PANW","PLTR","TSLA","TSM","V",
             "QQQ","SPY","IWM"]
 CLUSTERS = {
+    # ANET is networking hardware, not silicon, and keeping the labels literal
+    # was JH's call (23 Aug 2026) — so it gets its own cluster rather than
+    # being filed under Semis. The correlation that argued for Semis is real
+    # and did not go away: it is recorded in CROSS_CLUSTER below, where the
+    # cap structure cannot see it but a reader can.
+    #
+    # NFLX stays unclustered on measured evidence: its best match is Mega-cap
+    # platform at 0.22 / 0.18 / 0.15 over 60 / 120 / 250 sessions, barely above
+    # its correlation to the market itself. Genuinely idiosyncratic, so a
+    # cluster would be a label rather than a fact.
     "Semis":                ["NVDA","AMD","AVGO","TSM"],
+    "Networking":           ["ANET"],
     "Security":             ["CRWD","PANW"],
     "Mega-cap platform":    ["AAPL","MSFT","GOOGL","AMZN","META"],
     "High-beta":            ["PLTR","TSLA"],
     "Defensive/financial":  ["JNJ","LLY","V","JPM"],
     "Index":                ["SPY","QQQ","IWM"],
 }
-CLUSTER_MAX = {"Semis":2,"Security":1,"Mega-cap platform":3,
+CLUSTER_MAX = {"Semis":2,"Networking":1,"Security":1,"Mega-cap platform":3,
                "High-beta":1,"Defensive/financial":3,"Index":1}
-CLUSTER_ORDER = ["Semis","Security","Mega-cap platform","High-beta",
-                 "Defensive/financial","Index","Unclustered"]
+CLUSTER_ORDER = ["Semis","Networking","Security","Mega-cap platform",
+                 "High-beta","Defensive/financial","Index","Unclustered"]
+
+# Correlations that cross a cluster boundary, so the cap structure cannot see
+# them. A cluster line is a statement about the names inside it; it says nothing
+# about two names in different clusters that happen to move together, and the
+# per-name cap will not catch that either. Measured, dated, and stated as a
+# number so it can be re-measured rather than believed.
+CROSS_CLUSTER = [
+    (("ANET",), ("NVDA", "AMD", "AVGO", "TSM"),
+     "ANET has its own cluster but tracked the semis at 0.62 / 0.48 / 0.46 "
+     "over the last 60 / 120 / 250 sessions (measured 23 Aug 2026) \u2014 "
+     "above its own 0.57 correlation to SPY at 60 sessions. Holding it "
+     "alongside a semi is closer to two of the same bet than the cluster "
+     "lines suggest."),
+]
+
+
+def cross_cluster_notes(tickers):
+    """Notes whose both sides are present in this screen."""
+    shown = set(tickers)
+    return [note for a, b, note in CROSS_CLUSTER
+            if shown & set(a) and shown & set(b)]
 DELTA_ANCHOR = {"NVDA":0.20, "TSM":0.20}          # everything else 0.15
 DEFAULT_DELTA = 0.15
 # Fallback delta, used ONLY if live worst-case credit fails the 11% floor at
@@ -1446,6 +1478,10 @@ def report(rows, dropped, conflicts, news_out, regime, today, verbose=False):
     L.append("")
     if rows:
         L.append(f"All expiries {rows[0]['expiry']} unless a row says otherwise.")
+    for note in cross_cluster_notes([r["t"] for r in rows]):
+        L.append("")
+        for j, seg in enumerate(_wrap("CROSS-CLUSTER: " + note, 96)):
+            L.append(seg if j == 0 else "  " + seg)
 
     # ---------------------------------------------------------- FLAGS
     if used and not verbose:
@@ -1862,9 +1898,22 @@ function initRun(cfg){
             say('Last run <b>'+run.conclusion+'</b> &middot; '+
                 '<a href="'+run.html_url+'" target="_blank" rel="noopener">log</a>');
           }else if(cfg.runId&&String(run.id)!==cfg.runId){
-            say('');fresh.className='fresh show';
+            say('');
+            // location.reload() asks the GitHub Pages CDN for the same
+            // URL, and the edge happily serves the copy it already has —
+            // which is the OLD page, whose runId is still stale, so the
+            // banner comes straight back. Pressing it four or five times
+            // "works" only because the edge eventually catches up. A query
+            // string the edge has never seen is a different cache key, so
+            // the fetch has to reach the origin. Keyed on the run number
+            // rather than a timestamp, so it settles instead of minting a
+            // fresh URL on every click.
+            fresh.innerHTML='Run #'+run.run_number+' finished. '+
+              '<a href="?r='+encodeURIComponent(run.run_number)+'">'+
+              '<b>Reload</b></a>';
+            fresh.className='fresh show';
           }else{
-            say('Up to date');
+            say('Showing the latest run'+(cfg.runNumber?' (#'+cfg.runNumber+')':''));
           }
           stop();
         }
@@ -1886,6 +1935,17 @@ function initRun(cfg){
           say('Could not start it \u2014 <a href="'+cfg.actions+
               '" target="_blank" rel="noopener">run it from Actions</a>');});
     });
+  }
+  var b=document.getElementById('built');
+  if(b&&b.dataset.utc){
+    try{
+      var d=new Date(b.dataset.utc);
+      if(!isNaN(d)){
+        b.textContent=d.toLocaleString(undefined,
+          {hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
+        b.title=b.dataset.utc;
+      }
+    }catch(e){}
   }
   look();
   timer=setInterval(look,12000);
@@ -1918,9 +1978,21 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     feed = {frozenset(["live"]): "live", frozenset(["close"]): "prev close"}.get(
         frozenset(srcs), "mixed" if srcs else "n/a")
     H.append(f'<h1>Put credit spread screen</h1>')
+    # A date alone cannot answer "did my run land?" — two screens on the same
+    # day look identical. The run number and build time make the page
+    # self-identifying, so the question is settled by looking at it rather than
+    # by trusting a status line that polls an API.
+    built = regime.get("built_utc") or ""
+    rnum = regime.get("run_number") or ""
+    stamp = ""
+    if built:
+        stamp = (f' &middot; built <span id="built" data-utc="{_esc(built)}">'
+                 f'{_esc(built[11:16])} UTC</span>')
+    if rnum:
+        stamp = f' &middot; <b>run #{_esc(rnum)}</b>' + stamp
     H.append(f'<p class="sub">{_esc(today)} &middot; US session '
              f'{_esc(regime.get("us_date","?"))} &middot; spot {feed} '
-             f'&middot; DTE {DTE_MIN}–{DTE_MAX}</p>')
+             f'&middot; DTE {DTE_MIN}–{DTE_MAX}{stamp}</p>')
 
     vix = f"{regime['vix']:.2f}" if regime["vix"] is not None else "unread"
     stv = (f"{regime['stretch']*100:+.2f}%" if regime["stretch"] is not None
@@ -1943,11 +2015,12 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                      f'target="_blank" rel="noopener">Run screen &rarr;</a>')
         H.append('<span class="runstat" id="stat"></span></div>')
         H.append('<div class="fresh" id="fresh">New results are ready. '
-                 '<a href="." onclick="location.reload();return false">'
-                 '<b>Reload</b></a></div>')
+                 '<a href="." id="reload"><b>Reload</b></a></div>')
         H.append(f'<script>{_RUN_JS}</script>')
         H.append(f'<script>initRun({{repo:{_js(repo)},wf:{_js(wf)},'
-                 f'runId:{_js(str(run_id))},dispatch:{_js(dispatch)},'
+                 f'runId:{_js(str(run_id))},'
+                 f'runNumber:{_js(str(regime.get("run_number") or ""))},'
+                 f'dispatch:{_js(dispatch)},'
                  f'actions:{_js(actions_url)}}});</script>')
     H.append('<div class="grid">')
     for k, v in (("VIX", vix), ("SPX vs 20-MA", stv),
@@ -2044,6 +2117,9 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                      f'ones. Passing the gates says nothing about how much of '
                      f'any of it to hold \u2014 that is position sizing, and '
                      f'this page does not do it.</p>')
+        for note in cross_cluster_notes([r["t"] for r in rows]):
+            H.append(f'<div class="banner warn"><b>Two groups, one bet</b>'
+                     f'{_esc(note)}</div>')
 
         seen = []
         for f in used:
@@ -2051,11 +2127,50 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
             if k not in seen:
                 seen.append(k)
         if seen:
-            H.append('<h2>Flags</h2><dl class="legend">')
+            H.append('<h2>Flags</h2>')
+            if any(f in used for f in HOT_FLAGS):
+                H.append('<p class="sub">Flags in <span class="chip hot">red'
+                         '</span> are the ones to settle before acting — the '
+                         'row may not mean what it appears to. Grey flags are '
+                         'context.</p>')
+            H.append('<dl class="legend">')
             for code, text in FLAG_LEGEND:
                 if code in seen:
                     H.append(f'<dt>{_esc(code)}</dt><dd>{_esc(text)}</dd>')
             H.append('</dl>')
+
+    # ------------------------------------------------ what this is
+    H.append('<h2>What the screen does</h2>')
+    H.append(
+        '<details><summary>The three gates, and what they do not cover'
+        '</summary>'
+        '<p class="head"><span>Each name is tested in order. Any failure drops '
+        'it and nothing downstream can rescue it — these are vetoes, not '
+        'scores, so there is no "good enough on balance".</span></p>'
+        '<dl class="legend">'
+        '<dt>Gate 1 &middot; trend</dt><dd>Last price must be above the average '
+        'of the previous 20 trading days. Below it, the name is out, however '
+        'attractive the premium. The average uses completed days only, so '
+        'today\u2019s part-formed bar cannot flatter it.</dd>'
+        '<dt>Gate 2 &middot; earnings</dt><dd>No scheduled results on or before '
+        'expiry. An earnings date inside the window is the single largest '
+        'source of the overnight gap this structure cannot survive. Dates come '
+        'from two independent sources; when they disagree the name is flagged '
+        'rather than guessed at. Index funds have no earnings, so they are '
+        'tested against CPI, jobs and Fed days instead.</dd>'
+        '<dt>Gate 3 &middot; news</dt><dd><strong>Not automated.</strong> '
+        'Headlines are printed below for a person to read. A guidance cut, a '
+        'probe, a downgrade cluster or sector contagion is a veto no matter '
+        'how rich the premium looks. Nothing here decides that for you.</dd>'
+        '<dt>width filter</dt><dd>The two strikes must sit at least $5 apart, '
+        'which rules out anything trading under roughly $100.</dd>'
+        '</dl>'
+        '<p class="head"><span><strong>What it does not do:</strong> it does '
+        'not price anything, check that the credit is worth the risk, size a '
+        'position, or know what you already hold. A name appearing here means '
+        'it survived three filters \u2014 nothing more. Most days the honest '
+        'answer is to do nothing.</span></p>'
+        '</details>')
 
     # ------------------------------------------------ gate 3
     if news_out:
@@ -2850,6 +2965,85 @@ Producer Price Index for October 2026
     chk("the terminal report keeps the IBKR note",
         "NOT COMPUTED" in txt)
 
+    print("THE PAGE IDENTIFIES ITSELF")
+    stamped = render_html(rows, dropped, conflicts, news,
+                          dict(regime, repo="me/repo", run_id="999",
+                               run_number="14",
+                               built_utc="2026-08-23T08:20:11Z"), today)
+    chk("run number is on the page", "run #14" in stamped)
+    chk("build time is on the page", "08:20 UTC" in stamped)
+    chk("the raw UTC stamp is kept for the browser to localise",
+        'data-utc="2026-08-23T08:20:11Z"' in stamped)
+    chk("run number reaches the status script", 'runNumber:"14"' in stamped)
+    chk("a local build with no run number still renders",
+        "run #" not in render_html(rows, dropped, conflicts, news, regime, today))
+    chk("two runs the same day are distinguishable",
+        render_html(rows, dropped, conflicts, news,
+                    dict(regime, run_number="15",
+                         built_utc="2026-08-23T09:00:00Z"), today)
+        != stamped)
+
+    print("ANET CLUSTERING")
+    chk("ANET has its own cluster", cluster_of("ANET") == "Networking")
+    chk("it is capped at one", CLUSTER_MAX["Networking"] == 1)
+    chk("it is not inside Semis", "ANET" not in CLUSTERS["Semis"])
+    chk("Semis is back to the four chip names",
+        CLUSTERS["Semis"] == ["NVDA", "AMD", "AVGO", "TSM"])
+    chk("the new cluster is in the display order",
+        "Networking" in CLUSTER_ORDER)
+    chk("every cluster has a cap",
+        all(c in CLUSTER_MAX for c in CLUSTERS))
+    chk("every cluster is in the display order",
+        all(c in CLUSTER_ORDER for c in CLUSTERS))
+    print("  cross-cluster correlation is not lost")
+    chk("the ANET/semis link is recorded",
+        cross_cluster_notes(["ANET", "NVDA"]) != [])
+    chk("it fires only when both sides are on the screen",
+        cross_cluster_notes(["ANET"]) == []
+        and cross_cluster_notes(["NVDA", "TSM"]) == [])
+    chk("the note carries the measured numbers, not an adjective",
+        "0.62" in cross_cluster_notes(["ANET", "AVGO"])[0])
+    chk("it is dated so it can be re-measured",
+        "2026" in cross_cluster_notes(["ANET", "AVGO"])[0])
+    both = render_html(
+        rows, dropped, conflicts, news,
+        dict(regime, repo="me/repo"), today) if any(
+            r["t"] in ("NVDA", "AMD", "AVGO", "TSM") for r in rows) and any(
+            r["t"] == "ANET" for r in rows) else None
+    if both is not None:
+        chk("and the page warns when both are listed",
+            "Two groups, one bet" in both)
+    chk("NFLX stays unclustered - its best match was noise",
+        cluster_of("NFLX") == "Unclustered")
+    chk("no name lands in two clusters",
+        sum(len(v) for v in CLUSTERS.values()) ==
+        len({t for v in CLUSTERS.values() for t in v}))
+    chk("every clustered name is in the universe",
+        all(t in UNIVERSE for v in CLUSTERS.values() for t in v))
+    chk("the Semis cap did not silently move", CLUSTER_MAX["Semis"] == 2)
+
+    print("RELOAD MUST BYPASS THE CDN")
+    chk("the reload link carries a cache-busting key",
+        "encodeURIComponent(run.run_number)" in stamped
+        and '?r=' in stamped)
+    chk("it no longer calls location.reload on the same URL",
+        "location.reload();return false" not in stamped)
+    chk("the key is the run number, so it settles rather than churning",
+        "run.run_number" in stamped)
+
+    print("THE PAGE EXPLAINS ITSELF")
+    chk("the gates are described", "The three gates" in html)
+    chk("Gate 1 explains the 20-day average", "previous 20 trading days" in html)
+    chk("Gate 2 explains why earnings matter", "overnight gap" in html)
+    chk("Gate 3 is declared not automated", "Not automated" in html)
+    chk("the limits are stated as plainly as the gates",
+        "does not price anything" in html)
+    chk("it says doing nothing is normal", "do nothing" in html)
+    chk("red flags are explained when any are shown",
+        ("to settle before acting" in html)
+        == any(f in {c for r in rows for c in r["notes"].split(",")}
+               for f in HOT_FLAGS))
+
     print("TYPOGRAPHY")
     chk("base font is comfortable on a phone", "font:17px/1.62" in html)
     chk("numeric cells stay legible", "font-size:15.5px" in html)
@@ -2944,6 +3138,9 @@ def main():
         regime["repo"] = a.repo or os.environ.get("GITHUB_REPOSITORY")
         regime["workflow_file"] = a.workflow_file
         regime["run_id"] = os.environ.get("GITHUB_RUN_ID")
+        regime["run_number"] = os.environ.get("GITHUB_RUN_NUMBER")
+        from datetime import timezone as _tz
+        regime["built_utc"] = datetime.now(_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         regime["dispatch_url"] = a.dispatch_url or os.environ.get("DISPATCH_URL")
         d = os.path.dirname(a.html)
         if d:
