@@ -67,4 +67,23 @@ jobs:
           git add runs docs
           git diff --staged --quiet && echo "nothing changed" && exit 0
           git commit -m "screen $(date -u +%F\ %H:%M)"
-          git push
+          # The push races anyone who commits while a run is in flight — you
+          # pushing from your laptop, or a second run finishing first. The
+          # checkout is then stale and the push is rejected, which used to kill
+          # the job AFTER the screen had already succeeded: work done, nothing
+          # published. Rebase onto whatever landed and try again. The logs are
+          # append-only and nobody else edits them by hand, so replaying on top
+          # is the correct resolution rather than a merge.
+          for attempt in 1 2 3; do
+            if git push; then
+              echo "pushed on attempt $attempt"
+              exit 0
+            fi
+            echo "push rejected - rebasing onto the remote and retrying"
+            git pull --rebase --autostash || {
+              echo "::error::rebase failed - resolve by hand"
+              exit 1
+            }
+          done
+          echo "::error::could not push after 3 attempts"
+          exit 1
