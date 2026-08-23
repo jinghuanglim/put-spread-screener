@@ -1,0 +1,2 @@
+run_utc,us_date,vix,spx_stretch,condor_go,condor_reason,spot_srcs,expiry,macro_near,macro_on_expiry,macro_bls_ok,fomc_src,macro_events,n_passed,n_dropped,nasdaq_from,nasdaq_to,nq_dated,nq_cleared,nq_unconfirmed
+2026-08-23T07:14:01Z,2026-08-23,15.13,0.003917,NO-GO,VIX 15.13 < 20,live,2026-09-11,CPI@2026-09-11,CPI,1,fed.gov (live),4,8,14,2026-08-24,2026-09-25,1,8,0
