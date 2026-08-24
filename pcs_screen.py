@@ -1882,29 +1882,71 @@ function initRun(cfg){
   var stat=document.getElementById('stat'),go=document.getElementById('go'),
       fresh=document.getElementById('fresh'),bar=document.getElementById('bar'),
       fill=document.getElementById('fill');
-  var timer=null,polls=0,baseline=null,awaiting=0,seenId=null;
+  var timer=null,polls=0,baseline=null,awaiting=0,seenId=null,publishing=0;
 
   function say(h){stat.innerHTML=h;}
   function stop(){if(timer){clearInterval(timer);timer=null;}}
-  function arm(ms){stop();timer=setInterval(look,ms||10000);}
-  function busy(label){
-    if(go.tagName==='BUTTON'){go.disabled=true;
-      go.innerHTML='<span class="dot"></span>'+(label||'Running');}
-  }
-  function idle(){
-    if(go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
-  }
-  function progress(pct,text){
-    if(!bar)return;
-    bar.style.display=pct===null?'none':'block';
-    if(pct!==null)fill.style.width=Math.max(4,Math.min(100,pct))+'%';
-    if(text!==undefined)fill.title=text;
-  }
+  function arm(fn,ms){stop();timer=setInterval(fn,ms);}
+  function busy(l){if(go.tagName==='BUTTON'){go.disabled=true;
+    go.innerHTML='<span class="dot"></span>'+(l||'Running');}}
+  function idle(){if(go.tagName==='BUTTON'){go.disabled=false;
+    go.textContent='Run screen';}}
+  function progress(p){if(!bar)return;bar.style.display=p===null?'none':'block';
+    if(p!==null)fill.style.width=Math.max(4,Math.min(100,p))+'%';}
   function secs(t){return Math.max(0,Math.round((Date.now()-new Date(t))/1000));}
+  function giveUp(msg){
+    idle();progress(null);stop();
+    say(msg+' \u2014 <a href="'+cfg.actions+'" target="_blank" '+
+        'rel="noopener">check Actions</a>');
+  }
 
-  // Which step is it on? The runs endpoint only says in_progress; the jobs
-  // endpoint names the step, which is the difference between a spinner and
-  // knowing the thing is on "Run screen" rather than stuck installing.
+  // ---- phase 2: is the CDN serving the new page yet? -------------------
+  //
+  // A finished run is not a published page. GitHub Pages sits behind a CDN
+  // that keeps serving the old copy for up to a minute or so, and a query
+  // string does NOT reliably change its cache key - which is why the earlier
+  // "?r=15" trick looked like a Reload button that did nothing: the click
+  // navigated, the edge returned the same stale bytes, and the banner came
+  // straight back. Nothing on the client can force the edge to expire.
+  //
+  // So instead of guessing, ask. Fetch the page itself and read the run
+  // number baked into it. Only offer Reload once the edge is actually handing
+  // out the new build, at which point reloading genuinely works.
+  function published(){
+    if(Date.now()-publishing>240000){
+      publishing=0;
+      giveUp('Run finished but the page has not published in 4 minutes');
+      return;
+    }
+    fetch(location.pathname+'?probe='+Date.now(),{cache:'no-store'})
+      .then(function(r){return r.ok?r.text():Promise.reject(0);})
+      .then(function(t){
+        var m=t.match(/runNumber:"(\\d+)"/);
+        if(!m)return;
+        var live=parseInt(m[1],10),mine=parseInt(cfg.runNumber||'0',10);
+        if(live>mine){
+          publishing=0;stop();idle();progress(null);say('');
+          fresh.innerHTML='Run #'+live+' is published. '+
+            '<a href="#" id="doreload"><b>Reload</b></a>';
+          fresh.className='fresh show';
+          document.getElementById('doreload').onclick=function(e){
+            e.preventDefault();location.reload();};
+        }else{
+          say('Run finished \u00b7 publishing\u2026 ('+
+              Math.round((Date.now()-publishing)/1000)+'s)');
+        }
+      })
+      .catch(function(){});
+  }
+
+  function startPublishWatch(){
+    publishing=Date.now();
+    progress(97);busy('Publishing');
+    say('Run finished \u00b7 publishing\u2026');
+    arm(published,5000);published();
+  }
+
+  // ---- phase 1: watch the run itself -----------------------------------
   function steps(run){
     fetch(BASE+'/actions/runs/'+run.id+'/jobs',
           {headers:{'Accept':'application/vnd.github+json'}})
@@ -1916,16 +1958,18 @@ function initRun(cfg){
           if(all[i].conclusion)done++;
           if(all[i].status==='in_progress'&&!cur)cur=all[i];
         }
-        progress(100*done/all.length,'');
+        progress(95*done/all.length);
         say('<b>'+(cur?cur.name:'Working')+'</b> \u00b7 step '+
             Math.min(done+1,all.length)+' of '+all.length+' \u00b7 '+
             secs(run.run_started_at||run.created_at)+'s');
-      })
-      .catch(function(){});
+      }).catch(function(){});
   }
 
   function look(){
-    if(++polls>60){stop();progress(null);return;}
+    // 60 unauthenticated API calls per hour, per IP. At 10s that is 6 minutes
+    // of watching before the budget is gone, so the cap has to SAY it stopped
+    // rather than freeze on whatever text was last written.
+    if(++polls>36){giveUp('Stopped watching after 6 minutes');return;}
     fetch(API,{headers:{'Accept':'application/vnd.github+json'}})
       .then(function(r){
         if(r.status===403)return Promise.reject('rate');
@@ -1934,72 +1978,59 @@ function initRun(cfg){
         var run=(d.workflow_runs||[])[0];
         if(!run){say('');stop();return;}
 
-        // A dispatched run takes seconds to appear in this list. Treating
-        // "newest run" as "the run I just started" reads the PREVIOUS,
-        // finished run, concludes the job is done, and resets the button
-        // about six seconds after the click - which is exactly what it did.
-        // Hold until an id newer than the pre-dispatch baseline shows up.
+        // A dispatched run takes seconds to appear here. Treating "newest run"
+        // as "the one I just started" reads the PREVIOUS finished run and
+        // declares victory immediately.
         if(awaiting&&baseline!==null&&String(run.id)===baseline){
-          if(Date.now()-awaiting>120000){
-            awaiting=0;idle();progress(null);
-            say('GitHub never registered it \u2014 <a href="'+cfg.actions+
-                '" target="_blank" rel="noopener">check Actions</a>');
-            stop();return;
+          if(Date.now()-awaiting>90000){
+            awaiting=0;
+            giveUp('GitHub never registered the run');
+            return;
           }
-          busy('Starting');progress(3,'');
-          say('Waiting for GitHub to register the run\u2026');
+          busy('Starting');progress(3);
+          say('Waiting for GitHub to register the run\u2026 ('+
+              Math.round((Date.now()-awaiting)/1000)+'s)');
           return;
         }
-        awaiting=0;
-        seenId=String(run.id);
+        awaiting=0;seenId=String(run.id);
 
-        // conclusion===null covers queued, pending, in_progress and waiting
-        // without having to enumerate GitHub's status vocabulary.
-        if(run.conclusion===null){
+        if(run.conclusion===null){          // queued, pending, in_progress
           busy('Running');
           say('<b>Running</b> \u00b7 '+secs(run.created_at)+'s');
           steps(run);
-          arm(6000);
           return;
         }
-        idle();progress(null);
         if(run.conclusion!=='success'){
+          idle();progress(null);stop();
           say('Last run <b>'+run.conclusion+'</b> \u00b7 <a href="'+
               run.html_url+'" target="_blank" rel="noopener">log</a>');
-        }else if(cfg.runId&&String(run.id)!==cfg.runId){
-          say('');
-          fresh.innerHTML='Run #'+run.run_number+' finished. '+
-            '<a href="?r='+encodeURIComponent(run.run_number)+'">'+
-            '<b>Reload</b></a>';
-          fresh.className='fresh show';
-        }else{
-          say('Showing the latest run'+(cfg.runNumber?' (#'+cfg.runNumber+')':''));
+          return;
         }
-        stop();
+        if(cfg.runId&&String(run.id)!==cfg.runId){
+          startPublishWatch();               // hand over to phase 2
+          return;
+        }
+        idle();progress(null);stop();
+        say('Showing the latest run'+(cfg.runNumber?' (#'+cfg.runNumber+')':''));
       })
       .catch(function(e){
-        // 60 requests/hour unauthenticated. Say so rather than going blank,
-        // or a rate limit is indistinguishable from nothing happening.
-        if(e==='rate'){say('GitHub rate limit \u2014 <a href="'+cfg.actions+
-          '" target="_blank" rel="noopener">check Actions</a>');}
-        else{say('');}
-        progress(null);stop();
+        if(e==='rate'){giveUp('GitHub rate limit reached');}
+        else{say('');progress(null);stop();}
       });
   }
 
   if(go.tagName==='BUTTON'){
     go.addEventListener('click',function(){
-      busy('Starting');progress(3,'');say('Starting\u2026');
+      busy('Starting');progress(3);say('Starting\u2026');
       baseline=seenId;
       fetch(cfg.dispatch,{method:'POST'})
         .then(function(r){
           if(r.status===409){
             awaiting=0;say('A run is already going \u2014 watching it.');
-            polls=0;arm(6000);look();return;}
+            polls=0;arm(look,10000);look();return;}
           if(!r.ok)throw r.status;
-          awaiting=Date.now();polls=0;
-          say('Queued\u2026');
-          arm(6000);setTimeout(look,3000);})
+          awaiting=Date.now();polls=0;say('Queued\u2026');
+          arm(look,10000);setTimeout(look,4000);})
         .catch(function(){
           awaiting=0;idle();progress(null);
           say('Could not start it \u2014 <a href="'+cfg.actions+
@@ -2019,7 +2050,7 @@ function initRun(cfg){
     }catch(e){}
   }
   look();
-  arm(10000);
+  arm(look,10000);
 }
 """
 
@@ -2086,8 +2117,7 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                      f'target="_blank" rel="noopener">Run screen &rarr;</a>')
         H.append('<span class="runstat" id="stat"></span></div>')
         H.append('<div class="bar" id="bar"><div id="fill"></div></div>')
-        H.append('<div class="fresh" id="fresh">New results are ready. '
-                 '<a href="." id="reload"><b>Reload</b></a></div>')
+        H.append('<div class="fresh" id="fresh"></div>')
         H.append(f'<script>{_RUN_JS}</script>')
         H.append(f'<script>initRun({{repo:{_js(repo)},wf:{_js(wf)},'
                  f'runId:{_js(str(run_id))},'
@@ -3108,7 +3138,7 @@ Producer Price Index for October 2026
         "String(run.id)===baseline" in stamped)
     chk("it keeps waiting instead of concluding", "Waiting for GitHub" in stamped)
     chk("but gives up rather than spinning forever",
-        "never registered it" in stamped)
+        "never registered the run" in stamped)
     chk("liveness uses conclusion, not a status whitelist",
         "run.conclusion===null" in stamped)
     chk("a rate limit is reported, not silently blank",
@@ -3122,14 +3152,31 @@ Producer Price Index for October 2026
     chk("there is a progress bar", 'id="bar"' in stamped and 'id="fill"' in stamped)
     chk("the bar is hidden until a run is live", ".bar{display:none" in stamped)
 
-    print("RELOAD MUST BYPASS THE CDN")
-    chk("the reload link carries a cache-busting key",
-        "encodeURIComponent(run.run_number)" in stamped
-        and '?r=' in stamped)
-    chk("it no longer calls location.reload on the same URL",
-        "location.reload();return false" not in stamped)
-    chk("the key is the run number, so it settles rather than churning",
-        "run.run_number" in stamped)
+    print("RELOAD IS OFFERED ONLY ONCE THE CDN HAS THE NEW PAGE")
+    chk("the page itself is polled, not just the API",
+        "location.pathname+'?probe='" in stamped)
+    chk("that fetch bypasses the browser cache",
+        "cache:'no-store'" in stamped)
+    chk("it reads the run number out of the served HTML",
+        'runNumber:"(' in stamped)
+    chk("Reload appears only when the served build is newer",
+        "live>mine" in stamped)
+    chk("the old query-string cache-bust is gone",
+        "?r='+encodeURIComponent" not in stamped)
+    chk("publishing has its own visible wait state",
+        "startPublishWatch" in stamped and "publishing" in stamped)
+    chk("and gives up rather than waiting forever",
+        "has not published in 4 minutes" in stamped)
+
+    print("NOTHING FREEZES SILENTLY")
+    for msg in ("Stopped watching after 6 minutes",
+                "GitHub never registered the run",
+                "GitHub rate limit reached",
+                "has not published in 4 minutes"):
+        chk(f"terminal state announces itself: {msg[:34]}", msg in stamped)
+    chk("every give-up offers the Actions link",
+        stamped.count("check Actions") >= 1)
+    chk("the poll cap matches the API budget", "polls>36" in stamped)
 
     print("THE PAGE EXPLAINS ITSELF")
     chk("the gates are described", "The three gates" in html)
