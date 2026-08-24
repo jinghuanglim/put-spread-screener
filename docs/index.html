@@ -114,12 +114,12 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 }
 </style></head><body><div class="wrap">
 <h1>Put credit spread screen</h1>
-<p class="sub">2026-08-24 &middot; US session 2026-08-24 &middot; spot live &middot; DTE 14–21 &middot; <b>run #15</b> &middot; built <span id="built" data-utc="2026-08-24T13:32:18Z">13:32 UTC</span></p>
+<p class="sub">2026-08-24 &middot; US session 2026-08-24 &middot; spot live &middot; DTE 14–21 &middot; <b>run #16</b> &middot; built <span id="built" data-utc="2026-08-24T13:44:27Z">13:44 UTC</span></p>
 <div class="runbar">
 <button class="btn" id="go">Run screen</button>
 <span class="runstat" id="stat"></span></div>
 <div class="bar" id="bar"><div id="fill"></div></div>
-<div class="fresh" id="fresh">New results are ready. <a href="." id="reload"><b>Reload</b></a></div>
+<div class="fresh" id="fresh"></div>
 <script>
 function initRun(cfg){
   var BASE='https://api.github.com/repos/'+cfg.repo;
@@ -127,29 +127,71 @@ function initRun(cfg){
   var stat=document.getElementById('stat'),go=document.getElementById('go'),
       fresh=document.getElementById('fresh'),bar=document.getElementById('bar'),
       fill=document.getElementById('fill');
-  var timer=null,polls=0,baseline=null,awaiting=0,seenId=null;
+  var timer=null,polls=0,baseline=null,awaiting=0,seenId=null,publishing=0;
 
   function say(h){stat.innerHTML=h;}
   function stop(){if(timer){clearInterval(timer);timer=null;}}
-  function arm(ms){stop();timer=setInterval(look,ms||10000);}
-  function busy(label){
-    if(go.tagName==='BUTTON'){go.disabled=true;
-      go.innerHTML='<span class="dot"></span>'+(label||'Running');}
-  }
-  function idle(){
-    if(go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
-  }
-  function progress(pct,text){
-    if(!bar)return;
-    bar.style.display=pct===null?'none':'block';
-    if(pct!==null)fill.style.width=Math.max(4,Math.min(100,pct))+'%';
-    if(text!==undefined)fill.title=text;
-  }
+  function arm(fn,ms){stop();timer=setInterval(fn,ms);}
+  function busy(l){if(go.tagName==='BUTTON'){go.disabled=true;
+    go.innerHTML='<span class="dot"></span>'+(l||'Running');}}
+  function idle(){if(go.tagName==='BUTTON'){go.disabled=false;
+    go.textContent='Run screen';}}
+  function progress(p){if(!bar)return;bar.style.display=p===null?'none':'block';
+    if(p!==null)fill.style.width=Math.max(4,Math.min(100,p))+'%';}
   function secs(t){return Math.max(0,Math.round((Date.now()-new Date(t))/1000));}
+  function giveUp(msg){
+    idle();progress(null);stop();
+    say(msg+' — <a href="'+cfg.actions+'" target="_blank" '+
+        'rel="noopener">check Actions</a>');
+  }
 
-  // Which step is it on? The runs endpoint only says in_progress; the jobs
-  // endpoint names the step, which is the difference between a spinner and
-  // knowing the thing is on "Run screen" rather than stuck installing.
+  // ---- phase 2: is the CDN serving the new page yet? -------------------
+  //
+  // A finished run is not a published page. GitHub Pages sits behind a CDN
+  // that keeps serving the old copy for up to a minute or so, and a query
+  // string does NOT reliably change its cache key - which is why the earlier
+  // "?r=15" trick looked like a Reload button that did nothing: the click
+  // navigated, the edge returned the same stale bytes, and the banner came
+  // straight back. Nothing on the client can force the edge to expire.
+  //
+  // So instead of guessing, ask. Fetch the page itself and read the run
+  // number baked into it. Only offer Reload once the edge is actually handing
+  // out the new build, at which point reloading genuinely works.
+  function published(){
+    if(Date.now()-publishing>240000){
+      publishing=0;
+      giveUp('Run finished but the page has not published in 4 minutes');
+      return;
+    }
+    fetch(location.pathname+'?probe='+Date.now(),{cache:'no-store'})
+      .then(function(r){return r.ok?r.text():Promise.reject(0);})
+      .then(function(t){
+        var m=t.match(/runNumber:"(\d+)"/);
+        if(!m)return;
+        var live=parseInt(m[1],10),mine=parseInt(cfg.runNumber||'0',10);
+        if(live>mine){
+          publishing=0;stop();idle();progress(null);say('');
+          fresh.innerHTML='Run #'+live+' is published. '+
+            '<a href="#" id="doreload"><b>Reload</b></a>';
+          fresh.className='fresh show';
+          document.getElementById('doreload').onclick=function(e){
+            e.preventDefault();location.reload();};
+        }else{
+          say('Run finished · publishing… ('+
+              Math.round((Date.now()-publishing)/1000)+'s)');
+        }
+      })
+      .catch(function(){});
+  }
+
+  function startPublishWatch(){
+    publishing=Date.now();
+    progress(97);busy('Publishing');
+    say('Run finished · publishing…');
+    arm(published,5000);published();
+  }
+
+  // ---- phase 1: watch the run itself -----------------------------------
   function steps(run){
     fetch(BASE+'/actions/runs/'+run.id+'/jobs',
           {headers:{'Accept':'application/vnd.github+json'}})
@@ -161,16 +203,18 @@ function initRun(cfg){
           if(all[i].conclusion)done++;
           if(all[i].status==='in_progress'&&!cur)cur=all[i];
         }
-        progress(100*done/all.length,'');
+        progress(95*done/all.length);
         say('<b>'+(cur?cur.name:'Working')+'</b> · step '+
             Math.min(done+1,all.length)+' of '+all.length+' · '+
             secs(run.run_started_at||run.created_at)+'s');
-      })
-      .catch(function(){});
+      }).catch(function(){});
   }
 
   function look(){
-    if(++polls>60){stop();progress(null);return;}
+    // 60 unauthenticated API calls per hour, per IP. At 10s that is 6 minutes
+    // of watching before the budget is gone, so the cap has to SAY it stopped
+    // rather than freeze on whatever text was last written.
+    if(++polls>36){giveUp('Stopped watching after 6 minutes');return;}
     fetch(API,{headers:{'Accept':'application/vnd.github+json'}})
       .then(function(r){
         if(r.status===403)return Promise.reject('rate');
@@ -179,72 +223,59 @@ function initRun(cfg){
         var run=(d.workflow_runs||[])[0];
         if(!run){say('');stop();return;}
 
-        // A dispatched run takes seconds to appear in this list. Treating
-        // "newest run" as "the run I just started" reads the PREVIOUS,
-        // finished run, concludes the job is done, and resets the button
-        // about six seconds after the click - which is exactly what it did.
-        // Hold until an id newer than the pre-dispatch baseline shows up.
+        // A dispatched run takes seconds to appear here. Treating "newest run"
+        // as "the one I just started" reads the PREVIOUS finished run and
+        // declares victory immediately.
         if(awaiting&&baseline!==null&&String(run.id)===baseline){
-          if(Date.now()-awaiting>120000){
-            awaiting=0;idle();progress(null);
-            say('GitHub never registered it — <a href="'+cfg.actions+
-                '" target="_blank" rel="noopener">check Actions</a>');
-            stop();return;
+          if(Date.now()-awaiting>90000){
+            awaiting=0;
+            giveUp('GitHub never registered the run');
+            return;
           }
-          busy('Starting');progress(3,'');
-          say('Waiting for GitHub to register the run…');
+          busy('Starting');progress(3);
+          say('Waiting for GitHub to register the run… ('+
+              Math.round((Date.now()-awaiting)/1000)+'s)');
           return;
         }
-        awaiting=0;
-        seenId=String(run.id);
+        awaiting=0;seenId=String(run.id);
 
-        // conclusion===null covers queued, pending, in_progress and waiting
-        // without having to enumerate GitHub's status vocabulary.
-        if(run.conclusion===null){
+        if(run.conclusion===null){          // queued, pending, in_progress
           busy('Running');
           say('<b>Running</b> · '+secs(run.created_at)+'s');
           steps(run);
-          arm(6000);
           return;
         }
-        idle();progress(null);
         if(run.conclusion!=='success'){
+          idle();progress(null);stop();
           say('Last run <b>'+run.conclusion+'</b> · <a href="'+
               run.html_url+'" target="_blank" rel="noopener">log</a>');
-        }else if(cfg.runId&&String(run.id)!==cfg.runId){
-          say('');
-          fresh.innerHTML='Run #'+run.run_number+' finished. '+
-            '<a href="?r='+encodeURIComponent(run.run_number)+'">'+
-            '<b>Reload</b></a>';
-          fresh.className='fresh show';
-        }else{
-          say('Showing the latest run'+(cfg.runNumber?' (#'+cfg.runNumber+')':''));
+          return;
         }
-        stop();
+        if(cfg.runId&&String(run.id)!==cfg.runId){
+          startPublishWatch();               // hand over to phase 2
+          return;
+        }
+        idle();progress(null);stop();
+        say('Showing the latest run'+(cfg.runNumber?' (#'+cfg.runNumber+')':''));
       })
       .catch(function(e){
-        // 60 requests/hour unauthenticated. Say so rather than going blank,
-        // or a rate limit is indistinguishable from nothing happening.
-        if(e==='rate'){say('GitHub rate limit — <a href="'+cfg.actions+
-          '" target="_blank" rel="noopener">check Actions</a>');}
-        else{say('');}
-        progress(null);stop();
+        if(e==='rate'){giveUp('GitHub rate limit reached');}
+        else{say('');progress(null);stop();}
       });
   }
 
   if(go.tagName==='BUTTON'){
     go.addEventListener('click',function(){
-      busy('Starting');progress(3,'');say('Starting…');
+      busy('Starting');progress(3);say('Starting…');
       baseline=seenId;
       fetch(cfg.dispatch,{method:'POST'})
         .then(function(r){
           if(r.status===409){
             awaiting=0;say('A run is already going — watching it.');
-            polls=0;arm(6000);look();return;}
+            polls=0;arm(look,10000);look();return;}
           if(!r.ok)throw r.status;
-          awaiting=Date.now();polls=0;
-          say('Queued…');
-          arm(6000);setTimeout(look,3000);})
+          awaiting=Date.now();polls=0;say('Queued…');
+          arm(look,10000);setTimeout(look,4000);})
         .catch(function(){
           awaiting=0;idle();progress(null);
           say('Could not start it — <a href="'+cfg.actions+
@@ -264,13 +295,13 @@ function initRun(cfg){
     }catch(e){}
   }
   look();
-  arm(10000);
+  arm(look,10000);
 }
 </script>
-<script>initRun({repo:"jinghuanglim/put-spread-screener",wf:"screen.yml",runId:"32733206760",runNumber:"15",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
+<script>initRun({repo:"jinghuanglim/put-spread-screener",wf:"screen.yml",runId:"32734389474",runNumber:"16",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
 <div class="grid">
-<div class="stat"><div class="k">VIX</div><div class="v">15.84</div></div>
-<div class="stat"><div class="k">SPX vs 20-MA</div><div class="v">+0.19%</div></div>
+<div class="stat"><div class="k">VIX</div><div class="v">15.85</div></div>
+<div class="stat"><div class="k">SPX vs 20-MA</div><div class="v">+0.01%</div></div>
 <div class="stat"><div class="k">Condor</div><div class="v">NO-GO</div></div>
 <div class="stat"><div class="k">Candidates</div><div class="v">7</div></div>
 </div>
@@ -289,25 +320,24 @@ function initRun(cfg){
 <th>DTE</th>
 <th>Flags</th>
 </tr></thead><tbody>
-<tr class="grp"><td colspan="11">Networking <span class="cnt">1 name</span></td></tr>
+<tr class="grp"><td colspan="11">Mega-cap platform <span class="cnt">2 names</span></td></tr>
 <tr class="row">
-<td class="tkcell" data-l="Ticker"><span class="tk">ANET</span></td>
+<td class="tkcell" data-l="Ticker"><span class="tk">AMZN</span></td>
 <td class="num" data-l="Δ">0.15</td>
-<td class="num" data-l="Spot">188.12</td>
-<td class="num" data-l="Width">10.0</td>
-<td class="num" data-l="Short">180.0</td>
+<td class="num" data-l="Spot">261.41</td>
+<td class="num" data-l="Width">15.0</td>
+<td class="num" data-l="Short">250.0</td>
 <td class="num" data-l="actΔ">0.00</td>
 <td class="num" data-l="IV">6.3%</td>
-<td class="num" data-l="HV">55.8%</td>
-<td class="num" data-l="IV/HV">0.11</td>
+<td class="num" data-l="HV">52.2%</td>
+<td class="num" data-l="IV/HV">0.12</td>
 <td class="num" data-l="DTE">18</td>
-<td class="" data-l="Flags"><div class="chips"><span class="chip hot">knife</span><span class="chip">inv</span><span class="chip">gap20d</span><span class="chip">oi106</span><span class="chip hot">noq</span></div></td>
+<td class="" data-l="Flags"><div class="chips"><span class="chip hot">knife</span><span class="chip">inv</span><span class="chip">gap25d</span><span class="chip">fb0.18</span><span class="chip hot">noq</span></div></td>
 </tr>
-<tr class="grp"><td colspan="11">Mega-cap platform <span class="cnt">1 name</span></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">MSFT</span></td>
 <td class="num" data-l="Δ">0.15</td>
-<td class="num" data-l="Spot">483.77</td>
+<td class="num" data-l="Spot">483.61</td>
 <td class="num" data-l="Width">25.0</td>
 <td class="num" data-l="Short">460.0</td>
 <td class="num" data-l="actΔ">0.00</td>
@@ -321,73 +351,73 @@ function initRun(cfg){
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">PLTR</span></td>
 <td class="num" data-l="Δ">0.15</td>
-<td class="num" data-l="Spot">174.51</td>
+<td class="num" data-l="Spot">173.00</td>
 <td class="num" data-l="Width">10.0</td>
-<td class="num" data-l="Short">117.0</td>
+<td class="num" data-l="Short">157.5</td>
 <td class="num" data-l="actΔ">0.00</td>
-<td class="num" data-l="IV">50.0%</td>
+<td class="num" data-l="IV">12.5%</td>
 <td class="num" data-l="HV">90.4%</td>
-<td class="num" data-l="IV/HV">0.55</td>
+<td class="num" data-l="IV/HV">0.14</td>
 <td class="num" data-l="DTE">18</td>
-<td class="" data-l="Flags"><div class="chips"><span class="chip">inv</span><span class="chip">gap21d</span><span class="chip">oi22</span><span class="chip hot">noq</span></div></td>
+<td class="" data-l="Flags"><div class="chips"><span class="chip">inv</span><span class="chip">gap21d</span><span class="chip">oi163</span><span class="chip hot">noq</span></div></td>
 </tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">TSLA</span></td>
 <td class="num" data-l="Δ">0.15</td>
-<td class="num" data-l="Spot">357.62</td>
+<td class="num" data-l="Spot">352.81</td>
 <td class="num" data-l="Width">20.0</td>
-<td class="num" data-l="Short">350.0</td>
+<td class="num" data-l="Short">345.0</td>
 <td class="num" data-l="actΔ">0.00</td>
 <td class="num" data-l="IV">3.1%</td>
 <td class="num" data-l="HV">58.6%</td>
 <td class="num" data-l="IV/HV">0.05</td>
 <td class="num" data-l="DTE">18</td>
-<td class="" data-l="Flags"><div class="chips"><span class="chip">inv</span><span class="chip">gap33d</span><span class="chip hot">noq</span></div></td>
+<td class="" data-l="Flags"><div class="chips"><span class="chip">inv</span><span class="chip">gap33d</span><span class="chip">oi381</span><span class="chip hot">noq</span></div></td>
 </tr>
 <tr class="grp"><td colspan="11">Defensive/financial <span class="cnt">3 names</span></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">JNJ</span></td>
 <td class="num" data-l="Δ">0.15</td>
-<td class="num" data-l="Spot">269.29</td>
+<td class="num" data-l="Spot">271.68</td>
 <td class="num" data-l="Width">15.0</td>
-<td class="num" data-l="Short">245.0</td>
+<td class="num" data-l="Short">180.0</td>
 <td class="num" data-l="actΔ">0.00</td>
-<td class="num" data-l="IV">12.5%</td>
+<td class="num" data-l="IV">50.0%</td>
 <td class="num" data-l="HV">23.2%</td>
-<td class="num" data-l="IV/HV">0.54</td>
+<td class="num" data-l="IV/HV">2.16</td>
 <td class="num" data-l="DTE">18</td>
-<td class="" data-l="Flags"><div class="chips"><span class="chip">inv</span><span class="chip">gap40d</span><span class="chip">nofb</span><span class="chip">oi208</span><span class="chip hot">noq</span></div></td>
+<td class="" data-l="Flags"><div class="chips"><span class="chip">gap40d</span><span class="chip">nofb</span><span class="chip">oi29</span><span class="chip hot">noq</span></div></td>
 </tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">LLY</span></td>
 <td class="num" data-l="Δ">0.15</td>
-<td class="num" data-l="Spot">1243.02</td>
+<td class="num" data-l="Spot">1245.04</td>
 <td class="num" data-l="Width">60.0</td>
-<td class="num" data-l="Short">1180.0</td>
+<td class="num" data-l="Short">1215.0</td>
 <td class="num" data-l="actΔ">0.00</td>
-<td class="num" data-l="IV">6.3%</td>
+<td class="num" data-l="IV">3.1%</td>
 <td class="num" data-l="HV">36.1%</td>
-<td class="num" data-l="IV/HV">0.17</td>
+<td class="num" data-l="IV/HV">0.09</td>
 <td class="num" data-l="DTE">18</td>
-<td class="" data-l="Flags"><div class="chips"><span class="chip">inv</span><span class="chip">gap19d</span><span class="chip">oi17</span><span class="chip hot">noq</span></div></td>
+<td class="" data-l="Flags"><div class="chips"><span class="chip">inv</span><span class="chip">gap19d</span><span class="chip">oi27</span><span class="chip hot">noq</span></div></td>
 </tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">V</span></td>
 <td class="num" data-l="Δ">0.15</td>
-<td class="num" data-l="Spot">377.86</td>
+<td class="num" data-l="Spot">378.88</td>
 <td class="num" data-l="Width">20.0</td>
-<td class="num" data-l="Short">360.0</td>
+<td class="num" data-l="Short">370.0</td>
 <td class="num" data-l="actΔ">0.00</td>
-<td class="num" data-l="IV">6.3%</td>
+<td class="num" data-l="IV">3.1%</td>
 <td class="num" data-l="HV">19.3%</td>
-<td class="num" data-l="IV/HV">0.32</td>
+<td class="num" data-l="IV/HV">0.16</td>
 <td class="num" data-l="DTE">18</td>
-<td class="" data-l="Flags"><div class="chips"><span class="chip">inv</span><span class="chip">gap27d</span><span class="chip">fb0.20</span><span class="chip">oi75</span><span class="chip hot">noq</span></div></td>
+<td class="" data-l="Flags"><div class="chips"><span class="chip">inv</span><span class="chip">gap27d</span><span class="chip">fb0.20</span><span class="chip">oi10</span><span class="chip hot">noq</span></div></td>
 </tr>
 </tbody></table></div>
 <p class="sub" style="margin-top:10px">All expiries 2026-09-11. The 11%W floor is yours to enforce at ticket.</p>
 <h2>Rows are grouped by what moves together</h2>
-<p class="sub">High-beta (PLTR, TSLA); Defensive/financial (JNJ, LLY, V). Names inside a group tend to fall on the same days, so holding several is closer to one larger position than to several independent ones. Passing the gates says nothing about how much of any of it to hold — that is position sizing, and this page does not do it.</p>
+<p class="sub">Mega-cap platform (AMZN, MSFT); High-beta (PLTR, TSLA); Defensive/financial (JNJ, LLY, V). Names inside a group tend to fall on the same days, so holding several is closer to one larger position than to several independent ones. Passing the gates says nothing about how much of any of it to hold — that is position sizing, and this page does not do it.</p>
 <h2>Flags</h2>
 <p class="sub">Flags in <span class="chip hot">red</span> are the ones to settle before acting — the row may not mean what it appears to. Grey flags are context.</p>
 <dl class="legend">
@@ -403,12 +433,12 @@ function initRun(cfg){
 <details><summary>The three gates, and what they do not cover</summary><p class="head"><span>Each name is tested in order. Any failure drops it and nothing downstream can rescue it — these are vetoes, not scores, so there is no "good enough on balance".</span></p><dl class="legend"><dt>Gate 1 &middot; trend</dt><dd>Last price must be above the average of the previous 20 trading days. Below it, the name is out, however attractive the premium. The average uses completed days only, so today’s part-formed bar cannot flatter it.</dd><dt>Gate 2 &middot; earnings</dt><dd>No scheduled results on or before expiry. An earnings date inside the window is the single largest source of the overnight gap this structure cannot survive. Dates come from two independent sources; when they disagree the name is flagged rather than guessed at. Index funds have no earnings, so they are tested against CPI, jobs and Fed days instead.</dd><dt>Gate 3 &middot; news</dt><dd><strong>Not automated.</strong> Headlines are printed below for a person to read. A guidance cut, a probe, a downgrade cluster or sector contagion is a veto no matter how rich the premium looks. Nothing here decides that for you.</dd><dt>width filter</dt><dd>The two strikes must sit at least $5 apart, which rules out anything trading under roughly $100.</dd></dl><p class="head"><span><strong>What it does not do:</strong> it does not price anything, check that the credit is worth the risk, size a position, or know what you already hold. A name appearing here means it survived three filters — nothing more. Most days the honest answer is to do nothing.</span></p></details>
 <h2>Gate 3 — material adverse catalyst?</h2>
 <p class="sub">Not applied automatically. Read and veto by hand.</p>
-<details><summary>ANET<span class="n">2 direct, 3 sector</span></summary>
-<p class="head"><span class="d">08-22</span><span><a href="https://finance.yahoo.com/technology/articles/arista-networks-anet-key-player-001542007.html" target="_blank" rel="noopener nofollow">Arista Networks (ANET) Is A Key Player In Hyperscale Data Center Growth</a></span></p>
-<p class="head"><span class="d">08-22</span><span><a href="https://www.fool.com/coverage/better-buy/2026/08/21/arista-networks-vs-salesforce-which-technology-stock-is-a-better-buy-in-2026/" target="_blank" rel="noopener nofollow">Arista Networks vs. Salesforce: Which Technology Stock Is a Better Buy in 2026?</a></span></p>
-<p class="head sector"><span class="d">08-21</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/5-high-roe-stocks-buy-131500603.html" target="_blank" rel="noopener nofollow">5 High ROE Stocks to Buy as Markets Sway on Intense Volatility</a></span></p>
-<p class="head sector"><span class="d">08-21</span><span><a href="https://www.investors.com/research/best-stocks-seven-magnificent-stocks-earnings-growth/?src=A00220&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">These 7 Stocks Are Analyst Favorites For Magnificent Earnings Growth; Eli Lilly Tops Buy Point</a></span></p>
-<p class="head sector"><span class="d">08-22</span><span><a href="https://247wallst.com/investing/2026/08/22/this-stock-is-quietly-becoming-an-ai-powerhouse-in-2026/" target="_blank" rel="noopener nofollow">This Stock Is Quietly Becoming an AI Powerhouse in 2026</a></span></p>
+<details><summary>AMZN<span class="n">3 direct, 2 sector</span></summary>
+<p class="head"><span class="d">08-24</span><span><a href="https://247wallst.com/investing/2026/08/24/amazons-aws-could-compound-to-222-billion-by-2027-td-cowen-says-thats-11-more-than-anyone-expects/" target="_blank" rel="noopener nofollow">Amazon’s AWS Could Compound to $222 Billion by 2027. TD Cowen Says That’s 11% More Than Anyone Expects</a></span></p>
+<p class="head"><span class="d">08-24</span><span><a href="https://www.fool.com/investing/2026/08/24/jeff-bezos-amazon-just-raised-its-ai-spending-to-2/" target="_blank" rel="noopener nofollow">Jeff Bezos' Amazon Just Raised Its AI Spending Target to $220 Billion for 2026. Here's What That Capex Hike Means for Investors.</a></span></p>
+<p class="head"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/huge-news-amazon-stock-fans-123857659.html" target="_blank" rel="noopener nofollow">Huge News For Amazon Stock Fans</a></span></p>
+<p class="head sector"><span class="d">08-23</span><span><a href="https://finance.yahoo.com/news/nvidias-q2-earnings-to-test-resurgent-ai-trade-112502189.html" target="_blank" rel="noopener nofollow">Nvidia's Q2 earnings to test resurgent AI trade</a></span></p>
+<p class="head sector"><span class="d">08-24</span><span><a href="https://www.trefis.com/articles/612591/netflix-has-changed-what-it-wants-to-be-judged-on/2026-08-24" target="_blank" rel="noopener nofollow">Netflix Has Changed What It Wants To Be Judged On</a></span></p>
 </details>
 <details><summary>JNJ<span class="n">4 direct, 1 sector</span></summary>
 <p class="head"><span class="d">08-23</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/johnson-johnson-5-5-billion-230104916.html" target="_blank" rel="noopener nofollow">Is Johnson &amp; Johnson’s $5.5 Billion Talc Settlement a Buy Signal, or Is the Legal Risk Far From Over?</a></span></p>
@@ -453,11 +483,11 @@ function initRun(cfg){
 <p class="head sector"><span class="d">08-24</span><span><a href="https://cryptonews.com/news/volante-technologies-fednow-ripple-payment/" target="_blank" rel="noopener nofollow">Ripple Payment Rails Separated From FedNow Access by Volante</a></span></p>
 </details>
 <h2>Dropped</h2>
-<div class="drop"><div class="k">Gate 1 trend</div><div class="v">AAPL, AMD, AMZN, AVGO, CRWD, GOOGL, JPM, META, PANW, TSM, QQQ</div></div>
-<div class="drop"><div class="k">Gate 2 earnings</div><div class="v">NVDA(2026-08-26), SPY[macro: CPI], IWM[macro: CPI]</div></div>
-<div class="drop"><div class="k">Width pre-filter</div><div class="v">NFLX(5%W=$3.96)</div></div>
+<div class="drop"><div class="k">Gate 1 trend</div><div class="v">AAPL, AMD, ANET, AVGO, CRWD, GOOGL, JPM, META, NVDA, PANW, TSM, QQQ, IWM</div></div>
+<div class="drop"><div class="k">Gate 2 earnings</div><div class="v">SPY[macro: CPI]</div></div>
+<div class="drop"><div class="k">Width pre-filter</div><div class="v">NFLX(5%W=$4.00)</div></div>
 <h2>Sources</h2>
-<div class="drop"><div class="v">Earnings: yfinance + nasdaq<br>Nasdaq calendar 2026-08-24 .. 2026-09-25 (434 companies)<br>Cross-check: 1 dated, 7 cleared by full-window scan, 0 unconfirmed<br>Macro: 4 events, FOMC from fed.gov (live), BLS live</div></div>
+<div class="drop"><div class="v">Earnings: yfinance + nasdaq<br>Nasdaq calendar 2026-08-24 .. 2026-09-25 (433 companies)<br>Cross-check: 0 dated, 7 cleared by full-window scan, 0 unconfirmed<br>Macro: 4 events, FOMC from fed.gov (live), BLS live</div></div>
 <p class="sub">None of these is IR. Confirm at source anything that binds.</p>
 <div class="foot"><b>Δ</b> target short-leg delta (roughly the chance of finishing in the money) &middot; <b>Short</b> strike sold &middot; <b>Width</b> distance to the strike bought &middot; <b>IV</b> priced-in move &middot; <b>HV</b> actual recent move.<br>IV is per-strike and delayed. Bid/ask is context, not a gate. Gates are hard vetoes, not quotas — cash is a valid outcome.<br>Generated by <code>pcs_screen.py</code>. Not financial advice.</div>
 </div></body></html>
