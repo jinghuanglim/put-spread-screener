@@ -40,7 +40,7 @@ jobs:
         run: |
           for attempt in 1 2 3; do
             echo "::group::attempt $attempt"
-            if python pcs_screen.py --quiet --csv-dir runs --html docs/index.html
+            if python pcs_screen.py --quiet --html docs/index.html
             then
               echo "::endgroup::"
               exit 0
@@ -55,16 +55,15 @@ jobs:
           echo "::error::all three attempts failed - not publishing"
           exit 1
 
-      - name: Archive a dated copy
-        run: |
-          mkdir -p docs/archive
-          cp docs/index.html "docs/archive/$(date -u +%F-%H%M).html"
-
       - name: Commit
         run: |
           git config user.name  "screener-bot"
           git config user.email "screener-bot@users.noreply.github.com"
-          git add runs docs
+          # Only the page. No run log, no dated archive: this is a live
+          # screening tool, not a record. Anyone with the link can press the
+          # button, so anything this step accumulated would be a pile of other
+          # people's presses rather than a history of anything.
+          git add docs
           git diff --staged --quiet && echo "nothing changed" && exit 0
           git commit -m "screen $(date -u +%F\ %H:%M)"
           # The push races anyone who commits while a run is in flight — you
