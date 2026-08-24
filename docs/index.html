@@ -5,18 +5,24 @@
 *{box-sizing:border-box}
 :root{
   --bg:#fbfaf9; --panel:#fff; --ink:#1c1a17; --dim:#6b6560; --line:#e4dfd8;
-  --accent:#3a6b52; --warn:#8a5a00; --warnbg:#fdf3dd; --alarm:#9a2f2f;
-  --alarmbg:#fceceb; --chip:#f0ece6; --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --accent:#2f6349; --warn:#8a5a00; --warnbg:#fdf3dd; --alarm:#9a2f2f;
+  --alarmbg:#fceceb; --chip:#f0ece6; --btnink:#fff;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 }
+/* Dark palette, every pair measured rather than eyeballed. The old one had
+   cards at 1.09 contrast against the page - technically two colours, visually
+   one flat surface, so nothing looked like a card. Panel now sits at 1.17 over
+   the background, borders at 1.31 over the panel, and secondary text is up
+   from 6.06 to 8.64. Fourteen pairs checked, all passing. */
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#16151a; --panel:#1e1d23; --ink:#e9e6e1; --dim:#9b948c; --line:#302e36;
-  --accent:#7fb99a; --warn:#e0b25e; --warnbg:#332a16; --alarm:#e88b84;
-  --alarmbg:#3a1f1e; --chip:#2a2830;
+  --bg:#0c0e13; --panel:#1a1f29; --ink:#e7eaf0; --dim:#a6aebc; --line:#2c3440;
+  --accent:#57d39a; --warn:#f2c14e; --warnbg:#2e2517; --alarm:#ff958a;
+  --alarmbg:#331e1c; --chip:#242b38; --btnink:#08251a;
 }}
 :root[data-theme="dark"]{
-  --bg:#16151a; --panel:#1e1d23; --ink:#e9e6e1; --dim:#9b948c; --line:#302e36;
-  --accent:#7fb99a; --warn:#e0b25e; --warnbg:#332a16; --alarm:#e88b84;
-  --alarmbg:#3a1f1e; --chip:#2a2830;
+  --bg:#0c0e13; --panel:#1a1f29; --ink:#e7eaf0; --dim:#a6aebc; --line:#2c3440;
+  --accent:#57d39a; --warn:#f2c14e; --warnbg:#2e2517; --alarm:#ff958a;
+  --alarmbg:#331e1c; --chip:#242b38; --btnink:#08251a;
 }
 body{margin:0;background:var(--bg);color:var(--ink);
   font:17px/1.62 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -27,7 +33,8 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim)
   margin:32px 0 10px;font-weight:600}
 .sub{color:var(--dim);font-size:15px;margin-bottom:18px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.stat{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:11px 13px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:12px 14px}
 .stat .k{font-size:12.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim)}
 .stat .v{font-size:22px;font-variant-numeric:tabular-nums;margin-top:3px}
 .banner{border-radius:10px;padding:14px 16px;margin:16px 0;font-size:16px;
@@ -56,21 +63,31 @@ tr:last-child td{border-bottom:none}
 .chip.hot{background:var(--alarmbg);color:var(--alarm)}
 .runbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:18px 0 4px}
 .btn{display:inline-flex;align-items:center;gap:9px;background:var(--accent);
-  color:#fff;border:none;border-radius:10px;padding:14px 24px;font:inherit;
+  color:var(--btnink);border:none;border-radius:10px;padding:14px 24px;font:inherit;
   font-weight:600;font-size:17px;cursor:pointer;text-decoration:none;
   -webkit-tap-highlight-color:transparent}
 .btn:active{transform:translateY(1px)}
 .btn[disabled]{opacity:.55;cursor:default}
-:root[data-theme="dark"] .btn,
-@media (prefers-color-scheme:dark){.btn{color:#10221a}}
-.btn .dot{width:9px;height:9px;border-radius:50%;background:currentColor;
-  opacity:.9;animation:pulse 1.1s ease-in-out infinite}
-@keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
+
+.btn .dot{width:15px;height:15px;border-radius:50%;flex:none;
+  border:2px solid currentColor;border-top-color:transparent;
+  animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){
+  .btn .dot{animation:none;opacity:.6}
+  .bar>div{animation:none!important}
+}
 .runstat{font-size:15px;color:var(--dim)}
+/* Indeterminate on purpose. A percentage would be a guess: the run has no
+   knowable duration and the publish step even less so. A stripe that keeps
+   moving says "still working" honestly; a bar creeping to 90%% and sitting
+   there says something false. */
 .bar{display:none;height:6px;background:var(--chip);border-radius:99px;
-  overflow:hidden;margin:2px 0 6px}
-.bar>div{height:100%;width:4%;background:var(--accent);border-radius:99px;
-  transition:width .5s ease}
+  overflow:hidden;margin:4px 0 8px;position:relative}
+.bar>div{position:absolute;top:0;left:0;height:100%;width:38%;
+  background:var(--accent);border-radius:99px;
+  animation:slide 1.25s cubic-bezier(.55,.1,.45,.9) infinite}
+@keyframes slide{0%{left:-40%}100%{left:100%}}
 .runstat b{color:var(--ink)}
 .fresh{background:var(--warnbg);border:1px solid var(--warn);border-radius:10px;
   padding:13px 16px;margin:12px 0;font-size:16px;display:none}
@@ -114,107 +131,74 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 }
 </style></head><body><div class="wrap">
 <h1>Put credit spread screen</h1>
-<<<<<<< HEAD
-<p class="sub">2026-08-24 &middot; US session 2026-08-24 &middot; spot live &middot; DTE 14–21 &middot; <b>run #17</b> &middot; built <span id="built" data-utc="2026-08-24T14:05:40Z">14:05 UTC</span></p>
+<p class="sub">2026-08-24 &middot; US session 2026-08-24 &middot; spot live &middot; DTE 14–21 &middot; <b>run #18</b> &middot; last run <span id="built" data-utc="2026-08-24T14:21:25Z">14:21 UTC</span></p>
 <div class="runbar">
 <button class="btn" id="go">Run screen</button>
 <span class="runstat" id="stat"></span></div>
-<div class="bar" id="bar"><div id="fill"></div></div>
+<div class="bar" id="bar"><div></div></div>
 <div class="fresh" id="fresh"></div>
 <script>
 function initRun(cfg){
   var BASE='https://api.github.com/repos/'+cfg.repo;
   var API=BASE+'/actions/workflows/'+cfg.wf+'/runs?per_page=1';
   var stat=document.getElementById('stat'),go=document.getElementById('go'),
-      fresh=document.getElementById('fresh'),bar=document.getElementById('bar'),
-      fill=document.getElementById('fill');
-  var timer=null,polls=0,baseline=null,awaiting=0,seenId=null,publishing=0;
+      fresh=document.getElementById('fresh'),bar=document.getElementById('bar');
+  var timer=null,polls=0,baseline=null,awaiting=0,seenId=null,
+      publishing=0,mine=false,began=0;
 
   function say(h){stat.innerHTML=h;}
   function stop(){if(timer){clearInterval(timer);timer=null;}}
   function arm(fn,ms){stop();timer=setInterval(fn,ms);}
-  function busy(l){if(go.tagName==='BUTTON'){go.disabled=true;
-    go.innerHTML='<span class="dot"></span>'+(l||'Running');}}
-  function idle(){if(go.tagName==='BUTTON'){go.disabled=false;
-    go.textContent='Run screen';}}
-  function progress(p){if(!bar)return;bar.style.display=p===null?'none':'block';
-    if(p!==null)fill.style.width=Math.max(4,Math.min(100,p))+'%';}
-  function secs(t){return Math.max(0,Math.round((Date.now()-new Date(t))/1000));}
+  function show(on){if(bar)bar.style.display=on?'block':'none';}
+  function running(){
+    // One state, one word. Registering, running and publishing are three
+    // different waits to a machine and the same wait to a person: the thing
+    // they pressed has not finished. Naming the internals invited "is it
+    // stuck?" every time a phase ran long.
+    if(go.tagName==='BUTTON'){go.disabled=true;
+      go.innerHTML='<span class="dot"></span>Running';}
+    show(true);
+    say(began?Math.round((Date.now()-began)/1000)+'s':'');
+  }
+  function idle(){
+    if(go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
+    show(false);
+  }
   function giveUp(msg){
-    idle();progress(null);stop();
-    say(msg+' — <a href="'+cfg.actions+'" target="_blank" '+
+    idle();stop();mine=false;began=0;
+    say(msg+' \u2014 <a href="'+cfg.actions+'" target="_blank" '+
         'rel="noopener">check Actions</a>');
   }
+  function offer(n){
+    idle();stop();say('');
+    fresh.innerHTML='Run #'+n+' is ready. <a href="#" id="doreload"><b>Reload'+
+      '</b></a>';
+    fresh.className='fresh show';
+    document.getElementById('doreload').onclick=function(e){
+      e.preventDefault();location.reload();};
+  }
 
-  // ---- phase 2: is the CDN serving the new page yet? -------------------
-  //
-  // A finished run is not a published page. GitHub Pages sits behind a CDN
-  // that keeps serving the old copy for up to a minute or so, and a query
-  // string does NOT reliably change its cache key - which is why the earlier
-  // "?r=15" trick looked like a Reload button that did nothing: the click
-  // navigated, the edge returned the same stale bytes, and the banner came
-  // straight back. Nothing on the client can force the edge to expire.
-  //
-  // So instead of guessing, ask. Fetch the page itself and read the run
-  // number baked into it. Only offer Reload once the edge is actually handing
-  // out the new build, at which point reloading genuinely works.
+  // A finished run is not a published page: the CDN keeps serving the old copy
+  // for up to a minute, and no query string reliably changes its cache key. So
+  // ask the edge what it is actually handing out, and act only on that.
   function published(){
-    if(Date.now()-publishing>240000){
-      publishing=0;
-      giveUp('Run finished but the page has not published in 4 minutes');
-      return;
-    }
+    if(Date.now()-publishing>300000){
+      publishing=0;giveUp('Finished, but the page has not published');return;}
     fetch(location.pathname+'?probe='+Date.now(),{cache:'no-store'})
       .then(function(r){return r.ok?r.text():Promise.reject(0);})
       .then(function(t){
-        var m=t.match(/runNumber:"(\d+)"/);
-        if(!m)return;
-        var live=parseInt(m[1],10),mine=parseInt(cfg.runNumber||'0',10);
-        if(live>mine){
-          publishing=0;stop();idle();progress(null);say('');
-          fresh.innerHTML='Run #'+live+' is published. '+
-            '<a href="#" id="doreload"><b>Reload</b></a>';
-          fresh.className='fresh show';
-          document.getElementById('doreload').onclick=function(e){
-            e.preventDefault();location.reload();};
-        }else{
-          say('Run finished · publishing… ('+
-              Math.round((Date.now()-publishing)/1000)+'s)');
-        }
-      })
-      .catch(function(){});
-  }
-
-  function startPublishWatch(){
-    publishing=Date.now();
-    progress(97);busy('Publishing');
-    say('Run finished · publishing…');
-    arm(published,5000);published();
-  }
-
-  // ---- phase 1: watch the run itself -----------------------------------
-  function steps(run){
-    fetch(BASE+'/actions/runs/'+run.id+'/jobs',
-          {headers:{'Accept':'application/vnd.github+json'}})
-      .then(function(r){return r.ok?r.json():Promise.reject(0);})
-      .then(function(d){
-        var job=(d.jobs||[])[0];if(!job||!job.steps)return;
-        var all=job.steps,done=0,cur=null;
-        for(var i=0;i<all.length;i++){
-          if(all[i].conclusion)done++;
-          if(all[i].status==='in_progress'&&!cur)cur=all[i];
-        }
-        progress(95*done/all.length);
-        say('<b>'+(cur?cur.name:'Working')+'</b> · step '+
-            Math.min(done+1,all.length)+' of '+all.length+' · '+
-            secs(run.run_started_at||run.created_at)+'s');
+        var m=t.match(/runNumber:"(\d+)"/);if(!m)return;
+        var live=parseInt(m[1],10),here=parseInt(cfg.runNumber||'0',10);
+        if(live<=here){running();return;}
+        publishing=0;stop();
+        // Auto-reload only for the person who pressed the button. Yanking the
+        // page out from under someone who is mid-read, because a stranger
+        // pressed it elsewhere, would be rude.
+        if(mine){location.reload();}else{offer(live);}
       }).catch(function(){});
   }
 
   function look(){
-    // 60 unauthenticated API calls per hour, per IP. At 10s that is 6 minutes
-    // of watching before the budget is gone, so the cap has to SAY it stopped
-    // rather than freeze on whatever text was last written.
     if(++polls>36){giveUp('Stopped watching after 6 minutes');return;}
     fetch(API,{headers:{'Accept':'application/vnd.github+json'}})
       .then(function(r){
@@ -223,63 +207,46 @@ function initRun(cfg){
       .then(function(d){
         var run=(d.workflow_runs||[])[0];
         if(!run){say('');stop();return;}
-
-        // A dispatched run takes seconds to appear here. Treating "newest run"
-        // as "the one I just started" reads the PREVIOUS finished run and
-        // declares victory immediately.
         if(awaiting&&baseline!==null&&String(run.id)===baseline){
           if(Date.now()-awaiting>90000){
-            awaiting=0;
-            giveUp('GitHub never registered the run');
-            return;
-          }
-          busy('Starting');progress(3);
-          say('Waiting for GitHub to register the run… ('+
-              Math.round((Date.now()-awaiting)/1000)+'s)');
-          return;
+            awaiting=0;giveUp('GitHub never registered the run');return;}
+          running();return;
         }
         awaiting=0;seenId=String(run.id);
-
-        if(run.conclusion===null){          // queued, pending, in_progress
-          busy('Running');
-          say('<b>Running</b> · '+secs(run.created_at)+'s');
-          steps(run);
-          return;
+        if(run.conclusion===null){
+          if(!began)began=new Date(run.created_at).getTime();
+          running();return;
         }
         if(run.conclusion!=='success'){
-          idle();progress(null);stop();
-          say('Last run <b>'+run.conclusion+'</b> · <a href="'+
+          idle();stop();mine=false;began=0;
+          say('Last run <b>'+run.conclusion+'</b> \u00b7 <a href="'+
               run.html_url+'" target="_blank" rel="noopener">log</a>');
           return;
         }
         if(cfg.runId&&String(run.id)!==cfg.runId){
-          startPublishWatch();               // hand over to phase 2
+          publishing=Date.now();running();arm(published,4000);published();
           return;
         }
-        idle();progress(null);stop();
+        idle();stop();began=0;
         say('Showing the latest run'+(cfg.runNumber?' (#'+cfg.runNumber+')':''));
       })
       .catch(function(e){
         if(e==='rate'){giveUp('GitHub rate limit reached');}
-        else{say('');progress(null);stop();}
+        else{say('');show(false);stop();}
       });
   }
 
   if(go.tagName==='BUTTON'){
     go.addEventListener('click',function(){
-      busy('Starting');progress(3);say('Starting…');
-      baseline=seenId;
+      mine=true;began=Date.now();baseline=seenId;running();
       fetch(cfg.dispatch,{method:'POST'})
         .then(function(r){
-          if(r.status===409){
-            awaiting=0;say('A run is already going — watching it.');
-            polls=0;arm(look,10000);look();return;}
+          if(r.status===409){awaiting=0;polls=0;arm(look,8000);look();return;}
           if(!r.ok)throw r.status;
-          awaiting=Date.now();polls=0;say('Queued…');
-          arm(look,10000);setTimeout(look,4000);})
+          awaiting=Date.now();polls=0;arm(look,8000);setTimeout(look,4000);})
         .catch(function(){
-          awaiting=0;idle();progress(null);
-          say('Could not start it — <a href="'+cfg.actions+
+          mine=false;began=0;idle();
+          say('Could not start it \u2014 <a href="'+cfg.actions+
               '" target="_blank" rel="noopener">run it from Actions</a>');});
     });
   }
@@ -299,18 +266,12 @@ function initRun(cfg){
   arm(look,10000);
 }
 </script>
-<script>initRun({repo:"jinghuanglim/put-spread-screener",wf:"screen.yml",runId:"32736493162",runNumber:"17",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
+<script>initRun({repo:"jinghuanglim/put-spread-screener",wf:"screen.yml",runId:"32738104087",runNumber:"18",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
 <div class="grid">
-<div class="stat"><div class="k">VIX</div><div class="v">15.98</div></div>
-<div class="stat"><div class="k">SPX vs 20-MA</div><div class="v">+0.05%</div></div>
-=======
-<p class="sub">2026-08-24 &middot; US session 2026-08-24 &middot; spot live &middot; DTE 14–21 &middot; built <span id="built" data-utc="2026-08-24T13:42:54Z">13:42 UTC</span></p>
-<div class="grid">
-<div class="stat"><div class="k">VIX</div><div class="v">15.85</div></div>
-<div class="stat"><div class="k">SPX vs 20-MA</div><div class="v">+0.07%</div></div>
->>>>>>> b6d00a3 (header: last run, not built)
+<div class="stat"><div class="k">VIX</div><div class="v">15.92</div></div>
+<div class="stat"><div class="k">SPX vs 20-MA</div><div class="v">+0.06%</div></div>
 <div class="stat"><div class="k">Condor</div><div class="v">NO-GO</div></div>
-<div class="stat"><div class="k">Candidates</div><div class="v">7</div></div>
+<div class="stat"><div class="k">Candidates</div><div class="v">9</div></div>
 </div>
 <div class="banner alarm"><b>CPI lands on expiry day (2026-09-11)</b>8:30am print, hours before these settle. Every position moves together.</div>
 <h2>Candidates — gates 1–2 passed</h2>
@@ -327,176 +288,131 @@ function initRun(cfg){
 <th>DTE</th>
 <th>Flags</th>
 </tr></thead><tbody>
+<tr class="grp"><td colspan="11">Networking <span class="cnt">1 name</span></td></tr>
+<tr class="row">
+<td class="tkcell" data-l="Ticker"><span class="tk">ANET</span></td>
+<td class="num" data-l="Δ">0.15</td>
+<td class="num" data-l="Spot">188.32</td>
+<td class="num" data-l="Width">10.0</td>
+<td class="num" data-l="Short">165.0</td>
+<td class="num" data-l="actΔ">0.12</td>
+<td class="num" data-l="IV">53.4%</td>
+<td class="num" data-l="HV">55.8%</td>
+<td class="num" data-l="IV/HV">0.96</td>
+<td class="num" data-l="DTE">18</td>
+<td class="" data-l="Flags"><div class="chips"><span class="chip hot">knife</span><span class="chip">inv</span><span class="chip">gap20d</span><span class="chip">oi154</span><span class="chip">ba</span></div></td>
+</tr>
 <tr class="grp"><td colspan="11">Mega-cap platform <span class="cnt">2 names</span></td></tr>
 <tr class="row">
-<td class="tkcell" data-l="Ticker"><span class="tk">AMZN</span></td>
+<td class="tkcell" data-l="Ticker"><span class="tk">GOOGL</span></td>
 <td class="num" data-l="Δ">0.15</td>
-<<<<<<< HEAD
-<td class="num" data-l="Spot">261.46</td>
+<td class="num" data-l="Spot">348.91</td>
 <td class="num" data-l="Width">15.0</td>
-<td class="num" data-l="Short">245.0</td>
-<td class="num" data-l="actΔ">0.15</td>
-<td class="num" data-l="IV">29.9%</td>
-<td class="num" data-l="HV">52.2%</td>
-<td class="num" data-l="IV/HV">0.57</td>
+<td class="num" data-l="Short">325.0</td>
+<td class="num" data-l="actΔ">0.13</td>
+<td class="num" data-l="IV">30.2%</td>
+<td class="num" data-l="HV">43.6%</td>
+<td class="num" data-l="IV/HV">0.69</td>
 <td class="num" data-l="DTE">18</td>
-<td class="" data-l="Flags"><div class="chips"><span class="chip hot">knife</span><span class="chip">inv</span><span class="chip">gap25d</span><span class="chip">fb0.18</span></div></td>
-=======
-<td class="num" data-l="Spot">262.16</td>
-<td class="num" data-l="Width">15.0</td>
-<td class="num" data-l="Short">250.0</td>
-<td class="num" data-l="actΔ">0.00</td>
-<td class="num" data-l="IV">6.3%</td>
-<td class="num" data-l="HV">52.2%</td>
-<td class="num" data-l="IV/HV">0.12</td>
-<td class="num" data-l="DTE">18</td>
-<td class="" data-l="Flags"><div class="chips"><span class="chip hot">knife</span><span class="chip">inv</span><span class="chip">gap25d</span><span class="chip">fb0.18</span><span class="chip hot">noq</span></div></td>
->>>>>>> b6d00a3 (header: last run, not built)
+<td class="" data-l="Flags"><div class="chips"><span class="chip hot">knife</span><span class="chip">inv</span><span class="chip">gap33d</span><span class="chip">fb0.18</span><span class="chip">ba</span></div></td>
 </tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">MSFT</span></td>
 <td class="num" data-l="Δ">0.15</td>
-<<<<<<< HEAD
-<td class="num" data-l="Spot">486.78</td>
-=======
-<td class="num" data-l="Spot">484.93</td>
->>>>>>> b6d00a3 (header: last run, not built)
+<td class="num" data-l="Spot">485.67</td>
 <td class="num" data-l="Width">25.0</td>
-<td class="num" data-l="Short">455.0</td>
-<td class="num" data-l="actΔ">0.13</td>
-<td class="num" data-l="IV">29.2%</td>
+<td class="num" data-l="Short">460.0</td>
+<td class="num" data-l="actΔ">0.16</td>
+<td class="num" data-l="IV">26.4%</td>
 <td class="num" data-l="HV">49.9%</td>
-<td class="num" data-l="IV/HV">0.59</td>
+<td class="num" data-l="IV/HV">0.53</td>
 <td class="num" data-l="DTE">18</td>
-<td class="" data-l="Flags"><div class="chips"><span class="chip">inv</span><span class="chip">gap26d</span><span class="chip">nofb</span><span class="chip">ba</span></div></td>
+<td class="" data-l="Flags"><div class="chips"><span class="chip">inv</span><span class="chip">gap26d</span><span class="chip">nofb</span><span class="chip">oi355</span></div></td>
 </tr>
 <tr class="grp"><td colspan="11">High-beta <span class="cnt">2 names</span></td></tr>
 <tr class="row">
-<<<<<<< HEAD
 <td class="tkcell" data-l="Ticker"><span class="tk">PLTR</span></td>
 <td class="num" data-l="Δ">0.15</td>
-<td class="num" data-l="Spot">173.99</td>
+<td class="num" data-l="Spot">173.23</td>
 <td class="num" data-l="Width">10.0</td>
-<td class="num" data-l="Short">157.5</td>
-<td class="num" data-l="actΔ">0.16</td>
-<td class="num" data-l="IV">49.6%</td>
+<td class="num" data-l="Short">155.0</td>
+<td class="num" data-l="actΔ">0.14</td>
+<td class="num" data-l="IV">49.0%</td>
 <td class="num" data-l="HV">90.4%</td>
-<td class="num" data-l="IV/HV">0.55</td>
+<td class="num" data-l="IV/HV">0.54</td>
 <td class="num" data-l="DTE">18</td>
-<td class="" data-l="Flags"><div class="chips"><span class="chip">inv</span><span class="chip">gap21d</span><span class="chip">oi163</span></div></td>
+<td class="" data-l="Flags"><div class="chips"><span class="chip">inv</span><span class="chip">gap21d</span><span class="chip">ba</span></div></td>
 </tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">TSLA</span></td>
 <td class="num" data-l="Δ">0.15</td>
-<td class="num" data-l="Spot">353.35</td>
+<td class="num" data-l="Spot">354.43</td>
 <td class="num" data-l="Width">20.0</td>
 <td class="num" data-l="Short">325.0</td>
 <td class="num" data-l="actΔ">0.16</td>
-<td class="num" data-l="IV">40.7%</td>
+<td class="num" data-l="IV">41.8%</td>
 <td class="num" data-l="HV">58.6%</td>
-<td class="num" data-l="IV/HV">0.69</td>
-=======
-<td class="tkcell" data-l="Ticker"><span class="tk">TSLA</span></td>
-<td class="num" data-l="Δ">0.15</td>
-<td class="num" data-l="Spot">353.25</td>
-<td class="num" data-l="Width">20.0</td>
-<td class="num" data-l="Short">320.0</td>
-<td class="num" data-l="actΔ">0.00</td>
-<td class="num" data-l="IV">12.5%</td>
-<td class="num" data-l="HV">58.6%</td>
-<td class="num" data-l="IV/HV">0.21</td>
->>>>>>> b6d00a3 (header: last run, not built)
+<td class="num" data-l="IV/HV">0.71</td>
 <td class="num" data-l="DTE">18</td>
 <td class="" data-l="Flags"><div class="chips"><span class="chip">inv</span><span class="chip">gap33d</span></div></td>
 </tr>
-<tr class="row">
-<td class="tkcell" data-l="Ticker"><span class="tk">PLTR</span></td>
-<td class="num" data-l="Δ">0.15</td>
-<td class="num" data-l="Spot">173.43</td>
-<td class="num" data-l="Width">10.0</td>
-<td class="num" data-l="Short">170.0</td>
-<td class="num" data-l="actΔ">0.00</td>
-<td class="num" data-l="IV">3.1%</td>
-<td class="num" data-l="HV">90.4%</td>
-<td class="num" data-l="IV/HV">0.03</td>
-<td class="num" data-l="DTE">18</td>
-<td class="" data-l="Flags"><div class="chips"><span class="chip">inv</span><span class="chip">gap21d</span><span class="chip hot">noq</span></div></td>
-</tr>
-<tr class="grp"><td colspan="11">Defensive/financial <span class="cnt">3 names</span></td></tr>
-<tr class="row">
-<<<<<<< HEAD
-<td class="tkcell" data-l="Ticker"><span class="tk">LLY</span></td>
-<td class="num" data-l="Δ">0.15</td>
-<td class="num" data-l="Spot">1245.42</td>
-=======
-<td class="tkcell" data-l="Ticker"><span class="tk">JNJ</span></td>
-<td class="num" data-l="Δ">0.15</td>
-<td class="num" data-l="Spot">271.54</td>
-<td class="num" data-l="Width">15.0</td>
-<td class="num" data-l="Short">180.0</td>
-<td class="num" data-l="actΔ">0.00</td>
-<td class="num" data-l="IV">50.0%</td>
-<td class="num" data-l="HV">23.2%</td>
-<td class="num" data-l="IV/HV">2.16</td>
-<td class="num" data-l="DTE">18</td>
-<td class="" data-l="Flags"><div class="chips"><span class="chip">gap40d</span><span class="chip">nofb</span><span class="chip">oi29</span><span class="chip hot">noq</span></div></td>
-</tr>
+<tr class="grp"><td colspan="11">Defensive/financial <span class="cnt">4 names</span></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">LLY</span></td>
 <td class="num" data-l="Δ">0.15</td>
-<td class="num" data-l="Spot">1241.50</td>
->>>>>>> b6d00a3 (header: last run, not built)
+<td class="num" data-l="Spot">1242.36</td>
 <td class="num" data-l="Width">60.0</td>
 <td class="num" data-l="Short">1120.0</td>
 <td class="num" data-l="actΔ">0.15</td>
-<td class="num" data-l="IV">49.0%</td>
+<td class="num" data-l="IV">48.3%</td>
 <td class="num" data-l="HV">36.1%</td>
-<td class="num" data-l="IV/HV">1.36</td>
+<td class="num" data-l="IV/HV">1.34</td>
 <td class="num" data-l="DTE">18</td>
 <td class="" data-l="Flags"><div class="chips"><span class="chip">gap19d</span><span class="chip">oi98</span><span class="chip">ba</span></div></td>
 </tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">JNJ</span></td>
 <td class="num" data-l="Δ">0.15</td>
-<td class="num" data-l="Spot">271.35</td>
+<td class="num" data-l="Spot">271.81</td>
 <td class="num" data-l="Width">15.0</td>
 <td class="num" data-l="Short">255.0</td>
-<td class="num" data-l="actΔ">0.14</td>
-<td class="num" data-l="IV">27.8%</td>
+<td class="num" data-l="actΔ">0.13</td>
+<td class="num" data-l="IV">26.7%</td>
 <td class="num" data-l="HV">23.2%</td>
-<td class="num" data-l="IV/HV">1.20</td>
+<td class="num" data-l="IV/HV">1.15</td>
 <td class="num" data-l="DTE">18</td>
 <td class="" data-l="Flags"><div class="chips"><span class="chip">gap40d</span><span class="chip">nofb</span><span class="chip">oi106</span><span class="chip">ba</span></div></td>
 </tr>
 <tr class="row">
+<td class="tkcell" data-l="Ticker"><span class="tk">JPM</span></td>
+<td class="num" data-l="Δ">0.15</td>
+<td class="num" data-l="Spot">357.83</td>
+<td class="num" data-l="Width">20.0</td>
+<td class="num" data-l="Short">340.0</td>
+<td class="num" data-l="actΔ">0.15</td>
+<td class="num" data-l="IV">24.0%</td>
+<td class="num" data-l="HV">19.1%</td>
+<td class="num" data-l="IV/HV">1.25</td>
+<td class="num" data-l="DTE">18</td>
+<td class="" data-l="Flags"><div class="chips"><span class="chip hot">knife</span><span class="chip">gap41d</span><span class="chip">fb0.18</span><span class="chip">oi205</span><span class="chip">ba</span></div></td>
+</tr>
+<tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">V</span></td>
 <td class="num" data-l="Δ">0.15</td>
-<<<<<<< HEAD
-<td class="num" data-l="Spot">380.73</td>
+<td class="num" data-l="Spot">380.58</td>
 <td class="num" data-l="Width">20.0</td>
 <td class="num" data-l="Short">360.0</td>
 <td class="num" data-l="actΔ">0.13</td>
-<td class="num" data-l="IV">24.2%</td>
+<td class="num" data-l="IV">23.1%</td>
 <td class="num" data-l="HV">19.3%</td>
-<td class="num" data-l="IV/HV">1.25</td>
+<td class="num" data-l="IV/HV">1.20</td>
 <td class="num" data-l="DTE">18</td>
 <td class="" data-l="Flags"><div class="chips"><span class="chip">gap27d</span><span class="chip">fb0.20</span><span class="chip">oi75</span><span class="chip">ba</span></div></td>
-=======
-<td class="num" data-l="Spot">378.92</td>
-<td class="num" data-l="Width">20.0</td>
-<td class="num" data-l="Short">370.0</td>
-<td class="num" data-l="actΔ">0.00</td>
-<td class="num" data-l="IV">3.1%</td>
-<td class="num" data-l="HV">19.3%</td>
-<td class="num" data-l="IV/HV">0.16</td>
-<td class="num" data-l="DTE">18</td>
-<td class="" data-l="Flags"><div class="chips"><span class="chip">inv</span><span class="chip">gap27d</span><span class="chip">fb0.20</span><span class="chip">oi10</span><span class="chip hot">noq</span></div></td>
->>>>>>> b6d00a3 (header: last run, not built)
 </tr>
 </tbody></table></div>
 <p class="sub" style="margin-top:10px">All expiries 2026-09-11. The 11%W floor is yours to enforce at ticket.</p>
 <h2>Rows are grouped by what moves together</h2>
-<p class="sub">Mega-cap platform (AMZN, MSFT); High-beta (PLTR, TSLA); Defensive/financial (JNJ, LLY, V). Names inside a group tend to fall on the same days, so holding several is closer to one larger position than to several independent ones. Passing the gates says nothing about how much of any of it to hold — that is position sizing, and this page does not do it.</p>
+<p class="sub">Mega-cap platform (GOOGL, MSFT); High-beta (PLTR, TSLA); Defensive/financial (JNJ, JPM, LLY, V). Names inside a group tend to fall on the same days, so holding several is closer to one larger position than to several independent ones. Passing the gates says nothing about how much of any of it to hold — that is position sizing, and this page does not do it.</p>
 <h2>Flags</h2>
 <p class="sub">Flags in <span class="chip hot">red</span> are the ones to settle before acting — the row may not mean what it appears to. Grey flags are context.</p>
 <dl class="legend">
@@ -512,16 +428,19 @@ function initRun(cfg){
 <details><summary>The three gates, and what they do not cover</summary><p class="head"><span>Each name is tested in order. Any failure drops it and nothing downstream can rescue it — these are vetoes, not scores, so there is no "good enough on balance".</span></p><dl class="legend"><dt>Gate 1 &middot; trend</dt><dd>Last price must be above the average of the previous 20 trading days. Below it, the name is out, however attractive the premium. The average uses completed days only, so today’s part-formed bar cannot flatter it.</dd><dt>Gate 2 &middot; earnings</dt><dd>No scheduled results on or before expiry. An earnings date inside the window is the single largest source of the overnight gap this structure cannot survive. Dates come from two independent sources; when they disagree the name is flagged rather than guessed at. Index funds have no earnings, so they are tested against CPI, jobs and Fed days instead.</dd><dt>Gate 3 &middot; news</dt><dd><strong>Not automated.</strong> Headlines are printed below for a person to read. A guidance cut, a probe, a downgrade cluster or sector contagion is a veto no matter how rich the premium looks. Nothing here decides that for you.</dd><dt>width filter</dt><dd>The two strikes must sit at least $5 apart, which rules out anything trading under roughly $100.</dd></dl><p class="head"><span><strong>What it does not do:</strong> it does not price anything, check that the credit is worth the risk, size a position, or know what you already hold. A name appearing here means it survived three filters — nothing more. Most days the honest answer is to do nothing.</span></p></details>
 <h2>Gate 3 — material adverse catalyst?</h2>
 <p class="sub">Not applied automatically. Read and veto by hand.</p>
-<details><summary>AMZN<span class="n">3 direct, 2 sector</span></summary>
-<p class="head"><span class="d">08-24</span><span><a href="https://247wallst.com/investing/2026/08/24/amazons-aws-could-compound-to-222-billion-by-2027-td-cowen-says-thats-11-more-than-anyone-expects/" target="_blank" rel="noopener nofollow">Amazon’s AWS Could Compound to $222 Billion by 2027. TD Cowen Says That’s 11% More Than Anyone Expects</a></span></p>
-<p class="head"><span class="d">08-24</span><span><a href="https://www.fool.com/investing/2026/08/24/jeff-bezos-amazon-just-raised-its-ai-spending-to-2/" target="_blank" rel="noopener nofollow">Jeff Bezos' Amazon Just Raised Its AI Spending Target to $220 Billion for 2026. Here's What That Capex Hike Means for Investors.</a></span></p>
-<p class="head"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/huge-news-amazon-stock-fans-123857659.html" target="_blank" rel="noopener nofollow">Huge News For Amazon Stock Fans</a></span></p>
+<details><summary>ANET<span class="n">2 direct, 3 sector</span></summary>
+<p class="head"><span class="d">08-22</span><span><a href="https://finance.yahoo.com/technology/articles/arista-networks-anet-key-player-001542007.html" target="_blank" rel="noopener nofollow">Arista Networks (ANET) Is A Key Player In Hyperscale Data Center Growth</a></span></p>
+<p class="head"><span class="d">08-22</span><span><a href="https://www.fool.com/coverage/better-buy/2026/08/21/arista-networks-vs-salesforce-which-technology-stock-is-a-better-buy-in-2026/" target="_blank" rel="noopener nofollow">Arista Networks vs. Salesforce: Which Technology Stock Is a Better Buy in 2026?</a></span></p>
+<p class="head sector"><span class="d">08-21</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/5-high-roe-stocks-buy-131500603.html" target="_blank" rel="noopener nofollow">5 High ROE Stocks to Buy as Markets Sway on Intense Volatility</a></span></p>
+<p class="head sector"><span class="d">08-22</span><span><a href="https://247wallst.com/investing/2026/08/22/this-stock-is-quietly-becoming-an-ai-powerhouse-in-2026/" target="_blank" rel="noopener nofollow">This Stock Is Quietly Becoming an AI Powerhouse in 2026</a></span></p>
+<p class="head sector"><span class="d">08-22</span><span><a href="https://www.barrons.com/articles/ai-spending-capex-vertiv-western-digital-coreweave-arista-8c3cf5b3?siteid=yhoof2&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">The AI Spending Boom Is Outrunning Wall Street Estimates</a></span></p>
+</details>
+<details><summary>GOOGL<span class="n">1 direct, 4 sector</span></summary>
+<p class="head"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/sga-raised-bet-alphabet-goog-133755704.html" target="_blank" rel="noopener nofollow">SGA Raised Its Bet on Alphabet (GOOG) as AI Demand Accelerates</a></span></p>
 <p class="head sector"><span class="d">08-23</span><span><a href="https://finance.yahoo.com/news/nvidias-q2-earnings-to-test-resurgent-ai-trade-112502189.html" target="_blank" rel="noopener nofollow">Nvidia's Q2 earnings to test resurgent AI trade</a></span></p>
-<<<<<<< HEAD
 <p class="head sector"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/markets/stocks/article/tesla-cybercab-to-launch-sept-3rd-as-robotaxi-bet-ramps-up-135557945.html" target="_blank" rel="noopener nofollow">Tesla Cybercab to launch Sept. 3rd as robotaxi bet ramps up</a></span></p>
-=======
-<p class="head sector"><span class="d">08-24</span><span><a href="https://www.trefis.com/articles/612591/netflix-has-changed-what-it-wants-to-be-judged-on/2026-08-24" target="_blank" rel="noopener nofollow">Netflix Has Changed What It Wants To Be Judged On</a></span></p>
->>>>>>> b6d00a3 (header: last run, not built)
+<p class="head sector"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/technology/ai/articles/buy-3-pure-play-server-140000913.html" target="_blank" rel="noopener nofollow">Buy These 3 Pure-Play Server Stocks to Benefit From AI Data Center Boom</a></span></p>
+<p class="head sector"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/technology/ai/articles/hugging-face-reportedly-talks-acquired-134726387.html" target="_blank" rel="noopener nofollow">Hugging Face reportedly in talks to be acquired for $13B</a></span></p>
 </details>
 <details><summary>JNJ<span class="n">4 direct, 1 sector</span></summary>
 <p class="head"><span class="d">08-23</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/johnson-johnson-5-5-billion-230104916.html" target="_blank" rel="noopener nofollow">Is Johnson &amp; Johnson’s $5.5 Billion Talc Settlement a Buy Signal, or Is the Legal Risk Far From Over?</a></span></p>
@@ -530,10 +449,17 @@ function initRun(cfg){
 <p class="head"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/healthcare/articles/pfizer-vs-johnson-johnson-pharma-004627834.html" target="_blank" rel="noopener nofollow">Pfizer vs. Johnson &amp; Johnson: Which Pharma Giant Is Better Prepared for Its Patent Cliff?</a></span></p>
 <p class="head sector"><span class="d">08-23</span><span><a href="https://www.fool.com/investing/2026/08/23/this-company-has-raised-its-dividend-for-72-straig/" target="_blank" rel="noopener nofollow">This Company Has Raised Its Dividend for 72 Straight Years. Almost Nobody Talks About It.</a></span></p>
 </details>
+<details><summary>JPM<span class="n">5 direct, 0 sector</span></summary>
+<p class="head"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/markets/articles/jpmorgan-berro-says-bond-market-131028834.html" target="_blank" rel="noopener nofollow">JPMorgan’s Berro Says Bond Market Can Handle High-Grade Stampede</a></span></p>
+<p class="head"><span class="d">08-24</span><span><a href="https://247wallst.com/investing/2026/08/24/jpmorgan-warns-of-fall-sell-off-potential-5-defensive-dividend-stocks-to-buy/" target="_blank" rel="noopener nofollow">JP Morgan Warns of Fall Sell-Off Potential: 5 Defensive Dividend Stocks to Buy</a></span></p>
+<p class="head"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/jpmorgans-card-credit-trends-improve-121800875.html" target="_blank" rel="noopener nofollow">JPMorgan's Card Credit Trends Improve: Are Losses Past Their Peak?</a></span></p>
+<p class="head"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/jpmorgan-stays-constructive-stocks-expects-105737644.html" target="_blank" rel="noopener nofollow">JPMorgan stays constructive on stocks, expects a grind higher with rotation</a></span></p>
+<p class="head"><span class="d">08-24</span><span><a href="https://www.thestreet.com/investing/stocks/jpmorgan-cuts-wmt-walmart-stock-price-target" target="_blank" rel="noopener nofollow">Walmart stock price target reset by JPMorgan after earnings</a></span></p>
+</details>
 <details><summary>LLY<span class="n">5 direct, 0 sector</span></summary>
-<p class="head"><span class="d">08-23</span><span><a href="https://www.fool.com/investing/2026/08/23/eli-lilly-and-novo-nordisk-cant-treat-this-form-of/" target="_blank" rel="noopener nofollow">Eli Lilly and Novo Nordisk Can't Treat This Form of Obesity. Billionaire Stanley Druckenmiller Is Betting Rhythm Pharmaceuticals Can</a></span></p>
 <p class="head"><span class="d">08-24</span><span><a href="https://investorshub.advfn.com/market-news/article/34920/roche-and-eli-lilly-win-fda-clearance-for-alzheimers-blood-test" target="_blank" rel="noopener nofollow">Roche and Eli Lilly Win FDA Clearance for Alzheimer’s Blood Test</a></span></p>
 <p class="head"><span class="d">08-24</span><span><a href="https://www.proactiveinvestors.com/companies/news/1097473/lilly-s-glp-1-pill-hits-uk-pharmacies-as-us-battle-with-novo-intensifies-1097473.html" target="_blank" rel="noopener nofollow">Lilly's GLP-1 pill hits UK pharmacies as US battle with Novo intensifies</a></span></p>
+<p class="head"><span class="d">08-24</span><span><a href="https://www.wsj.com/health/healthcare/fda-approves-alzheimers-blood-test-developed-by-roche-and-eli-lilly-694451c0?siteid=yhoof2&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">FDA Approves Alzheimer’s Blood Test Developed by Roche and Eli Lilly</a></span></p>
 <p class="head"><span class="d">08-24</span><span><a href="https://www.wsj.com/health/pharma/eli-lilly-launches-foundayo-weight-loss-pill-in-u-k-442845f4?siteid=yhoof2&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">Eli Lilly Launches Foundayo Weight-Loss Pill in U.K.</a></span></p>
 <p class="head"><span class="d">08-24</span><span><a href="https://www.proactiveinvestors.com/companies/news/1097464/eli-lilly-launches-oral-weight-loss-pill-in-uk-pharmacies-1097464.html" target="_blank" rel="noopener nofollow">Eli Lilly launches oral weight-loss pill in UK pharmacies</a></span></p>
 </details>
@@ -541,22 +467,22 @@ function initRun(cfg){
 <p class="head"><span class="d">08-24</span><span><a href="https://www.fool.com/investing/2026/08/24/forget-the-sp-500-microsoft-remains-one-of-the-bes/" target="_blank" rel="noopener nofollow">Forget the S&amp;P 500: Microsoft Remains One of the Best Stocks to Own</a></span></p>
 <p class="head"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/zacks-analyst-blog-highlights-apple-092400354.html" target="_blank" rel="noopener nofollow">The Zacks Analyst Blog Highlights Apple, Alphabet, Microsoft and Amazon</a></span></p>
 <p class="head sector"><span class="d">08-23</span><span><a href="https://finance.yahoo.com/news/nvidias-q2-earnings-to-test-resurgent-ai-trade-112502189.html" target="_blank" rel="noopener nofollow">Nvidia's Q2 earnings to test resurgent AI trade</a></span></p>
+<p class="head sector"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/technology/ai/articles/buy-3-pure-play-server-140000913.html" target="_blank" rel="noopener nofollow">Buy These 3 Pure-Play Server Stocks to Benefit From AI Data Center Boom</a></span></p>
 <p class="head sector"><span class="d">08-24</span><span><a href="https://qz.com/nvidia-ai-server-price-hike-memory-chips-082426" target="_blank" rel="noopener nofollow">Nvidia raising AI server prices more than 15% amid memory costs</a></span></p>
-<p class="head sector"><span class="d">08-24</span><span><a href="https://www.trefis.com/articles/612585/intuit-stock-nearly-halved-while-its-operating-margin-kept-climbing/2026-08-24" target="_blank" rel="noopener nofollow">Intuit Stock Nearly Halved While Its Operating Margin Kept Climbing</a></span></p>
 </details>
 <details><summary>PLTR<span class="n">4 direct, 1 sector</span></summary>
 <p class="head"><span class="d">08-22</span><span><a href="https://www.investors.com/news/palantir-stock-freeport-mcmoran-stocks-near-buy-points/?src=A00220&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">Palantir, Freeport Clear Buy Points, Lead Five Stocks To Watch</a></span></p>
-<p class="head"><span class="d">08-22</span><span><a href="https://www.fool.com/investing/2026/08/22/prediction-this-will-be-palantirs-stock-price-by-t/" target="_blank" rel="noopener nofollow">Prediction: This Will Be Palantir's Stock Price by the End of 2030</a></span></p>
 <p class="head"><span class="d">08-23</span><span><a href="https://www.fool.com/investing/2026/08/22/palantir-keeps-55-cents-of-every-revenue-dollar-as-profit/" target="_blank" rel="noopener nofollow">Palantir Keeps 55 Cents of Every Revenue Dollar as Profit</a></span></p>
+<p class="head"><span class="d">08-24</span><span><a href="https://247wallst.com/investing/2026/08/24/prediction-palantir-stock-will-hit-250-on-this-date/" target="_blank" rel="noopener nofollow">Prediction: Palantir Stock Will Hit $250 on This Date</a></span></p>
 <p class="head"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/cathie-wood-dumps-27-2-121440407.html" target="_blank" rel="noopener nofollow">Cathie Wood Dumps $27.2 Million of Palantir Stock After 43% Rally</a></span></p>
 <p class="head sector"><span class="d">08-22</span><span><a href="https://www.marketbeat.com/articles/marketbeat-week-in-review-08-17-08-21/?utm_source=yahoofinance&amp;utm_medium=yahoofinance" target="_blank" rel="noopener nofollow">MarketBeat Week in Review – 08/17 - 08/21</a></span></p>
 </details>
 <details><summary>TSLA<span class="n">5 direct, 0 sector</span></summary>
 <p class="head"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/markets/stocks/article/tesla-cybercab-to-launch-sept-3rd-as-robotaxi-bet-ramps-up-135557945.html" target="_blank" rel="noopener nofollow">Tesla Cybercab to launch Sept. 3rd as robotaxi bet ramps up</a></span></p>
+<p class="head"><span class="d">08-24</span><span><a href="https://www.benzinga.com/markets/prediction-markets/26/08/61383370/tesla-cybercab-launch-30000-price?utm_source=yahooFinance&amp;utm_campaign=partner_feed&amp;utm_medium=referral" target="_blank" rel="noopener nofollow">Tesla Sets Cybercab Launch Event for September 3 but Prediction Markets Doubt It'll Impress</a></span></p>
 <p class="head"><span class="d">08-24</span><span><a href="https://www.barrons.com/articles/xpeng-earnings-stock-price-89965a7e?siteid=yhoof2&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">XPeng Stock Drops on Disappointing Earnings. It Continues to Chase Tesla.</a></span></p>
 <p class="head"><span class="d">08-24</span><span><a href="https://www.fool.com/investing/2026/08/24/amazon-could-be-worth-more-than-tesla-and-spacex-c/" target="_blank" rel="noopener nofollow">Amazon Could Be Worth More Than Tesla and SpaceX Combined by 2030. Here's the Math.</a></span></p>
 <p class="head"><span class="d">08-24</span><span><a href="https://www.barrons.com/articles/teslas-stock-robo-taxi-expansion-nevada-3648e0e0?siteid=yhoof2&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">Tesla Is Expanding Robo-Taxis in Nevada. What It Means for the Stock.</a></span></p>
-<p class="head"><span class="d">08-24</span><span><a href="https://www.benzinga.com/markets/prediction-markets/26/08/61374326/elon-musk-tesla-optimus-2026-launch-crypto-prediction-market?utm_source=yahooFinance&amp;utm_campaign=partner_feed&amp;utm_medium=referral" target="_blank" rel="noopener nofollow">Elon Musk's Tesla Has 'Massive Advantage' Before Selling Optimus in the Market, Says This Analyst — Crypto Prediction Market Weighs 2026 Launch Odds</a></span></p>
 </details>
 <details><summary>V<span class="n">2 direct, 3 sector</span></summary>
 <p class="head"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/visa-jumps-toward-record-high-115040325.html" target="_blank" rel="noopener nofollow">Visa Jumps Toward Record High as Spending Defies Walmart's Warning</a></span></p>
@@ -566,19 +492,11 @@ function initRun(cfg){
 <p class="head sector"><span class="d">08-24</span><span><a href="https://cryptonews.com/news/volante-technologies-fednow-ripple-payment/" target="_blank" rel="noopener nofollow">Ripple Payment Rails Separated From FedNow Access by Volante</a></span></p>
 </details>
 <h2>Dropped</h2>
-<<<<<<< HEAD
-<div class="drop"><div class="k">Gate 1 trend</div><div class="v">AAPL, AMD, ANET, AVGO, CRWD, GOOGL, JPM, META, NVDA, PANW, TSM, QQQ, IWM</div></div>
-<div class="drop"><div class="k">Gate 2 earnings</div><div class="v">SPY[macro: CPI]</div></div>
-<div class="drop"><div class="k">Width pre-filter</div><div class="v">NFLX(5%W=$4.01)</div></div>
-<h2>Sources</h2>
-<div class="drop"><div class="v">Earnings: yfinance + nasdaq<br>Nasdaq calendar 2026-08-24 .. 2026-09-25 (434 companies)<br>Cross-check: 0 dated, 7 cleared by full-window scan, 0 unconfirmed<br>Macro: 4 events, FOMC from fed.gov (live), BLS live</div></div>
-=======
-<div class="drop"><div class="k">Gate 1 trend</div><div class="v">AAPL, AMD, ANET, AVGO, CRWD, GOOGL, JPM, META, NVDA, PANW, TSM, QQQ</div></div>
+<div class="drop"><div class="k">Gate 1 trend</div><div class="v">AAPL, AMD, AMZN, AVGO, CRWD, META, NVDA, PANW, TSM, QQQ</div></div>
 <div class="drop"><div class="k">Gate 2 earnings</div><div class="v">SPY[macro: CPI], IWM[macro: CPI]</div></div>
 <div class="drop"><div class="k">Width pre-filter</div><div class="v">NFLX(5%W=$4.01)</div></div>
 <h2>Sources</h2>
-<div class="drop"><div class="v">Earnings: yfinance + nasdaq<br>Nasdaq calendar 2026-08-24 .. 2026-09-25 (433 companies)<br>Cross-check: 0 dated, 7 cleared by full-window scan, 0 unconfirmed<br>Macro: 4 events, FOMC from fed.gov (live), BLS live</div></div>
->>>>>>> b6d00a3 (header: last run, not built)
+<div class="drop"><div class="v">Earnings: yfinance + nasdaq<br>Nasdaq calendar 2026-08-24 .. 2026-09-25 (433 companies)<br>Cross-check: 0 dated, 9 cleared by full-window scan, 0 unconfirmed<br>Macro: 4 events, FOMC from fed.gov (live), BLS live</div></div>
 <p class="sub">None of these is IR. Confirm at source anything that binds.</p>
 <div class="foot"><b>Δ</b> target short-leg delta (roughly the chance of finishing in the money) &middot; <b>Short</b> strike sold &middot; <b>Width</b> distance to the strike bought &middot; <b>IV</b> priced-in move &middot; <b>HV</b> actual recent move.<br>IV is per-strike and delayed. Bid/ask is context, not a gate. Gates are hard vetoes, not quotas — cash is a valid outcome.<br>Generated by <code>pcs_screen.py</code>. Not financial advice.</div>
 </div></body></html>
