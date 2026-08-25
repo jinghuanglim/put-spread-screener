@@ -1443,16 +1443,20 @@ def report(rows, dropped, conflicts, news_out, regime, today, verbose=False):
         exp_d = datetime.strptime(exp_s, "%Y-%m-%d").date()
         onday = [l for d, l in near if d == exp_d]
         if near:
-            L.append(f"MACRO   within {MACRO_WINDOW_DAYS}d of {exp_s}: "
-                     + ", ".join(f"{l} {d}" for d, l in near))
+            L.append(f"MACRO   within {MACRO_WINDOW_DAYS}d of expiry {exp_s}:")
+            for d, lbl in sorted(near):
+                off = (d - exp_d).days
+                when = ("EXPIRY DAY" if off == 0 else
+                        f"{abs(off)}d {'before' if off < 0 else 'after'}")
+                L.append(f"          {lbl:<5} {d.strftime('%a %d %b')}  {when}")
         else:
             L.append(f"MACRO   within {MACRO_WINDOW_DAYS}d of {exp_s}: none")
         if onday:
-            L.append(f"        ** {', '.join(onday)} LANDS ON EXPIRY DAY "
-                     f"\u2014 8:30am print, hours before these settle. **")
+            L.append(f"        ** {', '.join(onday)} PRINTS 8:30am ON THE DAY "
+                     f"THESE SETTLE \u2014 every position moves together **")
         if len(near) >= 2:
-            L.append("        ** MACRO DENSITY: 2+ events in window "
-                     "\u2014 HALVE TRANCHE **")
+            L.append(f"        ** MACRO DENSITY: {len(near)} events within "
+                     f"{MACRO_WINDOW_DAYS}d \u2014 HALVE TRANCHE **")
     nev = len(regime.get("macro_events") or [])
     span = regime.get("macro_span_days") or 0
     expected = max(2, int(span / 30) * 2)
@@ -1850,7 +1854,13 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim)
   border:1px solid transparent}
 .banner.warn{background:var(--warnbg);border-color:var(--warn);color:var(--ink)}
 .banner.alarm{background:var(--alarmbg);border-color:var(--alarm);color:var(--ink)}
-.banner b{display:block;margin-bottom:2px}
+.banner b.t{display:block;margin-bottom:2px}
+.banner b{display:inline}
+.banner ul.macro{margin:8px 0 10px;padding:0;list-style:none}
+.banner ul.macro li{padding:5px 0;border-bottom:1px solid rgba(128,128,128,.22);
+  font-variant-numeric:tabular-nums}
+.banner ul.macro li:last-child{border-bottom:none}
+
 /* overflow-x:auto silently makes this a scroll container on BOTH axes, and a
    sticky <th> sticks to its nearest scrolling ancestor - so the header was
    pinning itself to a box that never scrolls vertically, and sailed off the
@@ -2265,19 +2275,34 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     near = regime.get("macro_near_expiry") or []
     exp_s = regime.get("macro_expiry")
     if exp_s and near:
+        # One banner, not two. The old pair both derived from this same list
+        # and neither said what was in it: "two or more events" is the count
+        # without the events, which is the half you cannot act on.
         ed = datetime.strptime(exp_s, "%Y-%m-%d").date()
         onday = [l for d, l in near if d == ed]
+        items = []
+        for d, lbl in sorted(near):
+            off = (d - ed).days
+            when = ("<b>expiry day</b>" if off == 0 else
+                    f"{abs(off)} day{'' if abs(off) == 1 else 's'} "
+                    f"{'before' if off < 0 else 'after'} expiry")
+            items.append(f'<li><b>{_esc(lbl)}</b> &middot; '
+                         f'{d.strftime("%a %d %b")} &middot; {when}</li>')
+        why = []
         if onday:
-            H.append(f'<div class="banner alarm"><b>{_esc(", ".join(onday))} '
-                     f'lands on expiry day ({_esc(exp_s)})</b>'
-                     f'8:30am print, hours before these settle. '
-                     f'Every position moves together.</div>')
+            why.append(f'{_esc(", ".join(onday))} prints at 8:30am on the day '
+                       f'these settle \u2014 hours before, with every position '
+                       f'moving on the same number.')
         if len(near) >= 2:
-            H.append('<div class="banner warn"><b>Macro density</b>'
-                     'Two or more events within the window — halve tranche.'
-                     '</div>')
+            why.append(f'{len(near)} events inside {MACRO_WINDOW_DAYS} days of '
+                       f'expiry, so the macro-density rule applies: '
+                       f'<b>halve the tranche</b>.')
+        H.append(f'<div class="banner {"alarm" if onday else "warn"}">'
+                 f'<b class="t">Macro in the expiry window &middot; {_esc(exp_s)}</b>'
+                 f'<ul class="macro">{"".join(items)}</ul>'
+                 f'{" ".join(why)}</div>')
     if not regime.get("macro_bls_ok"):
-        H.append('<div class="banner alarm"><b>Macro calendar incomplete</b>'
+        H.append('<div class="banner alarm"><b class="t">Macro calendar incomplete</b>'
                  'CPI/NFP dates are missing. A clear macro line is NOT a '
                  'clearance.</div>')
 
@@ -2407,7 +2432,7 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                      f'any of it to hold \u2014 that is position sizing, and '
                      f'this page does not do it.</p>')
         for note in cross_cluster_notes([r["t"] for r in rows]):
-            H.append(f'<div class="banner warn"><b>Two groups, one bet</b>'
+            H.append(f'<div class="banner warn"><b class="t">Two groups, one bet</b>'
                      f'{_esc(note)}</div>')
 
         seen = []
@@ -3289,6 +3314,42 @@ Producer Price Index for October 2026
             for c, v in by_c_test.items()))
     chk("the terminal report keeps the IBKR note",
         "NOT COMPUTED" in txt)
+
+    print("THE MACRO BANNER NAMES WHAT IT IS WARNING ABOUT")
+    mreg = dict(regime, macro_expiry="2026-09-11", macro_near_expiry=[
+        (date(2026, 9, 10), "PPI"), (date(2026, 9, 11), "CPI")])
+    mh = render_html(rows, dropped, conflicts, news, mreg, today)
+    chk("each event is named", "PPI" in mh and "CPI" in mh)
+    chk("each carries its own date", "Thu 10 Sep" in mh and "Fri 11 Sep" in mh)
+    chk("the one on expiry day is called out", "expiry day" in mh)
+    chk("the others are placed relative to expiry", "1 day before expiry" in mh)
+    chk("the count is stated with the events, not instead of them",
+        "2 events inside 3 days" in mh)
+    chk("the consequence is still spelled out", "halve the tranche" in mh)
+    chk("only the banner title is a block, so emphasis stays inline",
+        ".banner b.t{display:block" in mh and ".banner b{display:inline}" in mh)
+    chk("every banner titles itself with the block class",
+        mh.count('class="banner') == mh.count('><b class="t">'),
+        f"{mh.count('class=' + chr(34) + 'banner')} banners")
+    chk("it is ONE banner, not two",
+        mh.count("Macro in the expiry window") == 1
+        and "Macro density</b>" not in mh)
+    chk("expiry-day events make it the loud colour",
+        'banner alarm"><b class="t">Macro in the expiry window' in mh)
+
+    lone = dict(regime, macro_expiry="2026-09-18",
+                macro_near_expiry=[(date(2026, 9, 16), "FOMC")])
+    lh = render_html(rows, dropped, conflicts, news, lone, today)
+    chk("a single event off the expiry day is the quieter colour",
+        'banner warn"><b class="t">Macro in the expiry window' in lh)
+    chk("and does not claim density", "events inside" not in lh)
+    chk("it still names the event and its distance",
+        "FOMC" in lh and "2 days before expiry" in lh)
+
+    clear = dict(regime, macro_expiry="2026-10-30", macro_near_expiry=[])
+    ch2 = render_html(rows, dropped, conflicts, news, clear, today)
+    chk("nothing in the window means no banner at all",
+        "Macro in the expiry window" not in ch2)
 
     print("THE PAGE IDENTIFIES ITSELF")
     stamped = render_html(rows, dropped, conflicts, news,
