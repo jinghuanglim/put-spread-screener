@@ -35,6 +35,9 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .sig b{color:var(--ink)}
 .stat.now .v{color:var(--accent)}
 .chip{cursor:help}
+.chip.bare{background:none;border:none;padding:0;font-size:inherit;
+  font-family:inherit;color:inherit}
+.drift{color:var(--dim);font-size:.86em}
 .chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #tip{position:fixed;z-index:99;max-width:min(340px,calc(100vw - 24px));
   background:var(--panel);color:var(--ink);border:1px solid var(--line);
@@ -59,13 +62,29 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim)
 .banner.warn{background:var(--warnbg);border-color:var(--warn);color:var(--ink)}
 .banner.alarm{background:var(--alarmbg);border-color:var(--alarm);color:var(--ink)}
 .banner b{display:block;margin-bottom:2px}
+/* overflow-x:auto silently makes this a scroll container on BOTH axes, and a
+   sticky <th> sticks to its nearest scrolling ancestor - so the header was
+   pinning itself to a box that never scrolls vertically, and sailed off the
+   top of the screen with everything else. Once the table fits, the container
+   has no job, so it gets out of the way and the header can stick to the
+   viewport instead. */
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;
-  border:1px solid var(--line);border-radius:9px;background:var(--panel)}
+  border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+/* 860px is where the table stops needing to scroll sideways (measured: it
+   wants 828px, and below ~870 the container has to take over). Above it the
+   container has no job, so it steps aside and the header sticks. */
+@media (min-width:870px){
+  .scroll{overflow:visible}
+}
 table{border-collapse:collapse;width:100%;font-size:16px}
 th,td{padding:11px 13px;text-align:right;white-space:nowrap;
   border-bottom:1px solid var(--line)}
 th{font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);
-  font-weight:600;position:sticky;top:0;background:var(--panel)}
+  font-weight:600;position:sticky;top:0;z-index:5;background:var(--panel);
+  border-bottom:1px solid var(--line);box-shadow:0 1px 0 var(--line)}
+/* The cluster label sticks under the header, so a long list never leaves you
+   wondering which group the row you are looking at belongs to. */
+tr.grp td{position:sticky;top:41px;z-index:4}
 th:first-child,td:first-child{text-align:left}
 td.num{font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:15.5px}
 td.tgt{color:var(--accent);font-weight:600}
@@ -131,7 +150,11 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 .foot{color:var(--dim);font-size:14px;margin-top:34px;border-top:1px solid var(--line);
   padding-top:14px}
 .foot code{font-family:var(--mono)}
-@media (max-width:720px){
+/* Cards below 870, table above - the same width at which the table stops
+   needing to scroll sideways. Between the old 720 and 870 the table technically
+   rendered but had to be dragged left and right, which is the worst of both:
+   too cramped to read as a table, too wide to read as a card. */
+@media (max-width:869px){
   .wrap{padding:14px 11px 48px}
   thead{display:none}
   table,tbody,tr,td{display:block;width:100%}
@@ -154,14 +177,14 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <h1>Put credit spread screen</h1>
 <span class="by">JH’s rules</span>
 </div>
-<p class="sub">2026-08-25 &middot; US session 2026-08-24 &middot; spot live &middot; DTE 14–21 &middot; <b>run #22</b></p>
+<p class="sub">2026-08-25 &middot; US session 2026-08-24 &middot; spot live &middot; DTE 14–21 &middot; <b>run #23</b></p>
 <div class="runbar">
 <button class="btn" id="go">Run screen</button>
 <span class="runstat" id="stat"></span></div>
 <div class="bar" id="bar"><div></div></div>
 <div class="fresh" id="fresh"></div>
 <div class="grid">
-<div class="stat now"><div class="k">Last run</div><div class="v"><span id="built" data-utc="2026-08-25T01:18:41Z">01:18 UTC</span></div></div>
+<div class="stat now"><div class="k">Last run</div><div class="v"><span id="built" data-utc="2026-08-25T01:31:20Z">01:31 UTC</span></div></div>
 <div class="stat"><div class="k">VIX</div><div class="v">15.85</div></div>
 <div class="stat"><div class="k">SPX vs 20-MA</div><div class="v">+0.11%</div></div>
 <div class="stat"><div class="k">Condor</div><div class="v">NO-GO</div></div>
@@ -172,12 +195,11 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <h2>Candidates — gates 1–2 passed</h2>
 <div class="scroll"><table><thead><tr>
 <th>Ticker</th>
-<th title="Target Δ — the short-leg delta this name is screened at — roughly its chance of finishing in the money">Δ</th>
+<th title="Delta — the short-leg delta this name is screened at — roughly its chance of finishing in the money. Hover a value to see the delta of the strike actually listed.">Δ</th>
 <th title="last traded price">Spot</th>
 <th title="strike sold">Short</th>
 <th title="strike bought, one width below">Long</th>
 <th title="distance between the two strikes">Width</th>
-<th title="Actual Δ — delta of the strike actually listed — the grid rarely lands exactly on the target">Δ act</th>
 <th title="Target credit — 11% of the width — the least this spread may be sold for. Aim at or above it when you price the ticket in IBKR.">Target</th>
 <th title="implied volatility: the move being priced in">IV</th>
 <th title="realised volatility: the move actually delivered">HV</th>
@@ -187,127 +209,119 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <tr class="grp"><td colspan="11">Networking <span class="cnt">1 name</span></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">ANET</span></td>
-<td class="num" data-l="Target Δ">0.15</td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.14">0.15</span></td>
 <td class="num" data-l="Spot">188.15</td>
 <td class="num" data-l="Short">167.5</td>
 <td class="num" data-l="Long">155.0</td>
 <td class="num" data-l="Width">12.5</td>
-<td class="num" data-l="Actual Δ">0.14</td>
 <td class="num tgt" data-l="Target credit">1.38</td>
 <td class="num" data-l="IV">51.3%</td>
 <td class="num" data-l="HV">55.8%</td>
 <td class="num" data-l="IV/HV">0.92</td>
 <td class="num" data-l="DTE">18</td>
 </tr>
-<tr class="fl"><td colspan="12"><div class="chips"><span class="chip hot" tabindex="0" data-tip="knife — +0.09% vs 20-day avg 187.98. Feeds can disagree on the sign here. Verify.">knife</span><span class="chip" tabindex="0" data-tip="inv — priced for 51% move, actually moved 56%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap20d — reported 20d ago; that jump inflates HV, so 'inv' may be fake.">gap20d</span><span class="chip" tabindex="0" data-tip="oi0 — 0 open vs your 500 rule. Worse fills, harder to exit.">oi0</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 43% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip hot" tabindex="0" data-tip="knife — +0.09% vs 20-day avg 187.98. Feeds can disagree on the sign here. Verify.">knife</span><span class="chip" tabindex="0" data-tip="inv — priced for 51% move, actually moved 56%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap20d — reported 20d ago; that jump inflates HV, so 'inv' may be fake.">gap20d</span><span class="chip" tabindex="0" data-tip="oi0 — 0 open vs your 500 rule. Worse fills, harder to exit.">oi0</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 43% of price. You pay it twice on a spread.">ba</span></div></td></tr>
 <tr class="grp"><td colspan="11">Mega-cap platform <span class="cnt">2 names</span></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">AMZN</span></td>
-<td class="num" data-l="Target Δ">0.15</td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
 <td class="num" data-l="Spot">262.07</td>
 <td class="num" data-l="Short">245.0</td>
 <td class="num" data-l="Long">230.0</td>
 <td class="num" data-l="Width">15.0</td>
-<td class="num" data-l="Actual Δ">0.15</td>
 <td class="num tgt" data-l="Target credit">1.65</td>
 <td class="num" data-l="IV">31.0%</td>
 <td class="num" data-l="HV">52.2%</td>
 <td class="num" data-l="IV/HV">0.59</td>
 <td class="num" data-l="DTE">18</td>
 </tr>
-<tr class="fl"><td colspan="12"><div class="chips"><span class="chip hot" tabindex="0" data-tip="knife — +0.26% vs 20-day avg 261.38. Feeds can disagree on the sign here. Verify.">knife</span><span class="chip" tabindex="0" data-tip="inv — priced for 31% move, actually moved 52%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap25d — reported 25d ago; that jump inflates HV, so 'inv' may be fake.">gap25d</span><span class="chip" tabindex="0" data-tip="fb0.18 — may step to 0.18Δ only after 11% fails live. No further.">fb0.18</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 11% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip hot" tabindex="0" data-tip="knife — +0.26% vs 20-day avg 261.38. Feeds can disagree on the sign here. Verify.">knife</span><span class="chip" tabindex="0" data-tip="inv — priced for 31% move, actually moved 52%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap25d — reported 25d ago; that jump inflates HV, so 'inv' may be fake.">gap25d</span><span class="chip" tabindex="0" data-tip="fb0.18 — may step to 0.18Δ only after 11% fails live. No further.">fb0.18</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 11% of price. You pay it twice on a spread.">ba</span></div></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">MSFT</span></td>
-<td class="num" data-l="Target Δ">0.15</td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.16">0.15</span></td>
 <td class="num" data-l="Spot">487.31</td>
 <td class="num" data-l="Short">460.0</td>
 <td class="num" data-l="Long">435.0</td>
 <td class="num" data-l="Width">25.0</td>
-<td class="num" data-l="Actual Δ">0.16</td>
 <td class="num tgt" data-l="Target credit">2.75</td>
 <td class="num" data-l="IV">27.5%</td>
 <td class="num" data-l="HV">49.9%</td>
 <td class="num" data-l="IV/HV">0.55</td>
 <td class="num" data-l="DTE">18</td>
 </tr>
-<tr class="fl"><td colspan="12"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 28% move, actually moved 50%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap26d — reported 26d ago; that jump inflates HV, so 'inv' may be fake.">gap26d</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="oi355 — 355 open vs your 500 rule. Worse fills, harder to exit.">oi355</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 14% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 28% move, actually moved 50%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap26d — reported 26d ago; that jump inflates HV, so 'inv' may be fake.">gap26d</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="oi355 — 355 open vs your 500 rule. Worse fills, harder to exit.">oi355</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 14% of price. You pay it twice on a spread.">ba</span></div></td></tr>
 <tr class="grp"><td colspan="11">High-beta <span class="cnt">2 names</span></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">PLTR</span></td>
-<td class="num" data-l="Target Δ">0.15</td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.14">0.15</span></td>
 <td class="num" data-l="Spot">175.89</td>
 <td class="num" data-l="Short">157.5</td>
 <td class="num" data-l="Long">147.0</td>
 <td class="num" data-l="Width">10.5</td>
-<td class="num" data-l="Actual Δ">0.14</td>
 <td class="num tgt" data-l="Target credit">1.16</td>
 <td class="num" data-l="IV">49.7%</td>
 <td class="num" data-l="HV">90.4%</td>
 <td class="num" data-l="IV/HV">0.55</td>
 <td class="num" data-l="DTE">18</td>
 </tr>
-<tr class="fl"><td colspan="12"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 50% move, actually moved 90%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap21d — reported 21d ago; that jump inflates HV, so 'inv' may be fake.">gap21d</span><span class="chip" tabindex="0" data-tip="oi163 — 163 open vs your 500 rule. Worse fills, harder to exit.">oi163</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 10% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 50% move, actually moved 90%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap21d — reported 21d ago; that jump inflates HV, so 'inv' may be fake.">gap21d</span><span class="chip" tabindex="0" data-tip="oi163 — 163 open vs your 500 rule. Worse fills, harder to exit.">oi163</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 10% of price. You pay it twice on a spread.">ba</span></div></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">TSLA</span></td>
-<td class="num" data-l="Target Δ">0.15</td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.16">0.15</span></td>
 <td class="num" data-l="Spot">348.95</td>
 <td class="num" data-l="Short">320.0</td>
 <td class="num" data-l="Long">305.0</td>
 <td class="num" data-l="Width">15.0</td>
-<td class="num" data-l="Actual Δ">0.16</td>
 <td class="num tgt" data-l="Target credit">1.65</td>
 <td class="num" data-l="IV">41.3%</td>
 <td class="num" data-l="HV">58.6%</td>
 <td class="num" data-l="IV/HV">0.70</td>
 <td class="num" data-l="DTE">18</td>
 </tr>
-<tr class="fl"><td colspan="12"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 41% move, actually moved 59%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap33d — reported 33d ago; that jump inflates HV, so 'inv' may be fake.">gap33d</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 41% move, actually moved 59%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap33d — reported 33d ago; that jump inflates HV, so 'inv' may be fake.">gap33d</span></div></td></tr>
 <tr class="grp"><td colspan="11">Defensive/financial <span class="cnt">3 names</span></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">LLY</span></td>
-<td class="num" data-l="Target Δ">0.15</td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
 <td class="num" data-l="Spot">1246.93</td>
 <td class="num" data-l="Short">1120.0</td>
 <td class="num" data-l="Long">1060.0</td>
 <td class="num" data-l="Width">60.0</td>
-<td class="num" data-l="Actual Δ">0.15</td>
 <td class="num tgt" data-l="Target credit">6.60</td>
 <td class="num" data-l="IV">50.3%</td>
 <td class="num" data-l="HV">36.1%</td>
 <td class="num" data-l="IV/HV">1.39</td>
 <td class="num" data-l="DTE">18</td>
 </tr>
-<tr class="fl"><td colspan="12"><div class="chips"><span class="chip" tabindex="0" data-tip="gap19d — reported 19d ago; that jump inflates HV, so 'inv' may be fake.">gap19d</span><span class="chip" tabindex="0" data-tip="oi98 — 98 open vs your 500 rule. Worse fills, harder to exit.">oi98</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 124% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="gap19d — reported 19d ago; that jump inflates HV, so 'inv' may be fake.">gap19d</span><span class="chip" tabindex="0" data-tip="oi98 — 98 open vs your 500 rule. Worse fills, harder to exit.">oi98</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 124% of price. You pay it twice on a spread.">ba</span></div></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">JNJ</span></td>
-<td class="num" data-l="Target Δ">0.15</td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
 <td class="num" data-l="Spot">273.04</td>
 <td class="num" data-l="Short">257.5</td>
 <td class="num" data-l="Long">240.0</td>
 <td class="num" data-l="Width">17.5</td>
-<td class="num" data-l="Actual Δ">0.15</td>
 <td class="num tgt" data-l="Target credit">1.93</td>
 <td class="num" data-l="IV">27.3%</td>
 <td class="num" data-l="HV">23.2%</td>
 <td class="num" data-l="IV/HV">1.18</td>
 <td class="num" data-l="DTE">18</td>
 </tr>
-<tr class="fl"><td colspan="12"><div class="chips"><span class="chip" tabindex="0" data-tip="gap40d — reported 40d ago; that jump inflates HV, so 'inv' may be fake.">gap40d</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="oi0 — 0 open vs your 500 rule. Worse fills, harder to exit.">oi0</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 105% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="gap40d — reported 40d ago; that jump inflates HV, so 'inv' may be fake.">gap40d</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="oi0 — 0 open vs your 500 rule. Worse fills, harder to exit.">oi0</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 105% of price. You pay it twice on a spread.">ba</span></div></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">V</span></td>
-<td class="num" data-l="Target Δ">0.15</td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.16">0.15</span></td>
 <td class="num" data-l="Spot">382.41</td>
 <td class="num" data-l="Short">365.0</td>
 <td class="num" data-l="Long">345.0</td>
 <td class="num" data-l="Width">20.0</td>
-<td class="num" data-l="Actual Δ">0.16</td>
 <td class="num tgt" data-l="Target credit">2.20</td>
 <td class="num" data-l="IV">22.4%</td>
 <td class="num" data-l="HV">19.3%</td>
 <td class="num" data-l="IV/HV">1.16</td>
 <td class="num" data-l="DTE">18</td>
 </tr>
-<tr class="fl"><td colspan="12"><div class="chips"><span class="chip" tabindex="0" data-tip="gap27d — reported 27d ago; that jump inflates HV, so 'inv' may be fake.">gap27d</span><span class="chip" tabindex="0" data-tip="fb0.20 — may step to 0.20Δ only after 11% fails live. No further.">fb0.20</span><span class="chip" tabindex="0" data-tip="oi17 — 17 open vs your 500 rule. Worse fills, harder to exit.">oi17</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 44% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="gap27d — reported 27d ago; that jump inflates HV, so 'inv' may be fake.">gap27d</span><span class="chip" tabindex="0" data-tip="fb0.20 — may step to 0.20Δ only after 11% fails live. No further.">fb0.20</span><span class="chip" tabindex="0" data-tip="oi17 — 17 open vs your 500 rule. Worse fills, harder to exit.">oi17</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 44% of price. You pay it twice on a spread.">ba</span></div></td></tr>
 </tbody></table></div>
 <p class="sub" style="margin-top:10px">Hover or tap any flag to see what it means. <b>Target</b> is 11% of the width — the least the spread may be sold for, and what to aim at when you price it live. This page does not quote options; it tells you the number to beat.</p>
 <p class="sub" style="margin-top:10px">All expiries 2026-09-11. The 11%W floor is yours to enforce at ticket.</p>
@@ -573,5 +587,5 @@ function initRun(cfg){
   look();
   arm(look,10000);
 }
-</script><script>initRun({repo:"jinghuanglim/put-spread-screener",wf:"screen.yml",runId:"32797006637",runNumber:"22",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
+</script><script>initRun({repo:"jinghuanglim/put-spread-screener",wf:"screen.yml",runId:"32797812574",runNumber:"23",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
 </div></body></html>
