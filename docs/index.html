@@ -183,18 +183,18 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <h1>Put credit spread screen</h1>
 <span class="by">JH’s rules</span>
 </div>
-<p class="sub">2026-08-25 &middot; US session 2026-08-24 &middot; spot live &middot; DTE 14–21 &middot; <b>run #25</b></p>
+<p class="sub">2026-08-25 &middot; US session 2026-08-25 &middot; spot live &middot; DTE 14–21 &middot; <b>run #26</b></p>
 <div class="runbar">
 <button class="btn" id="go">Run screen</button>
 <span class="runstat" id="stat"></span></div>
 <div class="bar" id="bar"><div></div></div>
 <div class="fresh" id="fresh"></div>
 <div class="grid">
-<div class="stat now"><div class="k">Last run</div><div class="v"><span id="built" data-utc="2026-08-25T02:13:03Z">02:13 UTC</span></div></div>
+<div class="stat now"><div class="k">Last run</div><div class="v"><span id="built" data-utc="2026-08-25T05:56:37Z">05:56 UTC</span></div></div>
 <div class="stat"><div class="k">VIX</div><div class="v">15.85</div></div>
-<div class="stat"><div class="k">SPX vs 20-MA</div><div class="v">+0.11%</div></div>
+<div class="stat"><div class="k">SPX vs 20-MA</div><div class="v">-0.05%</div></div>
 <div class="stat"><div class="k">Condor</div><div class="v">NO-GO</div></div>
-<div class="stat"><div class="k">Candidates</div><div class="v">8</div></div>
+<div class="stat"><div class="k">Candidates</div><div class="v">6</div></div>
 </div>
 <div class="banner alarm"><b class="t">Macro in the expiry window &middot; 2026-09-11</b><ul class="macro"><li><b>PPI</b> &middot; Thu 10 Sep &middot; 1 day before expiry</li><li><b>CPI</b> &middot; Fri 11 Sep &middot; <b>expiry day</b></li></ul>CPI prints at 8:30am on the day these settle — hours before, with every position moving on the same number. 2 events inside 3 days of expiry, so the macro-density rule applies: <b>halve the tranche</b>.</div>
 <h2>Candidates — gates 1–2 passed</h2>
@@ -211,146 +211,103 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <th title="under 1.00 means it is priced for less than it moved">IV/HV</th>
 <th title="days to expiry">DTE</th>
 </tr></thead><tbody>
-<tr class="grp"><td colspan="11">Networking <span class="cnt">1 name</span></td></tr>
-<tr class="row">
-<td class="tkcell" data-l="Ticker"><span class="tk">ANET</span></td>
-<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.14">0.15</span></td>
-<td class="num" data-l="Spot">188.15</td>
-<td class="num" data-l="Short">167.5</td>
-<td class="num" data-l="Long">155.0</td>
-<td class="num" data-l="Width">12.5</td>
-<td class="num tgt" data-l="Target credit">1.38</td>
-<td class="num" data-l="IV">51.3%</td>
-<td class="num" data-l="HV">55.8%</td>
-<td class="num" data-l="IV/HV">0.92</td>
-<td class="num" data-l="DTE">18</td>
-</tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip hot" tabindex="0" data-tip="knife — +0.09% vs 20-day avg 187.98. Feeds can disagree on the sign here. Verify.">knife</span><span class="chip" tabindex="0" data-tip="inv — priced for 51% move, actually moved 56%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap20d — reported 20d ago; that jump inflates HV, so 'inv' may be fake.">gap20d</span><span class="chip" tabindex="0" data-tip="oi0 — 0 open vs your 500 rule. Worse fills, harder to exit.">oi0</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 43% of price. You pay it twice on a spread.">ba</span></div></td></tr>
-<tr class="grp"><td colspan="11">Mega-cap platform <span class="cnt">2 names</span></td></tr>
-<tr class="row">
-<td class="tkcell" data-l="Ticker"><span class="tk">AMZN</span></td>
-<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
-<td class="num" data-l="Spot">262.07</td>
-<td class="num" data-l="Short">245.0</td>
-<td class="num" data-l="Long">230.0</td>
-<td class="num" data-l="Width">15.0</td>
-<td class="num tgt" data-l="Target credit">1.65</td>
-<td class="num" data-l="IV">31.0%</td>
-<td class="num" data-l="HV">52.2%</td>
-<td class="num" data-l="IV/HV">0.59</td>
-<td class="num" data-l="DTE">18</td>
-</tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip hot" tabindex="0" data-tip="knife — +0.26% vs 20-day avg 261.38. Feeds can disagree on the sign here. Verify.">knife</span><span class="chip" tabindex="0" data-tip="inv — priced for 31% move, actually moved 52%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap25d — reported 25d ago; that jump inflates HV, so 'inv' may be fake.">gap25d</span><span class="chip" tabindex="0" data-tip="fb0.18 — may step to 0.18Δ only after 11% fails live. No further.">fb0.18</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 11% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="grp"><td colspan="11">Mega-cap platform <span class="cnt">1 name</span></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">MSFT</span></td>
-<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.16">0.15</span></td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.00">0.15<span class="drift"> →0.00</span></span></td>
 <td class="num" data-l="Spot">487.31</td>
-<td class="num" data-l="Short">460.0</td>
-<td class="num" data-l="Long">435.0</td>
+<td class="num" data-l="Short">465.0</td>
+<td class="num" data-l="Long">440.0</td>
 <td class="num" data-l="Width">25.0</td>
 <td class="num tgt" data-l="Target credit">2.75</td>
-<td class="num" data-l="IV">27.5%</td>
+<td class="num" data-l="IV">6.3%</td>
 <td class="num" data-l="HV">49.9%</td>
-<td class="num" data-l="IV/HV">0.55</td>
-<td class="num" data-l="DTE">18</td>
+<td class="num" data-l="IV/HV">0.13</td>
+<td class="num" data-l="DTE">17</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 28% move, actually moved 50%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap26d — reported 26d ago; that jump inflates HV, so 'inv' may be fake.">gap26d</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="oi355 — 355 open vs your 500 rule. Worse fills, harder to exit.">oi355</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 14% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="prov — only 1.9% above 20-day avg. One down day drops it out of Gate 1.">prov</span><span class="chip" tabindex="0" data-tip="inv — priced for 6% move, actually moved 50%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap27d — reported 27d ago; that jump inflates HV, so 'inv' may be fake.">gap27d</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="oi0 — 0 open vs your 500 rule. Worse fills, harder to exit.">oi0</span><span class="chip hot" tabindex="0" data-tip="noq — no bid/ask posted. Price shown is not tradeable.">noq</span></div></td></tr>
 <tr class="grp"><td colspan="11">High-beta <span class="cnt">2 names</span></td></tr>
 <tr class="row">
-<td class="tkcell" data-l="Ticker"><span class="tk">PLTR</span></td>
-<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.14">0.15</span></td>
-<td class="num" data-l="Spot">175.89</td>
-<td class="num" data-l="Short">157.5</td>
-<td class="num" data-l="Long">147.0</td>
-<td class="num" data-l="Width">10.5</td>
-<td class="num tgt" data-l="Target credit">1.16</td>
-<td class="num" data-l="IV">49.7%</td>
-<td class="num" data-l="HV">90.4%</td>
-<td class="num" data-l="IV/HV">0.55</td>
-<td class="num" data-l="DTE">18</td>
-</tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 50% move, actually moved 90%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap21d — reported 21d ago; that jump inflates HV, so 'inv' may be fake.">gap21d</span><span class="chip" tabindex="0" data-tip="oi163 — 163 open vs your 500 rule. Worse fills, harder to exit.">oi163</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 10% of price. You pay it twice on a spread.">ba</span></div></td></tr>
-<tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">TSLA</span></td>
-<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.16">0.15</span></td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.00">0.15<span class="drift"> →0.00</span></span></td>
 <td class="num" data-l="Spot">348.95</td>
-<td class="num" data-l="Short">320.0</td>
-<td class="num" data-l="Long">305.0</td>
+<td class="num" data-l="Short">285.0</td>
+<td class="num" data-l="Long">270.0</td>
 <td class="num" data-l="Width">15.0</td>
 <td class="num tgt" data-l="Target credit">1.65</td>
-<td class="num" data-l="IV">41.3%</td>
-<td class="num" data-l="HV">58.6%</td>
-<td class="num" data-l="IV/HV">0.70</td>
-<td class="num" data-l="DTE">18</td>
+<td class="num" data-l="IV">25.0%</td>
+<td class="num" data-l="HV">58.9%</td>
+<td class="num" data-l="IV/HV">0.42</td>
+<td class="num" data-l="DTE">17</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 41% move, actually moved 59%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap33d — reported 33d ago; that jump inflates HV, so 'inv' may be fake.">gap33d</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 25% move, actually moved 59%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap34d — reported 34d ago; that jump inflates HV, so 'inv' may be fake.">gap34d</span><span class="chip" tabindex="0" data-tip="oi0 — 0 open vs your 500 rule. Worse fills, harder to exit.">oi0</span><span class="chip hot" tabindex="0" data-tip="noq — no bid/ask posted. Price shown is not tradeable.">noq</span></div></td></tr>
+<tr class="row">
+<td class="tkcell" data-l="Ticker"><span class="tk">PLTR</span></td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.00">0.15<span class="drift"> →0.00</span></span></td>
+<td class="num" data-l="Spot">175.89</td>
+<td class="num" data-l="Short">172.5</td>
+<td class="num" data-l="Long">162.5</td>
+<td class="num" data-l="Width">10.0</td>
+<td class="num tgt" data-l="Target credit">1.10</td>
+<td class="num" data-l="IV">3.1%</td>
+<td class="num" data-l="HV">90.8%</td>
+<td class="num" data-l="IV/HV">0.03</td>
+<td class="num" data-l="DTE">17</td>
+</tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 3% move, actually moved 91%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap22d — reported 22d ago; that jump inflates HV, so 'inv' may be fake.">gap22d</span><span class="chip" tabindex="0" data-tip="oi0 — 0 open vs your 500 rule. Worse fills, harder to exit.">oi0</span><span class="chip hot" tabindex="0" data-tip="noq — no bid/ask posted. Price shown is not tradeable.">noq</span></div></td></tr>
 <tr class="grp"><td colspan="11">Defensive/financial <span class="cnt">3 names</span></td></tr>
 <tr class="row">
+<td class="tkcell" data-l="Ticker"><span class="tk">JNJ</span></td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.00">0.15<span class="drift"> →0.00</span></span></td>
+<td class="num" data-l="Spot">273.04</td>
+<td class="num" data-l="Short">225.0</td>
+<td class="num" data-l="Long">210.0</td>
+<td class="num" data-l="Width">15.0</td>
+<td class="num tgt" data-l="Target credit">1.65</td>
+<td class="num" data-l="IV">25.0%</td>
+<td class="num" data-l="HV">23.3%</td>
+<td class="num" data-l="IV/HV">1.07</td>
+<td class="num" data-l="DTE">17</td>
+</tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="gap41d — reported 41d ago; that jump inflates HV, so 'inv' may be fake.">gap41d</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="oi0 — 0 open vs your 500 rule. Worse fills, harder to exit.">oi0</span><span class="chip hot" tabindex="0" data-tip="noq — no bid/ask posted. Price shown is not tradeable.">noq</span></div></td></tr>
+<tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">LLY</span></td>
-<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.00">0.15<span class="drift"> →0.00</span></span></td>
 <td class="num" data-l="Spot">1246.93</td>
-<td class="num" data-l="Short">1120.0</td>
-<td class="num" data-l="Long">1060.0</td>
+<td class="num" data-l="Short">1125.0</td>
+<td class="num" data-l="Long">1065.0</td>
 <td class="num" data-l="Width">60.0</td>
 <td class="num tgt" data-l="Target credit">6.60</td>
-<td class="num" data-l="IV">50.3%</td>
+<td class="num" data-l="IV">12.5%</td>
 <td class="num" data-l="HV">36.1%</td>
-<td class="num" data-l="IV/HV">1.39</td>
-<td class="num" data-l="DTE">18</td>
+<td class="num" data-l="IV/HV">0.35</td>
+<td class="num" data-l="DTE">17</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="gap19d — reported 19d ago; that jump inflates HV, so 'inv' may be fake.">gap19d</span><span class="chip" tabindex="0" data-tip="oi98 — 98 open vs your 500 rule. Worse fills, harder to exit.">oi98</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 124% of price. You pay it twice on a spread.">ba</span></div></td></tr>
-<tr class="row">
-<td class="tkcell" data-l="Ticker"><span class="tk">JNJ</span></td>
-<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
-<td class="num" data-l="Spot">273.04</td>
-<td class="num" data-l="Short">257.5</td>
-<td class="num" data-l="Long">240.0</td>
-<td class="num" data-l="Width">17.5</td>
-<td class="num tgt" data-l="Target credit">1.93</td>
-<td class="num" data-l="IV">27.3%</td>
-<td class="num" data-l="HV">23.2%</td>
-<td class="num" data-l="IV/HV">1.18</td>
-<td class="num" data-l="DTE">18</td>
-</tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="gap40d — reported 40d ago; that jump inflates HV, so 'inv' may be fake.">gap40d</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="oi0 — 0 open vs your 500 rule. Worse fills, harder to exit.">oi0</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 105% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 13% move, actually moved 36%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap20d — reported 20d ago; that jump inflates HV, so 'inv' may be fake.">gap20d</span><span class="chip" tabindex="0" data-tip="oi0 — 0 open vs your 500 rule. Worse fills, harder to exit.">oi0</span><span class="chip hot" tabindex="0" data-tip="noq — no bid/ask posted. Price shown is not tradeable.">noq</span></div></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">V</span></td>
-<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.16">0.15</span></td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.00">0.15<span class="drift"> →0.00</span></span></td>
 <td class="num" data-l="Spot">382.41</td>
 <td class="num" data-l="Short">365.0</td>
 <td class="num" data-l="Long">345.0</td>
 <td class="num" data-l="Width">20.0</td>
 <td class="num tgt" data-l="Target credit">2.20</td>
-<td class="num" data-l="IV">22.4%</td>
-<td class="num" data-l="HV">19.3%</td>
-<td class="num" data-l="IV/HV">1.16</td>
-<td class="num" data-l="DTE">18</td>
+<td class="num" data-l="IV">6.3%</td>
+<td class="num" data-l="HV">19.9%</td>
+<td class="num" data-l="IV/HV">0.31</td>
+<td class="num" data-l="DTE">17</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="gap27d — reported 27d ago; that jump inflates HV, so 'inv' may be fake.">gap27d</span><span class="chip" tabindex="0" data-tip="fb0.20 — may step to 0.20Δ only after 11% fails live. No further.">fb0.20</span><span class="chip" tabindex="0" data-tip="oi17 — 17 open vs your 500 rule. Worse fills, harder to exit.">oi17</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 44% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 6% move, actually moved 20%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap28d — reported 28d ago; that jump inflates HV, so 'inv' may be fake.">gap28d</span><span class="chip" tabindex="0" data-tip="fb0.20 — may step to 0.20Δ only after 11% fails live. No further.">fb0.20</span><span class="chip" tabindex="0" data-tip="oi0 — 0 open vs your 500 rule. Worse fills, harder to exit.">oi0</span><span class="chip hot" tabindex="0" data-tip="noq — no bid/ask posted. Price shown is not tradeable.">noq</span></div></td></tr>
 </tbody></table></div>
 <p class="sub" style="margin-top:10px">Hover or tap any flag to see what it means. <b>Target</b> is 11% of the width — the least the spread may be sold for, and what to aim at when you price it live. This page does not quote options; it tells you the number to beat.</p>
 <p class="sub" style="margin-top:10px">All expiries 2026-09-11. The 11%W floor is yours to enforce at ticket.</p>
 <h2>Rows are grouped by what moves together</h2>
-<p class="sub">Mega-cap platform (AMZN, MSFT); High-beta (PLTR, TSLA); Defensive/financial (JNJ, LLY, V). Names inside a group tend to fall on the same days, so holding several is closer to one larger position than to several independent ones. Passing the gates says nothing about how much of any of it to hold — that is position sizing, and this page does not do it.</p>
+<p class="sub">High-beta (PLTR, TSLA); Defensive/financial (JNJ, LLY, V). Names inside a group tend to fall on the same days, so holding several is closer to one larger position than to several independent ones. Passing the gates says nothing about how much of any of it to hold — that is position sizing, and this page does not do it.</p>
 <p class="sub">Flags in <span class="chip hot">red</span> need settling before acting — the row may not mean what it appears to.</p>
 <h2>What the screen does</h2>
 <details><summary>The three gates, and what they do not cover</summary><p class="head"><span>Each name is tested in order. Any failure drops it and nothing downstream can rescue it — these are vetoes, not scores, so there is no "good enough on balance".</span></p><dl class="legend"><dt>Gate 1 &middot; trend</dt><dd>Last price must be above the average of the previous 20 trading days. Below it, the name is out, however attractive the premium. The average uses completed days only, so today’s part-formed bar cannot flatter it.</dd><dt>Gate 2 &middot; earnings</dt><dd>No scheduled results on or before expiry. An earnings date inside the window is the single largest source of the overnight gap this structure cannot survive. Dates come from two independent sources; when they disagree the name is flagged rather than guessed at. Index funds have no earnings, so they are tested against CPI, jobs and Fed days instead.</dd><dt>Gate 3 &middot; news</dt><dd><strong>Not automated.</strong> Headlines are printed below for a person to read. A guidance cut, a probe, a downgrade cluster or sector contagion is a veto no matter how rich the premium looks. Nothing here decides that for you.</dd><dt>width filter</dt><dd>The two strikes must sit at least $5 apart, which rules out anything trading under roughly $100.</dd></dl><p class="head"><span><strong>What it does not do:</strong> it does not price anything, check that the credit is worth the risk, size a position, or know what you already hold. A name appearing here means it survived three filters — nothing more. Most days the honest answer is to do nothing.</span></p></details>
 <h2>Gate 3 — material adverse catalyst?</h2>
 <p class="sub">Not applied automatically. Read and veto by hand.</p>
-<details><summary>AMZN<span class="n">3 direct, 2 sector</span></summary>
-<p class="head"><span class="d">08-24</span><span><a href="https://www.thestreet.com/investing/amazon-device-price-increases-ai-memory-costs" target="_blank" rel="noopener nofollow">Amazon’s latest price move comes with a nasty surprise</a></span></p>
-<p class="head"><span class="d">08-24</span><span><a href="https://stocktwits.com/news-articles/markets/equity/amzn-stock-climbs-as-amazon-reportedly-plans-automation-initiative-to-use-ai-and-robotics-for-delivery-stations/cZYKvtERJFF" target="_blank" rel="noopener nofollow">AMZN Stock Climbs As Amazon Reportedly Plans Automation Initiative To Use AI And Robotics For Delivery Stations</a></span></p>
-<p class="head"><span class="d">08-25</span><span><a href="https://www.wsj.com/business/retail/zohran-mamdani-is-turning-his-fire-on-amazon-aa206cce?siteid=yhoof2&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">Zohran Mamdani Is Turning His Fire on Amazon</a></span></p>
-<p class="head sector"><span class="d">08-23</span><span><a href="https://finance.yahoo.com/news/nvidias-q2-earnings-to-test-resurgent-ai-trade-112502189.html" target="_blank" rel="noopener nofollow">Nvidia's Q2 earnings to test resurgent AI trade</a></span></p>
-<p class="head sector"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/video/luxury-retail-categories-consumers-continue-204500137.html" target="_blank" rel="noopener nofollow">The luxury retail categories that consumers continue to spend the most on</a></span></p>
-</details>
-<details><summary>ANET<span class="n">2 direct, 3 sector</span></summary>
-<p class="head"><span class="d">08-24</span><span><a href="https://www.trefis.com/articles/612580/arista-networks-is-buying-further-ahead-than-it-can-see/2026-08-24" target="_blank" rel="noopener nofollow">Arista Networks Is Buying Further Ahead Than It Can See</a></span></p>
-<p class="head"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/cisco-systems-csco-arista-networks-185200152.html" target="_blank" rel="noopener nofollow">Cisco Systems (CSCO) &amp; Arista Networks (ANET): Cisco Just Beat Every Estimate. Why Did the Stock Still Drop 8%?</a></span></p>
-<p class="head sector"><span class="d">08-22</span><span><a href="https://247wallst.com/investing/2026/08/22/this-stock-is-quietly-becoming-an-ai-powerhouse-in-2026/" target="_blank" rel="noopener nofollow">This Stock Is Quietly Becoming an AI Powerhouse in 2026</a></span></p>
-<p class="head sector"><span class="d">08-23</span><span><a href="https://www.thestreet.com/investing/stocks/tom-lee-fall-stock-picks-arista-jpmorgan-avoid-robinhood" target="_blank" rel="noopener nofollow">Longtime analyst says investors should consider these stocks in fall 2026</a></span></p>
-<p class="head sector"><span class="d">08-24</span><span><a href="https://www.trefis.com/articles/612581/cisco-grows-into-its-multiple-and-the-market-has-to-do-the-rest/2026-08-24" target="_blank" rel="noopener nofollow">Cisco Grows Into Its Multiple, And The Market Has To Do The Rest</a></span></p>
-</details>
 <details><summary>JNJ<span class="n">2 direct, 3 sector</span></summary>
 <p class="head"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/johnson-johnson-rises-1-3-191853863.html" target="_blank" rel="noopener nofollow">Johnson &amp; Johnson Rises 1.3% as Investors Seek Stability</a></span></p>
 <p class="head"><span class="d">08-25</span><span><a href="https://finance.yahoo.com/healthcare/articles/does-louisiana-us-10-million-011035581.html" target="_blank" rel="noopener nofollow">Does Louisiana’s US$10 Million Talc Verdict Shift the Legal Risk Bull Case For Johnson &amp; Johnson (JNJ)?</a></span></p>
@@ -386,19 +343,18 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <p class="head"><span class="d">08-24</span><span><a href="https://www.barrons.com/articles/stock-movers-a25cb190?siteid=yhoof2&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">Marvell, Micron, SpaceX, XPeng, Tesla, Moderna, and More Stocks That Explain Today’s Market</a></span></p>
 <p class="head"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/energy/articles/tesla-stops-selling-solar-roofs-185040445.html" target="_blank" rel="noopener nofollow">Tesla stops selling solar roofs a decade after launch</a></span></p>
 </details>
-<details><summary>V<span class="n">3 direct, 2 sector</span></summary>
+<details><summary>V<span class="n">2 direct, 3 sector</span></summary>
 <p class="head"><span class="d">08-24</span><span><a href="https://www.wsj.com/livecoverage/stock-market-today-dow-sp-500-nasdaq-08-24-2026/card/visa-charges-toward-new-all-time-closing-high-xotwcrOgtpfDSQp8VKTE?siteid=yhoof2&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">Visa Charges Toward New All-Time Closing High</a></span></p>
-<p class="head"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/visa-surges-2-4-payment-195611676.html" target="_blank" rel="noopener nofollow">Visa Surges 2.4% as Payment Stocks Seize Market Leadership</a></span></p>
-<p class="head"><span class="d">08-24</span><span><a href="https://247wallst.com/investing/2026/08/24/which-credit-card-stock-has-dominated-in-2026-visa-mastercard-or-american-express/" target="_blank" rel="noopener nofollow">Which Credit Card Stock Has Dominated in 2026: Visa, Mastercard, or American Express?</a></span></p>
+<p class="head"><span class="d">08-25</span><span><a href="https://stocktwits.com/news-articles/markets/equity/hims-visa-disputes-analyst-glp1-users-sticking-around/cZYkBnqRJFy" target="_blank" rel="noopener nofollow">HIMS Stock Posts Worst Day In A Month As Visa Flags Disputes — But Analyst Says GLP-1 Users Are Sticking Around</a></span></p>
 <p class="head sector"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/video/stablecoin-card-spending-triples-1-193000825.html" target="_blank" rel="noopener nofollow">Stablecoin card spending triples to $1 billion</a></span></p>
 <p class="head sector"><span class="d">08-24</span><span><a href="https://www.investors.com/market-trend/stock-market-today/dow-jones-sp500-nasdaq-economic-d-day-alibaba-stock-baba/?src=A00220&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">Stock Market Today: Dow Up As Trump Says This On Canada; Nvidia Shares Skid Despite AI Move (Live Coverage)</a></span></p>
+<p class="head sector"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/why-hims-hers-health-hims-201736983.html" target="_blank" rel="noopener nofollow">Why Hims &amp; Hers Health (HIMS) Stock Is Nosediving</a></span></p>
 </details>
 <h2>Dropped</h2>
-<div class="drop"><div class="k">Gate 1 trend</div><div class="v">AAPL, AMD, AVGO, CRWD, GOOGL, JPM, META, NVDA, PANW, TSM, QQQ, IWM</div></div>
-<div class="drop"><div class="k">Gate 2 earnings</div><div class="v">SPY[macro: PPI, CPI]</div></div>
+<div class="drop"><div class="k">Gate 1 trend</div><div class="v">AAPL, AMD, AMZN, ANET, AVGO, CRWD, GOOGL, JPM, META, NVDA, PANW, TSM, QQQ, SPY, IWM</div></div>
 <div class="drop"><div class="k">Width pre-filter</div><div class="v">NFLX(5%W=$4.00)</div></div>
 <h2>Sources</h2>
-<div class="drop"><div class="v">Earnings: yfinance + nasdaq<br>Nasdaq calendar 2026-08-24 .. 2026-09-25 (430 companies)<br>Cross-check: 0 dated, 8 cleared by full-window scan, 0 unconfirmed<br>Macro: 5 events, FOMC from fed.gov (live), BLS live</div></div>
+<div class="drop"><div class="v">Earnings: yfinance + nasdaq<br>Nasdaq calendar 2026-08-25 .. 2026-09-28 (421 companies)<br>Cross-check: 0 dated, 6 cleared by full-window scan, 0 unconfirmed<br>Macro: 5 events, FOMC from fed.gov (live), BLS live</div></div>
 <p class="sub">None of these is IR. Confirm at source anything that binds.</p>
 <div class="foot"><b>Δ</b> target short-leg delta (roughly the chance of finishing in the money) &middot; <b>Short</b> strike sold &middot; <b>Width</b> distance to the strike bought &middot; <b>IV</b> priced-in move &middot; <b>HV</b> actual recent move.<br>IV is per-strike and delayed. Bid/ask is context, not a gate. Gates are hard vetoes, not quotas — cash is a valid outcome.</div>
 <p class="sig">Built and maintained by <b>JH</b>. The universe, the gates, the delta anchors and the 11% floor are JH’s own rules — not a standard, not a service, and not financial advice.</p>
@@ -549,5 +505,5 @@ function initRun(cfg){
   window.addEventListener('resize',function(){
     pinned=null;tipEl.classList.remove('show');});
 }
-</script><script>initRun({runNumber:"25",builtUtc:"2026-08-25T02:13:03Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
+</script><script>initRun({runNumber:"26",builtUtc:"2026-08-25T05:56:37Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
 </div></body></html>
