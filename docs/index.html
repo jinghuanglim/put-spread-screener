@@ -183,14 +183,14 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <h1>Put credit spread screen</h1>
 <span class="by">JH’s rules</span>
 </div>
-<p class="sub">2026-08-25 &middot; US session 2026-08-24 &middot; spot live &middot; DTE 14–21 &middot; <b>run #24</b></p>
+<p class="sub">2026-08-25 &middot; US session 2026-08-24 &middot; spot live &middot; DTE 14–21 &middot; <b>run #25</b></p>
 <div class="runbar">
 <button class="btn" id="go">Run screen</button>
 <span class="runstat" id="stat"></span></div>
 <div class="bar" id="bar"><div></div></div>
 <div class="fresh" id="fresh"></div>
 <div class="grid">
-<div class="stat now"><div class="k">Last run</div><div class="v"><span id="built" data-utc="2026-08-25T01:37:45Z">01:37 UTC</span></div></div>
+<div class="stat now"><div class="k">Last run</div><div class="v"><span id="built" data-utc="2026-08-25T02:13:03Z">02:13 UTC</span></div></div>
 <div class="stat"><div class="k">VIX</div><div class="v">15.85</div></div>
 <div class="stat"><div class="k">SPX vs 20-MA</div><div class="v">+0.11%</div></div>
 <div class="stat"><div class="k">Condor</div><div class="v">NO-GO</div></div>
@@ -404,23 +404,22 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <p class="sig">Built and maintained by <b>JH</b>. The universe, the gates, the delta anchors and the 11% floor are JH’s own rules — not a standard, not a service, and not financial advice.</p>
 <script>
 function initRun(cfg){
-  var BASE='https://api.github.com/repos/'+cfg.repo;
-  var API=BASE+'/actions/workflows/'+cfg.wf+'/runs?per_page=1';
+  // No GitHub API. Unauthenticated it allows 60 requests an hour PER IP, and
+  // behind an office NAT that quota belongs to the whole building - so the
+  // status line died with "rate limit reached" through no fault of the person
+  // reading it. Everything here is answerable from a small file this run
+  // writes beside the page, served by Pages, with no quota at all.
+  var VER=(location.pathname.replace(/[^/]*$/,''))+'version.json';
+  var COOLDOWN=180000;      // keep in step with worker/worker.js
   var stat=document.getElementById('stat'),go=document.getElementById('go'),
       fresh=document.getElementById('fresh'),bar=document.getElementById('bar');
-  var COOLDOWN=180000;      // keep in step with worker/worker.js
-  var timer=null,polls=0,baseline=null,awaiting=0,seenId=null,
-      publishing=0,mine=false,began=0,cool=null;
+  var timer=null,cool=null,waiting=0,mine=false,began=0;
+  var here=parseInt(cfg.runNumber||'0',10);
 
   function say(h){stat.innerHTML=h;}
   function stop(){if(timer){clearInterval(timer);timer=null;}}
-  function arm(fn,ms){stop();timer=setInterval(fn,ms);}
   function show(on){if(bar)bar.style.display=on?'block':'none';}
-  function running(){
-    // One state, one word. Registering, running and publishing are three
-    // different waits to a machine and the same wait to a person: the thing
-    // they pressed has not finished. Naming the internals invited "is it
-    // stuck?" every time a phase ran long.
+  function busy(){
     if(go.tagName==='BUTTON'){go.disabled=true;
       go.innerHTML='<span class="dot"></span>Running';}
     show(true);
@@ -430,112 +429,84 @@ function initRun(cfg){
     if(go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
     show(false);
   }
-  // Anyone with the link can press this, and everyone shares one page and one
-  // set of Actions minutes. A run that finished seconds ago produces an
-  // identical screen, so re-running it spends someone else's resources to
-  // learn nothing. Disable rather than explain after the fact.
-  function cooldown(created){
-    var left=COOLDOWN-(Date.now()-new Date(created).getTime());
-    if(left<=0){if(cool){clearInterval(cool);cool=null;}return false;}
-    if(go.tagName==='BUTTON'){
-      go.disabled=true;
-      go.textContent='Ready in '+Math.ceil(left/1000)+'s';
-    }
-    if(!cool)cool=setInterval(function(){cooldown(created);},1000);
-    return true;
-  }
   function giveUp(msg){
-    idle();stop();mine=false;began=0;
-    say(msg+' \u2014 <a href="'+cfg.actions+'" target="_blank" '+
+    idle();stop();mine=false;began=0;waiting=0;
+    say(msg+' — <a href="'+cfg.actions+'" target="_blank" '+
         'rel="noopener">check Actions</a>');
   }
-  function offer(n){
-    idle();stop();say('');
-    fresh.innerHTML='Run #'+n+' is ready. <a href="#" id="doreload"><b>Reload'+
-      '</b></a>';
-    fresh.className='fresh show';
-    document.getElementById('doreload').onclick=function(e){
-      e.preventDefault();location.reload();};
+  function cooldown(){
+    if(!cfg.builtUtc)return false;
+    var left=COOLDOWN-(Date.now()-new Date(cfg.builtUtc).getTime());
+    if(left<=0){if(cool){clearInterval(cool);cool=null;}
+      if(go.tagName==='BUTTON'&&!waiting)idle();return false;}
+    if(go.tagName==='BUTTON'&&!waiting){
+      go.disabled=true;go.textContent='Ready in '+Math.ceil(left/1000)+'s';
+    }
+    if(!cool)cool=setInterval(cooldown,1000);
+    return true;
   }
 
-  // A finished run is not a published page: the CDN keeps serving the old copy
-  // for up to a minute, and no query string reliably changes its cache key. So
-  // ask the edge what it is actually handing out, and act only on that.
-  function published(){
-    if(Date.now()-publishing>300000){
-      publishing=0;giveUp('Finished, but the page has not published');return;}
-    fetch(location.pathname+'?probe='+Date.now(),{cache:'no-store'})
-      .then(function(r){return r.ok?r.text():Promise.reject(0);})
-      .then(function(t){
-        var m=t.match(/runNumber:"(\d+)"/);if(!m)return;
-        var live=parseInt(m[1],10),here=parseInt(cfg.runNumber||'0',10);
-        if(live<=here){running();return;}
-        publishing=0;stop();
-        // Auto-reload only for the person who pressed the button. Yanking the
-        // page out from under someone who is mid-read, because a stranger
-        // pressed it elsewhere, would be rude.
-        if(mine){location.reload();}else{offer(live);}
-      }).catch(function(){});
-  }
-
-  function look(){
-    if(++polls>36){giveUp('Stopped watching after 6 minutes');return;}
-    fetch(API,{headers:{'Accept':'application/vnd.github+json'}})
-      .then(function(r){
-        if(r.status===403)return Promise.reject('rate');
-        return r.ok?r.json():Promise.reject(r.status);})
-      .then(function(d){
-        var run=(d.workflow_runs||[])[0];
-        if(!run){say('');stop();return;}
-        if(awaiting&&baseline!==null&&String(run.id)===baseline){
-          if(Date.now()-awaiting>90000){
-            awaiting=0;giveUp('GitHub never registered the run');return;}
-          running();return;
-        }
-        awaiting=0;seenId=String(run.id);
-        if(run.conclusion===null){
-          if(!began)began=new Date(run.created_at).getTime();
-          running();return;
-        }
-        if(run.conclusion!=='success'){
-          idle();stop();mine=false;began=0;
-          say('Last run <b>'+run.conclusion+'</b> \u00b7 <a href="'+
-              run.html_url+'" target="_blank" rel="noopener">log</a>');
+  function check(){
+    if(Date.now()-waiting>300000){
+      giveUp('Still not published after 5 minutes');return;}
+    fetch(VER+'?t='+Date.now(),{cache:'no-store'})
+      .then(function(r){return r.ok?r.json():Promise.reject(0);})
+      .then(function(v){
+        var live=parseInt(v.run||'0',10);
+        if(live>here){
+          stop();
+          if(mine){location.reload();}
+          else{
+            idle();say('');
+            fresh.innerHTML='Run #'+live+' is ready. '+
+              '<a href="#" id="doreload"><b>Reload</b></a>';
+            fresh.className='fresh show';
+            document.getElementById('doreload').onclick=function(e){
+              e.preventDefault();location.reload();};
+          }
           return;
         }
-        if(cfg.runId&&String(run.id)!==cfg.runId){
-          publishing=Date.now();running();arm(published,4000);published();
-          return;
-        }
-        idle();stop();began=0;
-        say('Showing the latest run'+(cfg.runNumber?' (#'+cfg.runNumber+')':''));
-        cooldown(run.created_at);
+        busy();
       })
-      .catch(function(e){
-        if(e==='rate'){giveUp('GitHub rate limit reached');}
-        else{say('');show(false);stop();}
-      });
+      .catch(function(){busy();});   // a 404 or a blip is not a failure
   }
 
   if(go.tagName==='BUTTON'){
     go.addEventListener('click',function(){
-      mine=true;began=Date.now();baseline=seenId;running();
+      mine=true;began=Date.now();waiting=Date.now();busy();
       fetch(cfg.dispatch,{method:'POST'})
         .then(function(r){
-          if(r.status===409){awaiting=0;polls=0;arm(look,8000);look();return;}
+          if(r.status===409){
+            // Someone just ran it, or is running it now. Watch rather than
+            // refuse - the result is on its way either way.
+            mine=false;waiting=Date.now();stop();
+            timer=setInterval(check,5000);check();return;}
           if(!r.ok)throw r.status;
-          awaiting=Date.now();polls=0;arm(look,8000);setTimeout(look,4000);})
+          stop();timer=setInterval(check,5000);setTimeout(check,4000);})
         .catch(function(){
-          mine=false;began=0;idle();
-          say('Could not start it \u2014 <a href="'+cfg.actions+
+          mine=false;began=0;waiting=0;idle();
+          say('Could not start it — <a href="'+cfg.actions+
               '" target="_blank" rel="noopener">run it from Actions</a>');});
     });
   }
 
+  var b=document.getElementById('built');
+  if(b&&b.dataset.utc){
+    try{
+      var d=new Date(b.dataset.utc);
+      if(!isNaN(d)){
+        b.textContent=d.toLocaleString(undefined,
+          {hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
+        b.title=b.dataset.utc;
+      }
+    }catch(e){}
+  }
+  say(cfg.runNumber?'Showing run #'+cfg.runNumber:'');
+  cooldown();
+
   // One floating tooltip, shown on hover with no delay. The native title
-  // attribute waits about a second before appearing, cannot be styled, and
-  // wrapped badly at the edge of the table. Tap still works for touch, where
-  // there is no hover to have.
+  // attribute waits about a second, cannot be styled, and wrapped badly at the
+  // edge of the table. Tap still works for touch, where there is no hover.
   var tipEl=document.createElement('div');
   tipEl.id='tip';document.body.appendChild(tipEl);
   var pinned=null;
@@ -577,20 +548,6 @@ function initRun(cfg){
   },{passive:true});
   window.addEventListener('resize',function(){
     pinned=null;tipEl.classList.remove('show');});
-
-  var b=document.getElementById('built');
-  if(b&&b.dataset.utc){
-    try{
-      var d=new Date(b.dataset.utc);
-      if(!isNaN(d)){
-        b.textContent=d.toLocaleString(undefined,
-          {hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
-        b.title=b.dataset.utc;
-      }
-    }catch(e){}
-  }
-  look();
-  arm(look,10000);
 }
-</script><script>initRun({repo:"jinghuanglim/put-spread-screener",wf:"screen.yml",runId:"32798235017",runNumber:"24",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
+</script><script>initRun({runNumber:"25",builtUtc:"2026-08-25T02:13:03Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
 </div></body></html>
