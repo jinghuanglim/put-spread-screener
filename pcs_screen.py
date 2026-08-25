@@ -1989,23 +1989,22 @@ def _js(x):
 # than one that just hides the status line.
 _RUN_JS = """
 function initRun(cfg){
-  var BASE='https://api.github.com/repos/'+cfg.repo;
-  var API=BASE+'/actions/workflows/'+cfg.wf+'/runs?per_page=1';
+  // No GitHub API. Unauthenticated it allows 60 requests an hour PER IP, and
+  // behind an office NAT that quota belongs to the whole building - so the
+  // status line died with "rate limit reached" through no fault of the person
+  // reading it. Everything here is answerable from a small file this run
+  // writes beside the page, served by Pages, with no quota at all.
+  var VER=(location.pathname.replace(/[^/]*$/,''))+'version.json';
+  var COOLDOWN=180000;      // keep in step with worker/worker.js
   var stat=document.getElementById('stat'),go=document.getElementById('go'),
       fresh=document.getElementById('fresh'),bar=document.getElementById('bar');
-  var COOLDOWN=180000;      // keep in step with worker/worker.js
-  var timer=null,polls=0,baseline=null,awaiting=0,seenId=null,
-      publishing=0,mine=false,began=0,cool=null;
+  var timer=null,cool=null,waiting=0,mine=false,began=0;
+  var here=parseInt(cfg.runNumber||'0',10);
 
   function say(h){stat.innerHTML=h;}
   function stop(){if(timer){clearInterval(timer);timer=null;}}
-  function arm(fn,ms){stop();timer=setInterval(fn,ms);}
   function show(on){if(bar)bar.style.display=on?'block':'none';}
-  function running(){
-    // One state, one word. Registering, running and publishing are three
-    // different waits to a machine and the same wait to a person: the thing
-    // they pressed has not finished. Naming the internals invited "is it
-    // stuck?" every time a phase ran long.
+  function busy(){
     if(go.tagName==='BUTTON'){go.disabled=true;
       go.innerHTML='<span class="dot"></span>Running';}
     show(true);
@@ -2015,112 +2014,84 @@ function initRun(cfg){
     if(go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
     show(false);
   }
-  // Anyone with the link can press this, and everyone shares one page and one
-  // set of Actions minutes. A run that finished seconds ago produces an
-  // identical screen, so re-running it spends someone else's resources to
-  // learn nothing. Disable rather than explain after the fact.
-  function cooldown(created){
-    var left=COOLDOWN-(Date.now()-new Date(created).getTime());
-    if(left<=0){if(cool){clearInterval(cool);cool=null;}return false;}
-    if(go.tagName==='BUTTON'){
-      go.disabled=true;
-      go.textContent='Ready in '+Math.ceil(left/1000)+'s';
-    }
-    if(!cool)cool=setInterval(function(){cooldown(created);},1000);
-    return true;
-  }
   function giveUp(msg){
-    idle();stop();mine=false;began=0;
-    say(msg+' \\u2014 <a href="'+cfg.actions+'" target="_blank" '+
+    idle();stop();mine=false;began=0;waiting=0;
+    say(msg+' \u2014 <a href="'+cfg.actions+'" target="_blank" '+
         'rel="noopener">check Actions</a>');
   }
-  function offer(n){
-    idle();stop();say('');
-    fresh.innerHTML='Run #'+n+' is ready. <a href="#" id="doreload"><b>Reload'+
-      '</b></a>';
-    fresh.className='fresh show';
-    document.getElementById('doreload').onclick=function(e){
-      e.preventDefault();location.reload();};
+  function cooldown(){
+    if(!cfg.builtUtc)return false;
+    var left=COOLDOWN-(Date.now()-new Date(cfg.builtUtc).getTime());
+    if(left<=0){if(cool){clearInterval(cool);cool=null;}
+      if(go.tagName==='BUTTON'&&!waiting)idle();return false;}
+    if(go.tagName==='BUTTON'&&!waiting){
+      go.disabled=true;go.textContent='Ready in '+Math.ceil(left/1000)+'s';
+    }
+    if(!cool)cool=setInterval(cooldown,1000);
+    return true;
   }
 
-  // A finished run is not a published page: the CDN keeps serving the old copy
-  // for up to a minute, and no query string reliably changes its cache key. So
-  // ask the edge what it is actually handing out, and act only on that.
-  function published(){
-    if(Date.now()-publishing>300000){
-      publishing=0;giveUp('Finished, but the page has not published');return;}
-    fetch(location.pathname+'?probe='+Date.now(),{cache:'no-store'})
-      .then(function(r){return r.ok?r.text():Promise.reject(0);})
-      .then(function(t){
-        var m=t.match(/runNumber:"(\\d+)"/);if(!m)return;
-        var live=parseInt(m[1],10),here=parseInt(cfg.runNumber||'0',10);
-        if(live<=here){running();return;}
-        publishing=0;stop();
-        // Auto-reload only for the person who pressed the button. Yanking the
-        // page out from under someone who is mid-read, because a stranger
-        // pressed it elsewhere, would be rude.
-        if(mine){location.reload();}else{offer(live);}
-      }).catch(function(){});
-  }
-
-  function look(){
-    if(++polls>36){giveUp('Stopped watching after 6 minutes');return;}
-    fetch(API,{headers:{'Accept':'application/vnd.github+json'}})
-      .then(function(r){
-        if(r.status===403)return Promise.reject('rate');
-        return r.ok?r.json():Promise.reject(r.status);})
-      .then(function(d){
-        var run=(d.workflow_runs||[])[0];
-        if(!run){say('');stop();return;}
-        if(awaiting&&baseline!==null&&String(run.id)===baseline){
-          if(Date.now()-awaiting>90000){
-            awaiting=0;giveUp('GitHub never registered the run');return;}
-          running();return;
-        }
-        awaiting=0;seenId=String(run.id);
-        if(run.conclusion===null){
-          if(!began)began=new Date(run.created_at).getTime();
-          running();return;
-        }
-        if(run.conclusion!=='success'){
-          idle();stop();mine=false;began=0;
-          say('Last run <b>'+run.conclusion+'</b> \\u00b7 <a href="'+
-              run.html_url+'" target="_blank" rel="noopener">log</a>');
+  function check(){
+    if(Date.now()-waiting>300000){
+      giveUp('Still not published after 5 minutes');return;}
+    fetch(VER+'?t='+Date.now(),{cache:'no-store'})
+      .then(function(r){return r.ok?r.json():Promise.reject(0);})
+      .then(function(v){
+        var live=parseInt(v.run||'0',10);
+        if(live>here){
+          stop();
+          if(mine){location.reload();}
+          else{
+            idle();say('');
+            fresh.innerHTML='Run #'+live+' is ready. '+
+              '<a href="#" id="doreload"><b>Reload</b></a>';
+            fresh.className='fresh show';
+            document.getElementById('doreload').onclick=function(e){
+              e.preventDefault();location.reload();};
+          }
           return;
         }
-        if(cfg.runId&&String(run.id)!==cfg.runId){
-          publishing=Date.now();running();arm(published,4000);published();
-          return;
-        }
-        idle();stop();began=0;
-        say('Showing the latest run'+(cfg.runNumber?' (#'+cfg.runNumber+')':''));
-        cooldown(run.created_at);
+        busy();
       })
-      .catch(function(e){
-        if(e==='rate'){giveUp('GitHub rate limit reached');}
-        else{say('');show(false);stop();}
-      });
+      .catch(function(){busy();});   // a 404 or a blip is not a failure
   }
 
   if(go.tagName==='BUTTON'){
     go.addEventListener('click',function(){
-      mine=true;began=Date.now();baseline=seenId;running();
+      mine=true;began=Date.now();waiting=Date.now();busy();
       fetch(cfg.dispatch,{method:'POST'})
         .then(function(r){
-          if(r.status===409){awaiting=0;polls=0;arm(look,8000);look();return;}
+          if(r.status===409){
+            // Someone just ran it, or is running it now. Watch rather than
+            // refuse - the result is on its way either way.
+            mine=false;waiting=Date.now();stop();
+            timer=setInterval(check,5000);check();return;}
           if(!r.ok)throw r.status;
-          awaiting=Date.now();polls=0;arm(look,8000);setTimeout(look,4000);})
+          stop();timer=setInterval(check,5000);setTimeout(check,4000);})
         .catch(function(){
-          mine=false;began=0;idle();
-          say('Could not start it \\u2014 <a href="'+cfg.actions+
+          mine=false;began=0;waiting=0;idle();
+          say('Could not start it \u2014 <a href="'+cfg.actions+
               '" target="_blank" rel="noopener">run it from Actions</a>');});
     });
   }
 
+  var b=document.getElementById('built');
+  if(b&&b.dataset.utc){
+    try{
+      var d=new Date(b.dataset.utc);
+      if(!isNaN(d)){
+        b.textContent=d.toLocaleString(undefined,
+          {hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
+        b.title=b.dataset.utc;
+      }
+    }catch(e){}
+  }
+  say(cfg.runNumber?'Showing run #'+cfg.runNumber:'');
+  cooldown();
+
   // One floating tooltip, shown on hover with no delay. The native title
-  // attribute waits about a second before appearing, cannot be styled, and
-  // wrapped badly at the edge of the table. Tap still works for touch, where
-  // there is no hover to have.
+  // attribute waits about a second, cannot be styled, and wrapped badly at the
+  // edge of the table. Tap still works for touch, where there is no hover.
   var tipEl=document.createElement('div');
   tipEl.id='tip';document.body.appendChild(tipEl);
   var pinned=null;
@@ -2162,20 +2133,6 @@ function initRun(cfg){
   },{passive:true});
   window.addEventListener('resize',function(){
     pinned=null;tipEl.classList.remove('show');});
-
-  var b=document.getElementById('built');
-  if(b&&b.dataset.utc){
-    try{
-      var d=new Date(b.dataset.utc);
-      if(!isNaN(d)){
-        b.textContent=d.toLocaleString(undefined,
-          {hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
-        b.title=b.dataset.utc;
-      }
-    }catch(e){}
-  }
-  look();
-  arm(look,10000);
 }
 """
 
@@ -2252,9 +2209,9 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         # getElementById('built') returned null and the clock silently stayed
         # in UTC. Nothing errored, so nothing said so.
         tail_js = (f'<script>{_RUN_JS}</script>'
-                   f'<script>initRun({{repo:{_js(repo)},wf:{_js(wf)},'
-                   f'runId:{_js(str(run_id))},'
+                   f'<script>initRun({{'
                    f'runNumber:{_js(str(regime.get("run_number") or ""))},'
+                   f'builtUtc:{_js(str(regime.get("built_utc") or ""))},'
                    f'dispatch:{_js(dispatch)},'
                    f'actions:{_js(actions_url)}}});</script>')
     H.append('<div class="grid">')
@@ -3213,15 +3170,6 @@ Producer Price Index for October 2026
     # Every absolute host literal inside the script block, however the URL is
     # later assembled. Link hrefs in the HTML are inert and excluded.
     script_src = "".join(re.findall(r"<script>(.*?)</script>", withbtn, re.S))
-    # Hosts the script REQUESTS: the API base plus any literal fetch target.
-    called = set(re.findall(r"BASE\s*=\s*'(https?://[a-z0-9.\-]+)", script_src))
-    called |= set(re.findall(r"fetch\(\s*'(https?://[a-z0-9.\-]+)", script_src))
-    chk("the only host the page CALLS is the public GitHub API",
-        called == {"https://api.github.com"}, str(sorted(called)))
-    # github.com also appears, but only as somewhere to send a human.
-    others = set(re.findall(r"https?://[a-z0-9.\-]+", script_src)) - called
-    chk("any other host in the script is a link target, never a request",
-        others <= {"https://github.com"}, str(sorted(others)))
     chk("still loads no external stylesheet, font, script or image",
         loads_external(withbtn) == [], f"{loads_external(withbtn)}")
     dsp = render_html(rows, dropped, conflicts, news,
@@ -3229,8 +3177,8 @@ Producer Price Index for October 2026
                       today)
     chk("a dispatch endpoint turns it into a real button",
         '<button class="btn" id="go"' in dsp)
-    chk("repo name is JSON-encoded, not pasted into the script",
-        '"me/repo"' in dsp)
+    chk("config values are JSON-encoded, not pasted into the script",
+        '"https://w.example/go"' in dsp)
     chk("angle brackets cannot escape the inline script",
         "\\u003c" in _js("</script><img onerror=x>"))
     chk("has a viewport tag for phones", 'name="viewport"' in html)
@@ -3432,58 +3380,56 @@ Producer Price Index for October 2026
         all(t in UNIVERSE for v in CLUSTERS.values() for t in v))
     chk("the Semis cap did not silently move", CLUSTER_MAX["Semis"] == 2)
 
+    print("NO GITHUB API, SO NO RATE LIMIT TO SHARE")
+    chk("the page never calls api.github.com",
+        "api.github.com" not in stamped)
+    chk("freshness comes from a tiny file beside the page",
+        "version.json" in stamped)
+    chk("that fetch bypasses every cache", "cache:'no-store'" in stamped)
+    chk("the version file is resolved next to the page, not at the root",
+        "location.pathname.replace" in stamped)
+    chk("github.com survives only as a link for a human",
+        [u for u in set(re.findall(r"https?://[a-z0-9.\-]+",
+         "".join(re.findall(r"<script>(.*?)</script>", stamped, re.S))))]
+        == ["https://github.com"])
+
     print("ONE VISIBLE STATE WHILE IT WORKS")
-    chk("registering, running and publishing all read as Running",
-        stamped.count("'>Running'") + stamped.count(">Running<")
-        + stamped.count("Running</span>") >= 0
-        and "function running()" in stamped)
+    chk("dispatching, running and publishing all read as Running",
+        "function busy()" in stamped and ">Running<" not in stamped)
     chk("no phase names leak to the user",
         not any(k in stamped for k in
-                ("Waiting for GitHub to register", "publishing\\u2026",
-                 "step '+", "Queued\\u2026")))
+                ("Waiting for GitHub", "publishing", "step '+", "Queued")))
     chk("elapsed seconds prove it is not frozen",
         "(Date.now()-began)/1000" in stamped)
     chk("the spinner is a real spinner", "@keyframes spin" in stamped)
     chk("the bar is indeterminate, not a fake percentage",
         "@keyframes slide" in stamped and "width:38%" in stamped)
-    chk("reduced-motion is respected",
-        "prefers-reduced-motion" in stamped)
+    chk("reduced motion is respected", "prefers-reduced-motion" in stamped)
 
-    print("THE BUTTON MUST NOT DECLARE VICTORY EARLY")
-    chk("a pre-dispatch baseline is recorded", "baseline=seenId" in stamped)
-    chk("the newest run is not assumed to be the one just started",
-        "String(run.id)===baseline" in stamped)
-    chk("liveness uses conclusion, not a status whitelist",
-        "run.conclusion===null" in stamped)
-
-    print("RELOAD ONLY WHEN THE CDN HAS THE NEW PAGE")
-    chk("the page itself is polled, not just the API",
-        "location.pathname+'?probe='" in stamped)
-    chk("that fetch bypasses the browser cache",
-        "cache:'no-store'" in stamped)
-    chk("it reads the run number out of the served HTML",
-        'runNumber:"(' in stamped)
-    chk("it acts only when the served build is newer",
-        "live<=here" in stamped)
-    chk("the old query-string cache-bust is gone",
-        "?r='+encodeURIComponent" not in stamped)
+    print("IT ACTS ONLY ON A PUBLISHED BUILD")
+    chk("it compares run numbers, not guesses", "live>here" in stamped)
+    chk("a 404 or a blip is not treated as failure",
+        "not a failure" in stamped)
+    chk("and it gives up rather than spinning forever",
+        "Still not published after 5 minutes" in stamped)
 
     print("AUTO-RELOAD, BUT ONLY FOR WHOEVER PRESSED")
     chk("pressing the button claims the run", "mine=true" in stamped)
     chk("the presser is reloaded automatically",
         "if(mine){location.reload();}" in stamped)
-    chk("everyone else is offered the choice", "else{offer(live);}" in stamped)
+    chk("everyone else is offered the choice", "is ready." in stamped)
     chk("a failed dispatch releases the claim", "mine=false" in stamped)
+    chk("a 409 watches instead of refusing",
+        "r.status===409" in stamped and "mine=false;waiting=" in stamped)
 
     print("COOLDOWN SAVES SHARED RESOURCES")
     chk("a cooldown exists", "COOLDOWN=180000" in stamped)
-    chk("it is three minutes", "180000" in stamped)
-    chk("the button is disabled, not just warned about",
-        "go.disabled=true" in stamped and "Ready in " in stamped)
     chk("it counts down rather than sitting dead",
         "Math.ceil(left/1000)" in stamped)
-    chk("it is driven off the last run's start time",
-        "cooldown(run.created_at)" in stamped)
+    chk("it is driven off the page's own last-run stamp, needing no API",
+        "new Date(cfg.builtUtc)" in stamped)
+    chk("the stamp reaches the script", "builtUtc:" in stamped)
+
 
     print("FLAGS EXPLAIN THEMSELVES ON HOVER")
     chk("hover shows it immediately, with no native delay",
@@ -3542,13 +3488,9 @@ Producer Price Index for October 2026
         "justify-content:flex-start" in stamped)
 
     print("NOTHING FREEZES SILENTLY")
-    for msg in ("Stopped watching after 6 minutes",
-                "GitHub never registered the run",
-                "GitHub rate limit reached",
-                "has not published"):
-        chk(f"terminal state announces itself: {msg[:34]}", msg in stamped)
+    for msg in ("Still not published after 5 minutes", "Could not start it"):
+        chk(f"terminal state announces itself: {msg[:36]}", msg in stamped)
     chk("every give-up offers the Actions link", "check Actions" in stamped)
-    chk("the poll cap matches the API budget", "polls>36" in stamped)
     chk("Gate 1 explains the 20-day average", "previous 20 trading days" in html)
     chk("Gate 2 explains why earnings matter", "overnight gap" in html)
     chk("Gate 3 is declared not automated", "Not automated" in html)
@@ -3667,6 +3609,16 @@ def main():
         with open(a.html, "w", encoding="utf-8") as fh:
             fh.write(render_html(rows, dropped, conflicts, news, regime, today))
         print(f"wrote {a.html}", file=sys.stderr)
+        # A few dozen bytes beside the page, holding just the run number. The
+        # page polls THIS to find out when a new build is live, instead of
+        # asking the GitHub API or re-downloading 180KB of itself every few
+        # seconds. Same answer, no rate limit, no quota to share.
+        import json as _json
+        vpath = os.path.join(d, "version.json") if d else "version.json"
+        with open(vpath, "w", encoding="utf-8") as fh:
+            _json.dump({"run": regime.get("run_number") or "",
+                        "utc": regime.get("built_utc") or ""}, fh)
+        print(f"wrote {vpath}", file=sys.stderr)
     return 0
 if __name__ == "__main__":
     sys.exit(main())
