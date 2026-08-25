@@ -1824,6 +1824,9 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .sig b{color:var(--ink)}
 .stat.now .v{color:var(--accent)}
 .chip{cursor:help}
+.chip.bare{background:none;border:none;padding:0;font-size:inherit;
+  font-family:inherit;color:inherit}
+.drift{color:var(--dim);font-size:.86em}
 .chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #tip{position:fixed;z-index:99;max-width:min(340px,calc(100vw - 24px));
   background:var(--panel);color:var(--ink);border:1px solid var(--line);
@@ -1848,13 +1851,29 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim)
 .banner.warn{background:var(--warnbg);border-color:var(--warn);color:var(--ink)}
 .banner.alarm{background:var(--alarmbg);border-color:var(--alarm);color:var(--ink)}
 .banner b{display:block;margin-bottom:2px}
+/* overflow-x:auto silently makes this a scroll container on BOTH axes, and a
+   sticky <th> sticks to its nearest scrolling ancestor - so the header was
+   pinning itself to a box that never scrolls vertically, and sailed off the
+   top of the screen with everything else. Once the table fits, the container
+   has no job, so it gets out of the way and the header can stick to the
+   viewport instead. */
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;
-  border:1px solid var(--line);border-radius:9px;background:var(--panel)}
+  border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+/* 860px is where the table stops needing to scroll sideways (measured: it
+   wants 828px, and below ~870 the container has to take over). Above it the
+   container has no job, so it steps aside and the header sticks. */
+@media (min-width:870px){
+  .scroll{overflow:visible}
+}
 table{border-collapse:collapse;width:100%;font-size:16px}
 th,td{padding:11px 13px;text-align:right;white-space:nowrap;
   border-bottom:1px solid var(--line)}
 th{font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);
-  font-weight:600;position:sticky;top:0;background:var(--panel)}
+  font-weight:600;position:sticky;top:0;z-index:5;background:var(--panel);
+  border-bottom:1px solid var(--line);box-shadow:0 1px 0 var(--line)}
+/* The cluster label sticks under the header, so a long list never leaves you
+   wondering which group the row you are looking at belongs to. */
+tr.grp td{position:sticky;top:41px;z-index:4}
 th:first-child,td:first-child{text-align:left}
 td.num{font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:15.5px}
 td.tgt{color:var(--accent);font-weight:600}
@@ -1920,7 +1939,11 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 .foot{color:var(--dim);font-size:14px;margin-top:34px;border-top:1px solid var(--line);
   padding-top:14px}
 .foot code{font-family:var(--mono)}
-@media (max-width:720px){
+/* Cards below 870, table above - the same width at which the table stops
+   needing to scroll sideways. Between the old 720 and 870 the table technically
+   rendered but had to be dragged left and right, which is the worst of both:
+   too cramped to read as a table, too wide to read as a card. */
+@media (max-width:869px){
   .wrap{padding:14px 11px 48px}
   thead{display:none}
   table,tbody,tr,td{display:block;width:100%}
@@ -2266,14 +2289,14 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         H.append('<div class="scroll"><table><thead><tr>')
         HEADS = [
             ("Ticker", "", ""),
-            ("Δ", "Target Δ", "the short-leg delta this name is screened at — "
-                              "roughly its chance of finishing in the money"),
+            ("Δ", "Delta", "the short-leg delta this name is screened at — "
+                           "roughly its chance of finishing in the money. "
+                           "Hover a value to see the delta of the strike "
+                           "actually listed."),
             ("Spot", "", "last traded price"),
             ("Short", "", "strike sold"),
             ("Long", "", "strike bought, one width below"),
             ("Width", "", "distance between the two strikes"),
-            ("Δ act", "Actual Δ", "delta of the strike actually listed — the "
-                                  "grid rarely lands exactly on the target"),
             ("Target", "Target credit",
              "11% of the width — the least this spread may be sold for. "
              "Aim at or above it when you price the ticket in IBKR."),
@@ -2323,14 +2346,25 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                       if r.get("target") is not None else "—")
                 lg = f"{r['long']:.1f}" if r.get("long") is not None else "—"
                 wd = r.get("act_width") or r["width"]
+                # Target and actual delta agreed to within 0.01 on essentially
+                # every row, so a whole column was spent restating the column
+                # beside it. It only diverges when the strike grid straddles
+                # the anchor - which is worth seeing, so the cell shows the
+                # arrow then, and carries both numbers on hover regardless.
+                dgap = abs(r["act_delta"] - r["delta"])
+                dcell = (f"{r['delta']:.2f}"
+                         f"<span class=\"drift\"> \u2192{r['act_delta']:.2f}"
+                         f"</span>" if dgap > 0.02 else f"{r['delta']:.2f}")
+                dtip = (f"screened at {r['delta']:.2f}; nearest listed strike "
+                        f"is {r['act_delta']:.2f}")
                 cells = [
                     ("Ticker", f'<span class="tk">{_esc(r["t"])}</span>', "tkcell"),
-                    ("Target Δ", f"{r['delta']:.2f}", "num"),
+                    ("Delta", f'<span class="chip bare" tabindex="0" '
+                              f'data-tip="{_esc(dtip)}">{dcell}</span>', "num"),
                     ("Spot", f"{r['spot']:.2f}", "num"),
                     ("Short", f"{r['short']:.1f}", "num"),
                     ("Long", lg, "num"),
                     ("Width", f"{wd:.1f}", "num"),
-                    ("Actual Δ", f"{r['act_delta']:.2f}", "num"),
                     ("Target credit", tg, "num tgt"),
                     ("IV", f"{r['iv']*100:.1f}%", "num"),
                     ("HV", hv, "num"),
@@ -3175,7 +3209,9 @@ Producer Price Index for October 2026
     chk("angle brackets cannot escape the inline script",
         "\\u003c" in _js("</script><img onerror=x>"))
     chk("has a viewport tag for phones", 'name="viewport"' in html)
-    chk("collapses to cards on narrow screens", "max-width:720px" in html)
+    chk("collapses to cards on narrow screens", "max-width:869px" in html)
+    chk("cards take over exactly where the table stops fitting",
+        "max-width:869px" in html and "min-width:870px" in html)
     chk("adapts to the phone's dark mode", "prefers-color-scheme:dark" in html)
     chk("wide table can scroll without the page scrolling",
         "overflow-x:auto" in html)
@@ -3214,8 +3250,13 @@ Producer Price Index for October 2026
     chk("no bottom-of-page legend remains", "<dl class=\"legend\">" not in html
         or "Flags</h2>" not in html)
     chk("chips are reachable by keyboard too", 'tabindex="0"' in html)
-    chk("the numeric table is 13 columns, with flags on their own row",
-        html.count("<th") == 13, f"{html.count(chr(60)+chr(116)+chr(104))} headers")
+    nth = html.count("</th>")      # one per header, unambiguous
+    chk("the numeric table is 11 columns, with flags on their own row",
+        nth == 11, f"{nth} headers")
+    chk("actual delta is no longer its own column",
+        'data-l="Actual Δ"' not in html)
+    chk("but it is still one hover away",
+        "nearest listed strike is" in html)
 
     print("UNATTENDED-RUN SAFETY")
     chk("a healthy run is not flagged as data loss",
@@ -3275,8 +3316,8 @@ Producer Price Index for October 2026
         != stamped)
 
     print("TARGET CREDIT IS ARITHMETIC, NOT A QUOTE")
-    chk("the two Target labels are distinguishable on a card",
-        'data-l="Target credit"' in html and 'data-l="Target Δ"' in html)
+    chk("the credit target is labelled unambiguously on a card",
+        'data-l="Target credit"' in html and 'data-l="Delta"' in html)
     chk("target is the floor times the width",
         all(r.get("target") is not None and
             abs(r["target"] - (r.get("act_width") or r["width"]) * CREDIT_FLOOR)
@@ -3398,6 +3439,37 @@ Producer Price Index for October 2026
         "window.innerWidth-w-8" in stamped and "window.innerHeight" in stamped)
     chk("it flips above the chip when there is no room below",
         "r.top-h-8" in stamped)
+
+    print("DELTA DRIFT IS SHOWN ONLY WHEN IT MATTERS")
+    # Check per rendered row, not by searching the whole page: the arrow text
+    # is not unique, so a global search says "present" for every row as soon as
+    # one row has it.
+    import re as _re
+    blocks = _re.findall(r'<tr class="row">(.*?)</tr>', html, _re.S)
+    chk("one row block per candidate", len(blocks) == len(rows),
+        f"{len(blocks)} vs {len(rows)}")
+    shown = 0
+    for r, blk in zip(sorted(rows, key=lambda x: x["t"]), blocks):
+        pass
+    for blk in blocks:
+        if "drift" in blk:
+            shown += 1
+    expect = sum(1 for r in rows if abs(r["act_delta"] - r["delta"]) > 0.02)
+    chk("the arrow appears on exactly the rows that drifted past 0.02",
+        shown == expect, f"{shown} shown, {expect} expected")
+    chk("every delta cell carries both numbers on hover",
+        sum(1 for b in blocks if "nearest listed strike is" in b) == len(rows))
+    chk("the delta cell is hoverable without looking like a chip",
+        'class="chip bare"' in html and ".chip.bare{background:none" in html)
+
+    print("THE HEADER STAYS PUT")
+    chk("the header is sticky", "position:sticky;top:0" in html)
+    chk("it sits above the rows it covers", "z-index:5" in html)
+    chk("the scroll container stops trapping it once the table fits",
+        "@media (min-width:870px){\n  .scroll{overflow:visible}" in html)
+    chk("the cluster label sticks under it too", "top:41px" in html)
+    chk("the header is opaque, not see-through",
+        "background:var(--panel);\n  border-bottom" in html)
 
     print("FLAGS DO NOT FALL OFF THE TABLE")
     chk("flags are a full-width row, not a fifteenth column",
