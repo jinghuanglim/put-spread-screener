@@ -61,7 +61,13 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim)
   border:1px solid transparent}
 .banner.warn{background:var(--warnbg);border-color:var(--warn);color:var(--ink)}
 .banner.alarm{background:var(--alarmbg);border-color:var(--alarm);color:var(--ink)}
-.banner b{display:block;margin-bottom:2px}
+.banner b.t{display:block;margin-bottom:2px}
+.banner b{display:inline}
+.banner ul.macro{margin:8px 0 10px;padding:0;list-style:none}
+.banner ul.macro li{padding:5px 0;border-bottom:1px solid rgba(128,128,128,.22);
+  font-variant-numeric:tabular-nums}
+.banner ul.macro li:last-child{border-bottom:none}
+
 /* overflow-x:auto silently makes this a scroll container on BOTH axes, and a
    sticky <th> sticks to its nearest scrolling ancestor - so the header was
    pinning itself to a box that never scrolls vertically, and sailed off the
@@ -177,21 +183,20 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <h1>Put credit spread screen</h1>
 <span class="by">JH’s rules</span>
 </div>
-<p class="sub">2026-08-25 &middot; US session 2026-08-24 &middot; spot live &middot; DTE 14–21 &middot; <b>run #23</b></p>
+<p class="sub">2026-08-25 &middot; US session 2026-08-24 &middot; spot live &middot; DTE 14–21 &middot; <b>run #24</b></p>
 <div class="runbar">
 <button class="btn" id="go">Run screen</button>
 <span class="runstat" id="stat"></span></div>
 <div class="bar" id="bar"><div></div></div>
 <div class="fresh" id="fresh"></div>
 <div class="grid">
-<div class="stat now"><div class="k">Last run</div><div class="v"><span id="built" data-utc="2026-08-25T01:31:20Z">01:31 UTC</span></div></div>
+<div class="stat now"><div class="k">Last run</div><div class="v"><span id="built" data-utc="2026-08-25T01:37:45Z">01:37 UTC</span></div></div>
 <div class="stat"><div class="k">VIX</div><div class="v">15.85</div></div>
 <div class="stat"><div class="k">SPX vs 20-MA</div><div class="v">+0.11%</div></div>
 <div class="stat"><div class="k">Condor</div><div class="v">NO-GO</div></div>
 <div class="stat"><div class="k">Candidates</div><div class="v">8</div></div>
 </div>
-<div class="banner alarm"><b>CPI lands on expiry day (2026-09-11)</b>8:30am print, hours before these settle. Every position moves together.</div>
-<div class="banner warn"><b>Macro density</b>Two or more events within the window — halve tranche.</div>
+<div class="banner alarm"><b class="t">Macro in the expiry window &middot; 2026-09-11</b><ul class="macro"><li><b>PPI</b> &middot; Thu 10 Sep &middot; 1 day before expiry</li><li><b>CPI</b> &middot; Fri 11 Sep &middot; <b>expiry day</b></li></ul>CPI prints at 8:30am on the day these settle — hours before, with every position moving on the same number. 2 events inside 3 days of expiry, so the macro-density rule applies: <b>halve the tranche</b>.</div>
 <h2>Candidates — gates 1–2 passed</h2>
 <div class="scroll"><table><thead><tr>
 <th>Ticker</th>
@@ -348,7 +353,7 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 </details>
 <details><summary>JNJ<span class="n">2 direct, 3 sector</span></summary>
 <p class="head"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/johnson-johnson-rises-1-3-191853863.html" target="_blank" rel="noopener nofollow">Johnson &amp; Johnson Rises 1.3% as Investors Seek Stability</a></span></p>
-<p class="head"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/healthcare/articles/j-js-strong-pipeline-momentum-143800135.html" target="_blank" rel="noopener nofollow">J&amp;J's Strong Pipeline Momentum Offers Multiple Growth Catalysts Ahead</a></span></p>
+<p class="head"><span class="d">08-25</span><span><a href="https://finance.yahoo.com/healthcare/articles/does-louisiana-us-10-million-011035581.html" target="_blank" rel="noopener nofollow">Does Louisiana’s US$10 Million Talc Verdict Shift the Legal Risk Bull Case For Johnson &amp; Johnson (JNJ)?</a></span></p>
 <p class="head sector"><span class="d">08-24</span><span><a href="https://www.trefis.com/articles/612540/eli-lilly-stock-raised-its-forecast-so-why-is-the-market-shrugging/2026-08-24" target="_blank" rel="noopener nofollow">Eli Lilly Stock Raised Its Forecast, So Why Is The Market Shrugging?</a></span></p>
 <p class="head sector"><span class="d">08-24</span><span><a href="https://247wallst.com/personal-finance/2026/08/24/how-to-build-7800-a-month-in-dividend-income-without-owning-a-single-yield-trap/" target="_blank" rel="noopener nofollow">How to Build $7,800 a Month in Dividend Income Without Owning a Single Yield Trap</a></span></p>
 <p class="head sector"><span class="d">08-24</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/q2-earnings-season-winds-down-210300828.html" target="_blank" rel="noopener nofollow">Q2 Earnings Season Winds Down: 3 Companies That Broke Records</a></span></p>
@@ -587,5 +592,5 @@ function initRun(cfg){
   look();
   arm(look,10000);
 }
-</script><script>initRun({repo:"jinghuanglim/put-spread-screener",wf:"screen.yml",runId:"32797812574",runNumber:"23",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
+</script><script>initRun({repo:"jinghuanglim/put-spread-screener",wf:"screen.yml",runId:"32798235017",runNumber:"24",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
 </div></body></html>
