@@ -1823,11 +1823,17 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .sig{color:var(--dim);font-size:13px;margin:14px 0 0;line-height:1.55}
 .sig b{color:var(--ink)}
 .stat.now .v{color:var(--accent)}
-.tip{margin:8px 0 0;padding:9px 12px;background:var(--chip);
-  border-radius:8px;font-size:14px;color:var(--ink);display:none}
-.tip.show{display:block}
 .chip{cursor:help}
 .chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#tip{position:fixed;z-index:99;max-width:min(340px,calc(100vw - 24px));
+  background:var(--panel);color:var(--ink);border:1px solid var(--line);
+  border-radius:10px;padding:10px 13px;font-size:14.5px;line-height:1.5;
+  box-shadow:0 8px 28px rgba(0,0,0,.45);opacity:0;pointer-events:none;
+  transform:translateY(-4px);transition:opacity .12s ease,transform .12s ease}
+#tip.show{opacity:1;transform:none}
+tr.fl td{padding:0 13px 12px;border-bottom:1px solid var(--line)}
+tr.row td{border-bottom:none}
+tr.fl:last-child td{border-bottom:none}
 h1{font-size:24px;margin:0 0 2px;letter-spacing:-.01em}
 h2{font-size:14px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim);
   margin:32px 0 10px;font-weight:600}
@@ -1858,7 +1864,7 @@ tr.grp td .cnt{color:var(--dim);font-weight:400;margin-left:8px;
   text-transform:none;letter-spacing:0}
 tr:last-child td{border-bottom:none}
 .tk{font-weight:600}
-.chips{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
+.chips{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-start}
 .chip{background:var(--chip);border-radius:6px;padding:3px 8px;font-size:13px;
   font-family:var(--mono);color:var(--dim);white-space:nowrap}
 .chip.hot{background:var(--alarmbg);color:var(--alarm)}
@@ -1918,8 +1924,10 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
   .wrap{padding:14px 11px 48px}
   thead{display:none}
   table,tbody,tr,td{display:block;width:100%}
-  tr.row{border-bottom:1px solid var(--line);padding:14px 15px}
-  tr.row:last-child{border-bottom:none}
+  tr.row{padding:14px 15px 8px}
+  tr.fl td{padding:0 15px 14px}
+  tr.fl{border-bottom:1px solid var(--line)}
+  tr.fl:last-child{border-bottom:none}
   tr.grp td{border:none;padding:10px 13px 4px;display:block;text-align:left}
   tr.grp td:before{content:none}
   td{border:none;padding:2px 0;text-align:right;display:flex;
@@ -1928,7 +1936,7 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
      letter-spacing:.06em;color:var(--dim);text-align:left;flex:none}
   td.tkcell{font-size:20px;margin-bottom:8px}
   td.tkcell:before{content:none}
-  .chips{justify-content:flex-end}
+  .chips{justify-content:flex-start}
 }
 """
 
@@ -2076,26 +2084,51 @@ function initRun(cfg){
     });
   }
 
-  // Tap a chip to pin its explanation under the row; title covers hover on a
-  // desktop. Toggling an inline line avoids any popover positioning maths,
-  // which is the part that breaks on a narrow screen.
+  // One floating tooltip, shown on hover with no delay. The native title
+  // attribute waits about a second before appearing, cannot be styled, and
+  // wrapped badly at the edge of the table. Tap still works for touch, where
+  // there is no hover to have.
+  var tipEl=document.createElement('div');
+  tipEl.id='tip';document.body.appendChild(tipEl);
+  var pinned=null;
+  function place(c){
+    var r=c.getBoundingClientRect();
+    tipEl.style.left='0px';tipEl.style.top='0px';
+    var w=tipEl.offsetWidth,h=tipEl.offsetHeight;
+    var x=Math.min(Math.max(8,r.left+r.width/2-w/2),window.innerWidth-w-8);
+    var y=r.bottom+8;
+    if(y+h>window.innerHeight-8)y=Math.max(8,r.top-h-8);
+    tipEl.style.left=x+'px';tipEl.style.top=y+'px';
+  }
+  function showTip(c){
+    var t=c.getAttribute('data-tip');if(!t)return;
+    tipEl.textContent=t;tipEl.classList.add('show');place(c);
+  }
+  function hideTip(){if(!pinned){tipEl.classList.remove('show');}}
+  document.addEventListener('mouseover',function(e){
+    var c=e.target.closest?e.target.closest('.chip'):null;
+    if(c&&!pinned)showTip(c);
+  });
+  document.addEventListener('mouseout',function(e){
+    var c=e.target.closest?e.target.closest('.chip'):null;
+    if(c)hideTip();
+  });
+  document.addEventListener('focusin',function(e){
+    var c=e.target.closest?e.target.closest('.chip'):null;
+    if(c)showTip(c);
+  });
+  document.addEventListener('focusout',function(){pinned=null;hideTip();});
   document.addEventListener('click',function(e){
     var c=e.target.closest?e.target.closest('.chip'):null;
-    if(!c)return;
-    var cell=c.closest('td')||c.parentNode.parentNode;
-    var tip=cell.querySelector('.tip');
-    if(!tip)return;
-    var txt=c.getAttribute('data-tip')||'';
-    if(tip.classList.contains('show')&&tip.textContent===txt){
-      tip.classList.remove('show');
-    }else{
-      tip.textContent=txt;tip.classList.add('show');
-    }
+    if(!c){pinned=null;tipEl.classList.remove('show');return;}
+    if(pinned===c){pinned=null;tipEl.classList.remove('show');}
+    else{pinned=null;showTip(c);pinned=c;}
   });
-  document.addEventListener('keydown',function(e){
-    if((e.key==='Enter'||e.key===' ')&&e.target.classList&&
-       e.target.classList.contains('chip')){e.preventDefault();e.target.click();}
-  });
+  window.addEventListener('scroll',function(){
+    if(pinned)place(pinned);else tipEl.classList.remove('show');
+  },{passive:true});
+  window.addEventListener('resize',function(){
+    pinned=null;tipEl.classList.remove('show');});
 
   var b=document.getElementById('built');
   if(b&&b.dataset.utc){
@@ -2248,7 +2281,6 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
             ("HV", "", "realised volatility: the move actually delivered"),
             ("IV/HV", "", "under 1.00 means it is priced for less than it moved"),
             ("DTE", "", "days to expiry"),
-            ("Flags", "", "tap any flag to see what it means"),
         ]
         for h, full, tip in HEADS:
             t = f' title="{_esc(full + (" — " if full else "") + tip)}"' if tip else ""
@@ -2277,10 +2309,12 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                 # page makes you scroll away from the row you were reading and
                 # then find your way back.
                 tips = explain_notes(r)
+                # No title attribute: the native tooltip waits about a
+                # second, cannot be styled, and showed up alongside the custom
+                # one. data-tip drives both hover and tap.
                 chips = "".join(
                     f'<span class="chip{" hot" if f in HOT_FLAGS else ""}" '
-                    f'tabindex="0" role="button" '
-                    f'title="{_esc(tips[i] if i < len(tips) else f)}" '
+                    f'tabindex="0" '
                     f'data-tip="{_esc(tips[i] if i < len(tips) else f)}">'
                     f'{_esc(f)}</span>' for i, f in enumerate(flags))
                 ivhv = f"{r['ivhv']:.2f}" if r["ivhv"] else "n/a"
@@ -2302,13 +2336,19 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                     ("HV", hv, "num"),
                     ("IV/HV", ivhv, "num"),
                     ("DTE", str(r["dte"]), "num"),
-                    ("Flags", f'<div class="chips">{chips}</div>'
-                              f'<div class="tip"></div>', ""),
                 ]
                 H.append('<tr class="row">')
                 for label, val, cls in cells:
                     H.append(f'<td class="{cls}" data-l="{label}">{val}</td>')
                 H.append('</tr>')
+                # Flags get their own full-width row rather than a fifteenth
+                # column. As a column they pushed the table past the viewport
+                # and landed off-screen behind a horizontal scrollbar — the one
+                # thing on the row you cannot afford to miss, hidden by
+                # default. On their own line they always fit, and they wrap.
+                if chips:
+                    H.append(f'<tr class="fl"><td colspan="{len(cells)}">'
+                             f'<div class="chips">{chips}</div></td></tr>')
         H.append('</tbody></table></div>')
         H.append(f'<p class="sub" style="margin-top:10px">Hover or tap any flag '
                  f'to see what it means. <b>Target</b> is '
@@ -3174,6 +3214,8 @@ Producer Price Index for October 2026
     chk("no bottom-of-page legend remains", "<dl class=\"legend\">" not in html
         or "Flags</h2>" not in html)
     chk("chips are reachable by keyboard too", 'tabindex="0"' in html)
+    chk("the numeric table is 13 columns, with flags on their own row",
+        html.count("<th") == 13, f"{html.count(chr(60)+chr(116)+chr(104))} headers")
 
     print("UNATTENDED-RUN SAFETY")
     chk("a healthy run is not flagged as data loss",
@@ -3341,13 +3383,30 @@ Producer Price Index for October 2026
     chk("it is driven off the last run's start time",
         "cooldown(run.created_at)" in stamped)
 
-    print("FLAGS EXPLAIN THEMSELVES IN PLACE")
-    chk("tapping a chip is handled", "closest('.chip')" in stamped)
-    chk("keyboard works too", "e.key==='Enter'" in stamped)
-    chk("the explanation lands next to the row it belongs to",
-        "cell.querySelector('.tip')" in stamped)
-    chk("tapping the same chip twice closes it",
-        "tip.classList.remove('show')" in stamped)
+    print("FLAGS EXPLAIN THEMSELVES ON HOVER")
+    chk("hover shows it immediately, with no native delay",
+        "addEventListener('mouseover'" in stamped
+        and "title=" not in stamped.split("<tbody>")[1].split("</tbody>")[0])
+    chk("the slow, unstyleable native tooltip is gone",
+        'title="' not in stamped.split('<div class="chips">')[1][:400])
+    chk("tap still works where there is no hover",
+        "addEventListener('click'" in stamped and "pinned" in stamped)
+    chk("clicking the same chip twice closes it",
+        "if(pinned===c)" in stamped)
+    chk("keyboard focus shows it too", "focusin" in stamped)
+    chk("it is clamped inside the viewport",
+        "window.innerWidth-w-8" in stamped and "window.innerHeight" in stamped)
+    chk("it flips above the chip when there is no room below",
+        "r.top-h-8" in stamped)
+
+    print("FLAGS DO NOT FALL OFF THE TABLE")
+    chk("flags are a full-width row, not a fifteenth column",
+        '<tr class="fl">' in stamped)
+    chk("no Flags column header remains", ">Flags</th>" not in stamped)
+    chk("the flag row spans the whole table",
+        'colspan="' in stamped.split('<tr class="fl">')[1][:60])
+    chk("chips read left to right, like the row above",
+        "justify-content:flex-start" in stamped)
 
     print("NOTHING FREEZES SILENTLY")
     for msg in ("Stopped watching after 6 minutes",
