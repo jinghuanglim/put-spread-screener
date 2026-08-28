@@ -1,6 +1,6 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Put spread screen 2026-08-27</title>
+<title>Put spread screen 2026-08-28</title>
 <style>
 *{box-sizing:border-box}
 :root{
@@ -183,20 +183,20 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <h1>Put credit spread screen</h1>
 <span class="by">JH’s rules</span>
 </div>
-<p class="sub">2026-08-27 &middot; US session 2026-08-27 &middot; spot live &middot; DTE 14–21 &middot; <b>run #32</b></p>
+<p class="sub">2026-08-28 &middot; US session 2026-08-28 &middot; spot live &middot; DTE 14–21 &middot; <b>run #33</b></p>
 <div class="runbar">
 <button class="btn" id="go">Run screen</button>
 <span class="runstat" id="stat"></span></div>
 <div class="bar" id="bar"><div></div></div>
 <div class="fresh" id="fresh"></div>
 <div class="grid">
-<div class="stat now"><div class="k">Last run</div><div class="v"><span id="built" data-utc="2026-08-27T15:58:56Z">15:58 UTC</span></div></div>
-<div class="stat"><div class="k">VIX</div><div class="v">14.54</div></div>
-<div class="stat"><div class="k">SPX vs 20-MA</div><div class="v">+0.50%</div></div>
+<div class="stat now"><div class="k">Last run</div><div class="v"><span id="built" data-utc="2026-08-28T14:40:52Z">14:40 UTC</span></div></div>
+<div class="stat"><div class="k">VIX</div><div class="v">14.34</div></div>
+<div class="stat"><div class="k">SPX vs 20-MA</div><div class="v">+0.54%</div></div>
 <div class="stat"><div class="k">Condor</div><div class="v">NO-GO</div></div>
-<div class="stat"><div class="k">Candidates</div><div class="v">9</div></div>
+<div class="stat"><div class="k">Candidates</div><div class="v">11</div></div>
 </div>
-<div class="banner alarm"><b class="t">Macro in the expiry window &middot; 2026-09-11</b><ul class="macro"><li><b>PPI</b> &middot; Thu 10 Sep &middot; 1 day before expiry</li><li><b>CPI</b> &middot; Fri 11 Sep &middot; <b>expiry day</b></li></ul>CPI prints at 8:30am on the day these settle — hours before, with every position moving on the same number. 2 events inside 3 days of expiry, so the macro-density rule applies: <b>halve the tranche</b>.</div>
+<div class="banner warn"><b class="t">Macro in the expiry window &middot; 2026-09-18</b><ul class="macro"><li><b>FOMC</b> &middot; Wed 16 Sep &middot; 2 days before expiry</li></ul></div>
 <h2>Candidates — gates 1–2 passed</h2>
 <div class="scroll"><table><thead><tr>
 <th>Ticker</th>
@@ -211,218 +211,259 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <th title="under 1.00 means it is priced for less than it moved">IV/HV</th>
 <th title="days to expiry">DTE</th>
 </tr></thead><tbody>
-<tr class="grp"><td colspan="11">Semis <span class="cnt">1 name</span></td></tr>
+<tr class="grp"><td colspan="11">Semis <span class="cnt">2 names</span></td></tr>
+<tr class="row">
+<td class="tkcell" data-l="Ticker"><span class="tk">NVDA</span></td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.20; nearest listed strike is 0.18">0.20<span class="drift"> →0.18</span></span></td>
+<td class="num" data-l="Spot">225.31</td>
+<td class="num" data-l="Short">210.0</td>
+<td class="num" data-l="Long">200.0</td>
+<td class="num" data-l="Width">10.0</td>
+<td class="num tgt" data-l="Target credit">1.10</td>
+<td class="num" data-l="IV">34.0%</td>
+<td class="num" data-l="HV">42.9%</td>
+<td class="num" data-l="IV/HV">0.79</td>
+<td class="num" data-l="DTE">21</td>
+</tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 34% move, actually moved 43%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap2d — reported 2d ago; that jump inflates HV, so 'inv' may be fake.">gap2d</span><span class="chip" tabindex="0" data-tip="T+2 — reported 2d ago. Earliest entry you allow.">T+2</span><span class="chip" tabindex="0" data-tip="cap0.20 — nearest strike to 0.20Δ is over the 0.20 hard cap, so this is the next one out. Less credit, by rule.">cap0.20</span></div></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">TSM</span></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.20; nearest listed strike is 0.19">0.20</span></td>
-<td class="num" data-l="Spot">424.74</td>
-<td class="num" data-l="Short">402.5</td>
+<td class="num" data-l="Spot">426.38</td>
+<td class="num" data-l="Short">400.0</td>
 <td class="num" data-l="Long">380.0</td>
-<td class="num" data-l="Width">22.5</td>
-<td class="num tgt" data-l="Target credit">2.48</td>
-<td class="num" data-l="IV">31.9%</td>
-<td class="num" data-l="HV">39.1%</td>
-<td class="num" data-l="IV/HV">0.82</td>
-<td class="num" data-l="DTE">15</td>
+<td class="num" data-l="Width">20.0</td>
+<td class="num tgt" data-l="Target credit">2.20</td>
+<td class="num" data-l="IV">32.5%</td>
+<td class="num" data-l="HV">39.0%</td>
+<td class="num" data-l="IV/HV">0.83</td>
+<td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="prov — only 1.8% above 20-day avg. One down day drops it out of Gate 1.">prov</span><span class="chip" tabindex="0" data-tip="inv — priced for 32% move, actually moved 39%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap42d — reported 42d ago; that jump inflates HV, so 'inv' may be fake.">gap42d</span><span class="chip" tabindex="0" data-tip="fb0.18 — may step to 0.18Δ only after 11% fails live. No further.">fb0.18</span><span class="chip" tabindex="0" data-tip="cap0.20 — nearest strike to 0.20Δ is over the 0.20 hard cap, so this is the next one out. Less credit, by rule.">cap0.20</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 14% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="prov — only 1.9% above 20-day avg. One down day drops it out of Gate 1.">prov</span><span class="chip" tabindex="0" data-tip="inv — priced for 32% move, actually moved 39%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="fb0.18 — may step to 0.18Δ only after 11% fails live. No further.">fb0.18</span><span class="chip" tabindex="0" data-tip="cap0.20 — nearest strike to 0.20Δ is over the 0.20 hard cap, so this is the next one out. Less credit, by rule.">cap0.20</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 12% of price. You pay it twice on a spread.">ba</span></div></td></tr>
 <tr class="grp"><td colspan="11">Networking <span class="cnt">1 name</span></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">ANET</span></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.16">0.15</span></td>
-<td class="num" data-l="Spot">201.49</td>
-<td class="num" data-l="Short">185.0</td>
-<td class="num" data-l="Long">175.0</td>
+<td class="num" data-l="Spot">197.07</td>
+<td class="num" data-l="Short">177.5</td>
+<td class="num" data-l="Long">167.5</td>
 <td class="num" data-l="Width">10.0</td>
 <td class="num tgt" data-l="Target credit">1.10</td>
-<td class="num" data-l="IV">45.6%</td>
-<td class="num" data-l="HV">54.2%</td>
-<td class="num" data-l="IV/HV">0.84</td>
-<td class="num" data-l="DTE">15</td>
+<td class="num" data-l="IV">47.9%</td>
+<td class="num" data-l="HV">53.8%</td>
+<td class="num" data-l="IV/HV">0.89</td>
+<td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 46% move, actually moved 54%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap23d — reported 23d ago; that jump inflates HV, so 'inv' may be fake.">gap23d</span><span class="chip" tabindex="0" data-tip="oi55 — 55 open vs your 500 rule. Worse fills, harder to exit.">oi55</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 21% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="prov — only 1.8% above 20-day avg. One down day drops it out of Gate 1.">prov</span><span class="chip" tabindex="0" data-tip="inv — priced for 48% move, actually moved 54%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap24d — reported 24d ago; that jump inflates HV, so 'inv' may be fake.">gap24d</span><span class="chip" tabindex="0" data-tip="oi57 — 57 open vs your 500 rule. Worse fills, harder to exit.">oi57</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 17% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="grp"><td colspan="11">Security <span class="cnt">1 name</span></td></tr>
+<tr class="row">
+<td class="tkcell" data-l="Ticker"><span class="tk">CRWD</span></td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
+<td class="num" data-l="Spot">212.64</td>
+<td class="num" data-l="Short">190.0</td>
+<td class="num" data-l="Long">180.0</td>
+<td class="num" data-l="Width">10.0</td>
+<td class="num tgt" data-l="Target credit">1.10</td>
+<td class="num" data-l="IV">50.1%</td>
+<td class="num" data-l="HV">71.3%</td>
+<td class="num" data-l="IV/HV">0.70</td>
+<td class="num" data-l="DTE">21</td>
+</tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 50% move, actually moved 71%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap2d — reported 2d ago; that jump inflates HV, so 'inv' may be fake.">gap2d</span><span class="chip" tabindex="0" data-tip="T+2 — reported 2d ago. Earliest entry you allow.">T+2</span></div></td></tr>
 <tr class="grp"><td colspan="11">Mega-cap platform <span class="cnt">3 names</span></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">META</span></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
-<td class="num" data-l="Spot">573.39</td>
-<td class="num" data-l="Short">535.0</td>
+<td class="num" data-l="Spot">577.72</td>
+<td class="num" data-l="Short">537.5</td>
 <td class="num" data-l="Long">505.0</td>
-<td class="num" data-l="Width">30.0</td>
-<td class="num tgt" data-l="Target credit">3.30</td>
-<td class="num" data-l="IV">34.7%</td>
-<td class="num" data-l="HV">42.2%</td>
-<td class="num" data-l="IV/HV">0.82</td>
-<td class="num" data-l="DTE">15</td>
+<td class="num" data-l="Width">32.5</td>
+<td class="num tgt" data-l="Target credit">3.58</td>
+<td class="num" data-l="IV">31.5%</td>
+<td class="num" data-l="HV">41.8%</td>
+<td class="num" data-l="IV/HV">0.75</td>
+<td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip hot" tabindex="0" data-tip="knife — +0.05% vs 20-day avg 573.10. Feeds can disagree on the sign here. Verify.">knife</span><span class="chip" tabindex="0" data-tip="inv — priced for 35% move, actually moved 42%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap29d — reported 29d ago; that jump inflates HV, so 'inv' may be fake.">gap29d</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 10% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="prov — only 0.5% above 20-day avg. One down day drops it out of Gate 1.">prov</span><span class="chip" tabindex="0" data-tip="inv — priced for 32% move, actually moved 42%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap30d — reported 30d ago; that jump inflates HV, so 'inv' may be fake.">gap30d</span><span class="chip" tabindex="0" data-tip="oi109 — 109 open vs your 500 rule. Worse fills, harder to exit.">oi109</span></div></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">MSFT</span></td>
-<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
-<td class="num" data-l="Spot">499.61</td>
-<td class="num" data-l="Short">475.0</td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.16">0.15</span></td>
+<td class="num" data-l="Spot">511.01</td>
+<td class="num" data-l="Short">482.5</td>
 <td class="num" data-l="Long">450.0</td>
-<td class="num" data-l="Width">25.0</td>
-<td class="num tgt" data-l="Target credit">2.75</td>
-<td class="num" data-l="IV">25.4%</td>
+<td class="num" data-l="Width">32.5</td>
+<td class="num tgt" data-l="Target credit">3.58</td>
+<td class="num" data-l="IV">25.6%</td>
 <td class="num" data-l="HV">49.1%</td>
 <td class="num" data-l="IV/HV">0.52</td>
-<td class="num" data-l="DTE">15</td>
+<td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 25% move, actually moved 49%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap29d — reported 29d ago; that jump inflates HV, so 'inv' may be fake.">gap29d</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="oi396 — 396 open vs your 500 rule. Worse fills, harder to exit.">oi396</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 26% move, actually moved 49%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap30d — reported 30d ago; that jump inflates HV, so 'inv' may be fake.">gap30d</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="oi96 — 96 open vs your 500 rule. Worse fills, harder to exit.">oi96</span></div></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">AAPL</span></td>
-<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.16">0.15</span></td>
-<td class="num" data-l="Spot">314.69</td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
+<td class="num" data-l="Spot">317.63</td>
 <td class="num" data-l="Short">300.0</td>
 <td class="num" data-l="Long">285.0</td>
 <td class="num" data-l="Width">15.0</td>
 <td class="num tgt" data-l="Target credit">1.65</td>
 <td class="num" data-l="IV">25.0%</td>
-<td class="num" data-l="HV">30.8%</td>
-<td class="num" data-l="IV/HV">0.81</td>
-<td class="num" data-l="DTE">15</td>
+<td class="num" data-l="HV">30.3%</td>
+<td class="num" data-l="IV/HV">0.82</td>
+<td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="prov — only 1.4% above 20-day avg. One down day drops it out of Gate 1.">prov</span><span class="chip" tabindex="0" data-tip="inv — priced for 25% move, actually moved 31%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap28d — reported 28d ago; that jump inflates HV, so 'inv' may be fake.">gap28d</span><span class="chip" tabindex="0" data-tip="fb0.18 — may step to 0.18Δ only after 11% fails live. No further.">fb0.18</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 25% move, actually moved 30%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap29d — reported 29d ago; that jump inflates HV, so 'inv' may be fake.">gap29d</span><span class="chip" tabindex="0" data-tip="fb0.18 — may step to 0.18Δ only after 11% fails live. No further.">fb0.18</span></div></td></tr>
 <tr class="grp"><td colspan="11">High-beta <span class="cnt">2 names</span></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">PLTR</span></td>
-<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.13">0.15</span></td>
-<td class="num" data-l="Spot">186.09</td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.16">0.15</span></td>
+<td class="num" data-l="Spot">185.55</td>
 <td class="num" data-l="Short">167.5</td>
 <td class="num" data-l="Long">157.5</td>
 <td class="num" data-l="Width">10.0</td>
 <td class="num tgt" data-l="Target credit">1.10</td>
-<td class="num" data-l="IV">50.1%</td>
-<td class="num" data-l="HV">91.2%</td>
-<td class="num" data-l="IV/HV">0.55</td>
-<td class="num" data-l="DTE">15</td>
+<td class="num" data-l="IV">46.0%</td>
+<td class="num" data-l="HV">91.8%</td>
+<td class="num" data-l="IV/HV">0.50</td>
+<td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 50% move, actually moved 91%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap24d — reported 24d ago; that jump inflates HV, so 'inv' may be fake.">gap24d</span><span class="chip" tabindex="0" data-tip="oi393 — 393 open vs your 500 rule. Worse fills, harder to exit.">oi393</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 46% move, actually moved 92%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap25d — reported 25d ago; that jump inflates HV, so 'inv' may be fake.">gap25d</span><span class="chip" tabindex="0" data-tip="oi456 — 456 open vs your 500 rule. Worse fills, harder to exit.">oi456</span></div></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">TSLA</span></td>
-<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
-<td class="num" data-l="Spot">352.20</td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.16">0.15</span></td>
+<td class="num" data-l="Spot">353.11</td>
 <td class="num" data-l="Short">325.0</td>
 <td class="num" data-l="Long">305.0</td>
 <td class="num" data-l="Width">20.0</td>
 <td class="num tgt" data-l="Target credit">2.20</td>
-<td class="num" data-l="IV">39.9%</td>
-<td class="num" data-l="HV">59.0%</td>
-<td class="num" data-l="IV/HV">0.68</td>
-<td class="num" data-l="DTE">15</td>
+<td class="num" data-l="IV">38.0%</td>
+<td class="num" data-l="HV">59.6%</td>
+<td class="num" data-l="IV/HV">0.64</td>
+<td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 40% move, actually moved 59%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap36d — reported 36d ago; that jump inflates HV, so 'inv' may be fake.">gap36d</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 38% move, actually moved 60%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap37d — reported 37d ago; that jump inflates HV, so 'inv' may be fake.">gap37d</span></div></td></tr>
 <tr class="grp"><td colspan="11">Defensive/financial <span class="cnt">2 names</span></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">JNJ</span></td>
-<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.14">0.15</span></td>
-<td class="num" data-l="Spot">267.10</td>
+<td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.18">0.15<span class="drift"> →0.18</span></span></td>
+<td class="num" data-l="Spot">265.98</td>
 <td class="num" data-l="Short">255.0</td>
 <td class="num" data-l="Long">240.0</td>
 <td class="num" data-l="Width">15.0</td>
 <td class="num tgt" data-l="Target credit">1.65</td>
-<td class="num" data-l="IV">22.4%</td>
-<td class="num" data-l="HV">21.4%</td>
-<td class="num" data-l="IV/HV">1.05</td>
-<td class="num" data-l="DTE">15</td>
+<td class="num" data-l="IV">20.5%</td>
+<td class="num" data-l="HV">21.9%</td>
+<td class="num" data-l="IV/HV">0.94</td>
+<td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="prov — only 1.5% above 20-day avg. One down day drops it out of Gate 1.">prov</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="oi101 — 101 open vs your 500 rule. Worse fills, harder to exit.">oi101</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 57% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="prov — only 0.9% above 20-day avg. One down day drops it out of Gate 1.">prov</span><span class="chip" tabindex="0" data-tip="inv — priced for 21% move, actually moved 22%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="oi229 — 229 open vs your 500 rule. Worse fills, harder to exit.">oi229</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 23% of price. You pay it twice on a spread.">ba</span></div></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">V</span></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
-<td class="num" data-l="Spot">380.91</td>
+<td class="num" data-l="Spot">382.03</td>
 <td class="num" data-l="Short">365.0</td>
 <td class="num" data-l="Long">345.0</td>
 <td class="num" data-l="Width">20.0</td>
 <td class="num tgt" data-l="Target credit">2.20</td>
-<td class="num" data-l="IV">21.4%</td>
-<td class="num" data-l="HV">19.8%</td>
-<td class="num" data-l="IV/HV">1.08</td>
-<td class="num" data-l="DTE">15</td>
+<td class="num" data-l="IV">19.8%</td>
+<td class="num" data-l="HV">18.6%</td>
+<td class="num" data-l="IV/HV">1.06</td>
+<td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="gap30d — reported 30d ago; that jump inflates HV, so 'inv' may be fake.">gap30d</span><span class="chip" tabindex="0" data-tip="fb0.20 — may step to 0.20Δ only after 11% fails live. No further.">fb0.20</span><span class="chip" tabindex="0" data-tip="oi50 — 50 open vs your 500 rule. Worse fills, harder to exit.">oi50</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 40% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="gap31d — reported 31d ago; that jump inflates HV, so 'inv' may be fake.">gap31d</span><span class="chip" tabindex="0" data-tip="fb0.20 — may step to 0.20Δ only after 11% fails live. No further.">fb0.20</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 19% of price. You pay it twice on a spread.">ba</span></div></td></tr>
 </tbody></table></div>
 <p class="sub" style="margin-top:10px">Hover or tap any flag to see what it means. <b>Target</b> is 11% of the width — the least the spread may be sold for, and what to aim at when you price it live. This page does not quote options; it tells you the number to beat.</p>
-<p class="sub" style="margin-top:10px">All expiries 2026-09-11. The 11%W floor is yours to enforce at ticket.</p>
+<p class="sub" style="margin-top:10px">All expiries 2026-09-18. The 11%W floor is yours to enforce at ticket.</p>
 <h2>Rows are grouped by what moves together</h2>
-<p class="sub">Mega-cap platform (AAPL, META, MSFT); High-beta (PLTR, TSLA); Defensive/financial (JNJ, V). Names inside a group tend to fall on the same days, so holding several is closer to one larger position than to several independent ones. Passing the gates says nothing about how much of any of it to hold — that is position sizing, and this page does not do it.</p>
+<p class="sub">Semis (NVDA, TSM); Mega-cap platform (AAPL, META, MSFT); High-beta (PLTR, TSLA); Defensive/financial (JNJ, V). Names inside a group tend to fall on the same days, so holding several is closer to one larger position than to several independent ones. Passing the gates says nothing about how much of any of it to hold — that is position sizing, and this page does not do it.</p>
 <div class="banner warn"><b class="t">Two groups, one bet</b>ANET has its own cluster but tracked the semis at 0.62 / 0.48 / 0.46 over the last 60 / 120 / 250 sessions (measured 23 Aug 2026) — above its own 0.57 correlation to SPY at 60 sessions. Holding it alongside a semi is closer to two of the same bet than the cluster lines suggest.</div>
-<p class="sub">Flags in <span class="chip hot">red</span> need settling before acting — the row may not mean what it appears to.</p>
 <h2>What the screen does</h2>
 <details><summary>The three gates, and what they do not cover</summary><p class="head"><span>Each name is tested in order. Any failure drops it and nothing downstream can rescue it — these are vetoes, not scores, so there is no "good enough on balance".</span></p><dl class="legend"><dt>Gate 1 &middot; trend</dt><dd>Last price must be above the average of the previous 20 trading days. Below it, the name is out, however attractive the premium. The average uses completed days only, so today’s part-formed bar cannot flatter it.</dd><dt>Gate 2 &middot; earnings</dt><dd>No scheduled results on or before expiry. An earnings date inside the window is the single largest source of the overnight gap this structure cannot survive. Dates come from two independent sources; when they disagree the name is flagged rather than guessed at. Index funds have no earnings, so they are tested against CPI, jobs and Fed days instead.</dd><dt>Gate 3 &middot; news</dt><dd><strong>Not automated.</strong> Headlines are printed below for a person to read. A guidance cut, a probe, a downgrade cluster or sector contagion is a veto no matter how rich the premium looks. Nothing here decides that for you.</dd><dt>width filter</dt><dd>The two strikes must sit at least $5 apart, which rules out anything trading under roughly $100.</dd></dl><p class="head"><span><strong>What it does not do:</strong> it does not price anything, check that the credit is worth the risk, size a position, or know what you already hold. A name appearing here means it survived three filters — nothing more. Most days the honest answer is to do nothing.</span></p></details>
 <h2>Gate 3 — material adverse catalyst?</h2>
 <p class="sub">Not applied automatically. Read and veto by hand.</p>
-<details><summary>AAPL<span class="n">4 direct, 1 sector</span></summary>
-<p class="head"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/video/launches-john-ternus-needs-nail-152431046.html" target="_blank" rel="noopener nofollow">Here are the launches John Ternus needs to nail as Apple's next CEO</a></span></p>
-<p class="head"><span class="d">08-27</span><span><a href="https://247wallst.com/investing/2026/08/27/apple-is-cutting-jobs-from-the-teams-fixing-siri-is-its-ai-comeback-already-in-trouble/" target="_blank" rel="noopener nofollow">Apple Is Cutting Jobs From the Teams Fixing Siri. Is Its AI Comeback Already in Trouble?</a></span></p>
-<p class="head"><span class="d">08-27</span><span><a href="https://247wallst.com/investing/2026/08/27/apple-vs-microsoft-one-mega-cap-looks-like-the-better-long-term-bet/" target="_blank" rel="noopener nofollow">Apple vs. Microsoft: One Mega-Cap Looks Like the Better Long-Term Bet</a></span></p>
-<p class="head"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/apple-signals-big-september-hardware-120806405.html" target="_blank" rel="noopener nofollow">Apple Signals Big September Hardware Reveal</a></span></p>
-<p class="head sector"><span class="d">08-27</span><span><a href="https://www.fool.com/investing/2026/08/27/greg-abel-has-kept-60-of-berkshires-359-billion-st/" target="_blank" rel="noopener nofollow">Greg Abel Has Kept 60% of Berkshire's $359 Billion Stock Portfolio in Just 5 Companies, Even After Eliminating 16 Other Positions in His First Quarter. Is That Concentration a Risk for Shareholders?</a></span></p>
+<details><summary>AAPL<span class="n">5 direct, 0 sector</span></summary>
+<p class="head"><span class="d">08-28</span><span><a href="https://finance.yahoo.com/technology/article/tim-cooks-biggest-hits-and-misses-as-apple-ceo-130000601.html" target="_blank" rel="noopener nofollow">Tim Cook's biggest hits and misses as Apple CEO</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://finance.yahoo.com/technology/articles/apple-aapl-brings-emergency-sos-131015963.html" target="_blank" rel="noopener nofollow">Apple (AAPL) Brings Emergency SOS Live Video To Brazil</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://247wallst.com/investing/2026/08/28/will-nvidia-or-apple-have-the-bigger-market-cap-by-the-end-of-q3/" target="_blank" rel="noopener nofollow">Will Nvidia or Apple Have The Bigger Market Cap By The End of Q3?</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://www.barrons.com/articles/nvidia-stock-echoing-apple-2010s-pe-multiple-expansion-b3135245?siteid=yhoof2&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">Nvidia Stock Is Starting to Look a Lot Like 2010s Apple</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://www.fool.com/investing/2026/08/28/apple-is-launching-its-first-iphone-under-new-ceo-john-ternus-on-sept-9-could-ai-features-and-a-foldable-iphone-be-in-the-cards/" target="_blank" rel="noopener nofollow">Apple Is Launching Its First iPhone Under New CEO John Ternus on Sept. 9. Could AI Features and a Foldable iPhone Be in the Cards?</a></span></p>
 </details>
 <details><summary>ANET<span class="n">3 direct, 2 sector</span></summary>
 <p class="head"><span class="d">08-26</span><span><a href="https://www.trefis.com/articles/612945/decoding-anet-stocks-premium-valuation/2026-08-26" target="_blank" rel="noopener nofollow">Decoding ANET Stock's Premium Valuation</a></span></p>
-<p class="head"><span class="d">08-26</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/wall-street-analysts-believe-arista-135503232.html" target="_blank" rel="noopener nofollow">Wall Street Analysts Believe Arista Networks (ANET) Could Rally 26.74%: Here's is How to Trade</a></span></p>
 <p class="head"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/heres-much-1000-investment-arista-123003730.html" target="_blank" rel="noopener nofollow">Here's How Much a $1000 Investment in Arista Networks Made 10 Years Ago Would Be Worth Today</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/worth-investing-arista-networks-anet-133003648.html" target="_blank" rel="noopener nofollow">Is It Worth Investing in Arista Networks (ANET) Based on Wall Street's Bullish Views?</a></span></p>
 <p class="head sector"><span class="d">08-26</span><span><a href="https://www.trefis.com/articles/613014/super-micro-rallied-on-a-stamp-of-approval-not-on-demand/2026-08-26" target="_blank" rel="noopener nofollow">Super Micro Rallied On A Stamp Of Approval, Not On Demand</a></span></p>
 <p class="head sector"><span class="d">08-26</span><span><a href="https://www.barrons.com/livecoverage/stock-market-news-today-082626/card/energy-industrials-and-utilities-are-leading-the-stock-market-s7G0OKQL5Eh2nr0eIPK2?siteid=yhoof2&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">Energy, Industrials, and Utilities Are Leading the Stock Market</a></span></p>
 </details>
-<details><summary>JNJ<span class="n">4 direct, 1 sector</span></summary>
-<p class="head"><span class="d">08-26</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/top-analyst-reports-jpmorgan-johnson-222100729.html" target="_blank" rel="noopener nofollow">Top Analyst Reports for JPMorgan, Johnson &amp; Johnson &amp; Mastercard</a></span></p>
-<p class="head"><span class="d">08-26</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/johnson-johnson-jnj-sees-more-214503349.html" target="_blank" rel="noopener nofollow">Johnson &amp; Johnson (JNJ) Sees a More Significant Dip Than Broader Market: Some Facts to Know</a></span></p>
-<p class="head"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/healthcare/articles/johnson-johnson-jnj-telling-investors-141646055.html" target="_blank" rel="noopener nofollow">What Is Johnson &amp; Johnson (JNJ) Telling Investors With Its First WAIHA Approval?</a></span></p>
-<p class="head"><span class="d">08-27</span><span><a href="https://www.fool.com/investing/2026/08/27/johnson-jnj-just-got-a-big-fda-win/" target="_blank" rel="noopener nofollow">Johnson &amp; Johnson Just Got a Big FDA Win</a></span></p>
-<p class="head sector"><span class="d">08-26</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/could-genmab-gmab-stock-win-235714883.html" target="_blank" rel="noopener nofollow">Could Genmab (GMAB) Stock Win as Royalty Growth Fuels a New Earnings Cycle?</a></span></p>
+<details><summary>CRWD<span class="n">2 direct, 3 sector</span></summary>
+<p class="head"><span class="d">08-28</span><span><a href="https://247wallst.com/investing/2026/08/28/sentinelone-slides-8-as-trimmed-profit-forecast-outweighs-revenue-beat-crowdstrike-declines-7/" target="_blank" rel="noopener nofollow">SentinelOne Slides 8% as Trimmed Profit Forecast Outweighs Revenue Beat, CrowdStrike Declines 7%</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://qz.com/crowdstrike-ceo-ai-legacy-cybersecurity-record-earnings-082826" target="_blank" rel="noopener nofollow">CrowdStrike CEO George Kurtz warns AI is exposing cyber gaps</a></span></p>
+<p class="head sector"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/video/tech-investors-looking-ai-more-195000481.html" target="_blank" rel="noopener nofollow">Tech investors are looking at AI with 'more nuance' as it fuels software demand</a></span></p>
+<p class="head sector"><span class="d">08-28</span><span><a href="https://finance.yahoo.com/markets/article/salesforce-is-surging-again--but-the-best-software-setups-may-be-elsewhere-one-big-investment-idea-110000145.html" target="_blank" rel="noopener nofollow">Salesforce is surging again — but the best software setups may be elsewhere: One Big Investment Idea</a></span></p>
+<p class="head sector"><span class="d">08-28</span><span><a href="https://www.investors.com/market-trend/stock-market-today/stock-market-today-dow-jones-sp500-nasdaq-warsh-jackson-hole-speech-marvell-affirm-paypal/?src=A00220&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">Stock Market Today: Dow Rises As Warsh Speech Starts; Marvell, Affirm, PayPal Are Big Movers (Live Coverage)</a></span></p>
 </details>
-<details><summary>META<span class="n">2 direct, 3 sector</span></summary>
-<p class="head"><span class="d">08-27</span><span><a href="https://uk.finance.yahoo.com/news/meta-settlement-opens-front-global-071118381.html" target="_blank" rel="noopener nofollow">Meta settlement opens new front in global fight over social media harm</a></span></p>
-<p class="head"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/meta-just-put-18-billion-141405038.html" target="_blank" rel="noopener nofollow">Meta Just Put an $18 Billion Price Tag on Its Biggest Social Media Risk</a></span></p>
-<p class="head sector"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/markets/stocks/article/why-nvidia-probably-just-lit-a-new-fire-under-these-once-hot-trades-103645649.html" target="_blank" rel="noopener nofollow">Why Nvidia probably just lit a new fire under these once-hot trades</a></span></p>
-<p class="head sector"><span class="d">08-27</span><span><a href="https://www.barrons.com/articles/spacex-stock-price-nvidia-earnings-92967662?siteid=yhoof2&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">3 Things Nvidia Said About SpaceX on Its Earnings Call—and Why They Matter</a></span></p>
-<p class="head sector"><span class="d">08-27</span><span><a href="https://www.barrons.com/articles/magnificent-seven-stock-divergence-megacaps-miss-ai-boom-b897a64f?siteid=yhoof2&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">The Magnificent 7 Divergence: Why Megacap Tech Stocks Are Missing Today’s AI Boom</a></span></p>
+<details><summary>JNJ<span class="n">2 direct, 3 sector</span></summary>
+<p class="head"><span class="d">08-27</span><span><a href="https://www.fool.com/investing/2026/08/27/i-think-johnson-johnson-is-the-best-dividend-stock/" target="_blank" rel="noopener nofollow">I Think Johnson &amp; Johnson Is the Best Dividend Stock to Buy Right Now</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://finance.yahoo.com/healthcare/articles/johnson-johnson-jnj-imaavy-expands-003350675.html" target="_blank" rel="noopener nofollow">Johnson &amp; Johnson (JNJ)’s Imaavy Expands Into Rare Blood Disorder: What Investors Should Know</a></span></p>
+<p class="head sector"><span class="d">08-28</span><span><a href="https://www.fool.com/investing/2026/08/28/warren-buffett-thinks-investors-are-gambling-right/" target="_blank" rel="noopener nofollow">Warren Buffett Thinks Investors Are &quot;Gambling&quot; Right Now. Here are 2 Stocks That Should Be Safe Bets.</a></span></p>
+<p class="head sector"><span class="d">08-28</span><span><a href="https://247wallst.com/personal-finance/2026/08/28/cashing-out-a-pension-or-taking-the-monthly-check-the-dividend-answer-for-a-610000-lump-sum/" target="_blank" rel="noopener nofollow">Cashing Out a Pension or Taking the Monthly Check? The Dividend Answer for a $610,000 Lump Sum</a></span></p>
+<p class="head sector"><span class="d">08-28</span><span><a href="https://247wallst.com/personal-finance/2026/08/28/what-a-1-55-million-portfolio-actually-pays-after-taxes-medicare-premiums-and-reality/" target="_blank" rel="noopener nofollow">What a $1.55 Million Portfolio Actually Pays After Taxes, Medicare Premiums, and Reality</a></span></p>
+</details>
+<details><summary>META<span class="n">3 direct, 2 sector</span></summary>
+<p class="head"><span class="d">08-28</span><span><a href="https://247wallst.com/investing/2026/08/28/meta-stock-could-have-50-upside-heres-the-bull-case/" target="_blank" rel="noopener nofollow">Meta Stock Could Have 50% Upside. Here’s the Bull Case</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/mark-zuckerberg-meta-agreed-17-120111505.html" target="_blank" rel="noopener nofollow">Mark Zuckerberg’s Meta Agreed to a $17 Billion Settlement—Bernie Sanders Calls It a ‘Good Step Forward,’ But Says 'Much More Needs to Be Done' (UPDATED)</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://247wallst.com/investing/2026/08/28/the-number-one-reason-to-buy-meta-is-very-compelling/" target="_blank" rel="noopener nofollow">The Number One Reason to Buy Meta is Very Compelling</a></span></p>
+<p class="head sector"><span class="d">08-28</span><span><a href="https://www.mediapost.com/publications/article/417529/the-end-of-the-unregulated-attention-economy.html" target="_blank" rel="noopener nofollow">The End Of The Unregulated Attention Economy</a></span></p>
+<p class="head sector"><span class="d">08-28</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/market-chatter-meta-other-companies-123357078.html" target="_blank" rel="noopener nofollow">Market Chatter: Meta, Other Companies Brace for Democratic Scrutiny Over Trump Ties</a></span></p>
 </details>
 <details><summary>MSFT<span class="n">1 direct, 4 sector</span></summary>
-<p class="head"><span class="d">08-27</span><span><a href="https://247wallst.com/investing/2026/08/27/apple-vs-microsoft-one-mega-cap-looks-like-the-better-long-term-bet/" target="_blank" rel="noopener nofollow">Apple vs. Microsoft: One Mega-Cap Looks Like the Better Long-Term Bet</a></span></p>
-<p class="head sector"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/markets/stocks/article/why-nvidia-probably-just-lit-a-new-fire-under-these-once-hot-trades-103645649.html" target="_blank" rel="noopener nofollow">Why Nvidia probably just lit a new fire under these once-hot trades</a></span></p>
-<p class="head sector"><span class="d">08-27</span><span><a href="https://247wallst.com/investing/2026/08/27/prediction-oracle-is-ready-to-explore-heres-our-price-target/" target="_blank" rel="noopener nofollow">Prediction: Oracle is Ready to Explore. Here’s Our Price Target.</a></span></p>
-<p class="head sector"><span class="d">08-27</span><span><a href="https://www.trefis.com/articles/613287/can-oracle-stock-fund-a-638b-backlog-without-breaking-margins/2026-08-27" target="_blank" rel="noopener nofollow">Can Oracle Stock Fund a $638B Backlog Without Breaking Margins?</a></span></p>
-<p class="head sector"><span class="d">08-27</span><span><a href="https://www.barrons.com/articles/magnificent-seven-stock-divergence-megacaps-miss-ai-boom-b897a64f?siteid=yhoof2&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">The Magnificent 7 Divergence: Why Megacap Tech Stocks Are Missing Today’s AI Boom</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/microsoft-msft-just-flashed-golden-135501604.html" target="_blank" rel="noopener nofollow">Microsoft (MSFT) Just Flashed Golden Cross Signal: Do You Buy?</a></span></p>
+<p class="head sector"><span class="d">08-28</span><span><a href="https://247wallst.com/investing/2026/08/28/over-100-companies-say-ai-cyberattacks-will-surge-in-the-coming-months-heres-what-theyre-asking-governments-to-do/" target="_blank" rel="noopener nofollow">Over 100 Companies Say AI Cyberattacks Will Surge ‘In the Coming Months.’ Here’s What They’re Asking Governments to Do.</a></span></p>
+<p class="head sector"><span class="d">08-28</span><span><a href="https://www.barrons.com/articles/musk-vs-wall-street-spacex-3-5-trillion-revenue-forecast-b155ec1c?siteid=yhoof2&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">Elon Musk Thinks SpaceX Can Hit $3.5 Trillion in Revenue. Wall Street Isn’t Buying It.</a></span></p>
+<p class="head sector"><span class="d">08-28</span><span><a href="https://finance.yahoo.com/technology/ai/articles/iren-q4-earnings-call-focuses-140000962.html" target="_blank" rel="noopener nofollow">IREN Q4 Earnings Call Focuses on AI Cloud Scale &amp; Funding</a></span></p>
+<p class="head sector"><span class="d">08-28</span><span><a href="https://247wallst.com/investing/2026/08/28/iren-falls-6-as-a-639m-mining-rig-writedown-overshadows-ai-cloud-growth-terawulf-eases/" target="_blank" rel="noopener nofollow">IREN Falls 6% as $639M Mining Rig Writedown Overshadows AI Cloud Growth, TeraWulf Eases</a></span></p>
 </details>
-<details><summary>PLTR<span class="n">4 direct, 1 sector</span></summary>
-<p class="head"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/technology/ai/articles/palantirs-pentagon-ai-business-closing-141456628.html" target="_blank" rel="noopener nofollow">Palantir's Pentagon AI Business Is Closing In on $1 Billion a Year</a></span></p>
-<p class="head"><span class="d">08-27</span><span><a href="https://www.trefis.com/articles/613346/palantir-technologies-stock-surged-on-evidence-that-was-already-public/2026-08-27" target="_blank" rel="noopener nofollow">Palantir Technologies Stock Surged On Evidence That Was Already Public</a></span></p>
-<p class="head"><span class="d">08-27</span><span><a href="https://www.fool.com/investing/2026/08/27/peter-thiel-has-steadily-sold-down-his-palantir-st/" target="_blank" rel="noopener nofollow">Peter Thiel Has Steadily Sold Down His Palantir Stake for Years, Yet Remains Its Largest Individual Shareholder. Here's What His Selling Pattern Signals for Investors.</a></span></p>
-<p class="head"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/pentagon-maven-deal-raised-guidance-050916209.html" target="_blank" rel="noopener nofollow">How Pentagon Maven Deal And Raised Guidance At Palantir Technologies (PLTR) Has Changed Its Investment Story</a></span></p>
-<p class="head sector"><span class="d">08-26</span><span><a href="https://stocktwits.com/news-articles/markets/equity/michael-burry-buys-nvda-calls-as-a-hedge-adds-to-orcl-pltr-nbis-shorts-why-he-thinks-nvidia-will-not-distribute-enough-to-shareholders/cZYVdSURJpP" target="_blank" rel="noopener nofollow">Michael Burry Buys NVDA Calls As A ‘Hedge,’ Adds To ORCL, PLTR, NBIS Shorts — Why He Thinks ‘Nvidia Will Not Distribute Enough To Shareholders’</a></span></p>
+<details><summary>NVDA<span class="n">4 direct, 1 sector</span></summary>
+<p class="head"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/video/inside-nvidia-spacex-growing-relationship-194500109.html" target="_blank" rel="noopener nofollow">Inside Nvidia and SpaceX’s growing relationship</a></span></p>
+<p class="head"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/markets/stocks/article/nvidias-relationship-with-spacex-is-deepening-150341549.html" target="_blank" rel="noopener nofollow">Nvidia's relationship with SpaceX is deepening</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://finance.yahoo.com/video/ai-lobbying-gains-foothold-nvidia-140622855.html" target="_blank" rel="noopener nofollow">AI lobbying gains new foothold with Nvidia PAC ahead of midterm elections</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://247wallst.com/investing/2026/08/28/nvidia-vs-palantir-one-is-the-clearer-buy-after-earnings/" target="_blank" rel="noopener nofollow">Nvidia vs. Palantir: One Is the Clearer Buy After Earnings</a></span></p>
+<p class="head sector"><span class="d">08-28</span><span><a href="https://247wallst.com/investing/2026/08/28/trumps-new-beef-with-meat-packers-wont-fix-record-ground-beef-prices-before-midterms/" target="_blank" rel="noopener nofollow">Trump’s New Beef with Meat Packers Won’t Fix Record Ground Beef Prices Before Midterms</a></span></p>
 </details>
-<details><summary>TSLA<span class="n">2 direct, 3 sector</span></summary>
-<p class="head"><span class="d">08-27</span><span><a href="https://www.trefis.com/articles/613285/the-demand-signal-underneath-tesla-stocks-cash-burn-debate/2026-08-27" target="_blank" rel="noopener nofollow">The Demand Signal Underneath Tesla Stock's Cash-Burn Debate</a></span></p>
-<p class="head"><span class="d">08-27</span><span><a href="https://www.barrons.com/articles/why-nvidia-earnings-matter-to-tesla-investors-fsd-c9d1d12e?siteid=yhoof2&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">Why Nvidia Earnings Matter for Tesla Stock: AI Compute and FSD Training</a></span></p>
-<p class="head sector"><span class="d">08-27</span><span><a href="https://www.investors.com/news/nvidia-hugging-face-tesla-optimus-robot-microduck/?src=A00220&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">Nvidia M&amp;A Target Hugging Face Releases New Robot, As Deal Rumors Swirl</a></span></p>
-<p class="head sector"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/technology/ai/articles/market-chatter-spacex-apos-musk-140820565.html" target="_blank" rel="noopener nofollow">Market Chatter: SpaceX's Musk, OpenAI's Altman Among Speakers at G20 Tech Meeting</a></span></p>
-<p class="head sector"><span class="d">08-27</span><span><a href="https://www.fool.com/investing/2026/08/27/mags-treading-water-2026-why-smart-invest/" target="_blank" rel="noopener nofollow">MAGS Is Treading Water This Year. Here's Why the Smartest Investors Are Still Buying.</a></span></p>
+<details><summary>PLTR<span class="n">3 direct, 2 sector</span></summary>
+<p class="head"><span class="d">08-28</span><span><a href="https://247wallst.com/investing/2026/08/28/nvidia-vs-palantir-one-is-the-clearer-buy-after-earnings/" target="_blank" rel="noopener nofollow">Nvidia vs. Palantir: One Is the Clearer Buy After Earnings</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://247wallst.com/investing/2026/08/28/our-palantir-price-target-is-higher-than-wall-streets/" target="_blank" rel="noopener nofollow">Our Palantir Price Target Is Higher Than Wall Street’s</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://www.benzinga.com/news/politics/26/08/61486575/meta-palantir-paramount-skydance-hedge-trump-ties-by-courting-democrats-as-midterms-raise-prospect-of-house-flip-report?utm_source=yahooFinance&amp;utm_campaign=partner_feed&amp;utm_medium=referral" target="_blank" rel="noopener nofollow">Meta, Palantir, Paramount Skydance Hedge Trump Ties by Courting Democrats as Midterms Raise Prospect of House Flip: Report</a></span></p>
+<p class="head sector"><span class="d">08-28</span><span><a href="https://finance.yahoo.com/technology/ai/articles/innodatas-49-margin-become-ai-140600997.html" target="_blank" rel="noopener nofollow">Can Innodata's 49% Margin Become Its New AI Growth Benchmark Today?</a></span></p>
+<p class="head sector"><span class="d">08-28</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/market-chatter-meta-other-companies-123357078.html" target="_blank" rel="noopener nofollow">Market Chatter: Meta, Other Companies Brace for Democratic Scrutiny Over Trump Ties</a></span></p>
 </details>
-<details><summary>TSM<span class="n">3 direct, 2 sector</span></summary>
-<p class="head"><span class="d">08-26</span><span><a href="https://finance.yahoo.com/technology/ai/articles/sony-group-sony-taiwan-semiconductor-190819185.html" target="_blank" rel="noopener nofollow">Sony Group (SONY) and Taiwan Semiconductor (TSM) Are Betting $4.7 Billion on the “Eyes” of AI Machines</a></span></p>
-<p class="head"><span class="d">08-27</span><span><a href="https://www.fool.com/investing/2026/08/27/this-hedge-fund-just-sold-sandisk-and-bought-taiwa/" target="_blank" rel="noopener nofollow">This Hedge Fund Just Sold Sandisk and Bought Taiwan Semiconductor Manufacturing Stock. Does Wall Street Agree With the Move?</a></span></p>
-<p class="head"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/technology/ai/articles/why-taiwan-semiconductor-manufacturing-tsm-061348015.html" target="_blank" rel="noopener nofollow">Why Is Taiwan Semiconductor Manufacturing (TSM) Winning More 3nm AI Chip Work?</a></span></p>
-<p class="head sector"><span class="d">08-27</span><span><a href="https://www.fool.com/investing/2026/08/27/3-ai-stocks-hedge-funds-are-buying/" target="_blank" rel="noopener nofollow">3 Artificial Intelligence (AI) Stocks Hedge Funds Are Buying Hand Over Fist</a></span></p>
-<p class="head sector"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/etfs-buy-nvidia-beats-q2-143000119.html" target="_blank" rel="noopener nofollow">ETFs to Buy as NVIDIA Beats on Q2 Earnings, Views 70% Top-Line Growth in FY28</a></span></p>
+<details><summary>TSLA<span class="n">4 direct, 1 sector</span></summary>
+<p class="head"><span class="d">08-28</span><span><a href="https://www.barrons.com/articles/tesla-stock-why-its-falling-musk-7aad56c1?siteid=yhoof2&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">Tesla Stock Has Trailed the S&amp;P 500 for 5 Years. There Are 3 Reasons Why.</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/tesla-uber-won-robotaxi-permits-113220799.html" target="_blank" rel="noopener nofollow">Tesla and Uber Won Robotaxi Permits—Why Citizens Kept Both Ratings Unchanged</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://stocktwits.com/news-articles/markets/equity/tsla-waymo-defensive-bullish-analyst-love-tesla-even-more/cZYAGaJRJAI" target="_blank" rel="noopener nofollow">TSLA Stock’s 3-Week Rally Faces A Test — Why Waymo’s ‘Defensive’ Turn Makes This Bullish Analyst Love Tesla Even More</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://autos.yahoo.com/ev-and-future-tech/articles/elon-musk-teases-tesla-vehicle-033111749.html" target="_blank" rel="noopener nofollow">Elon Musk Teases Tesla Vehicle 'Way Cooler Than a Minivan'—Is the Robovan Finally Coming?</a></span></p>
+<p class="head sector"><span class="d">08-28</span><span><a href="https://www.investors.com/news/tesla-byd-china-ev-electric-vehicles-auto-sales/?src=A00220&amp;yptr=yahoo" target="_blank" rel="noopener nofollow">BYD Global Push Finally Delivers; Profits Rise For First Time Since 2025</a></span></p>
 </details>
-<details><summary>V<span class="n">5 direct, 0 sector</span></summary>
-<p class="head"><span class="d">08-26</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/visa-v-launches-unified-card-210853903.html" target="_blank" rel="noopener nofollow">Visa (V) Launches Unified Card Present Payment Platform For Global Merchants</a></span></p>
-<p class="head"><span class="d">08-26</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/visa-hits-385-57-record-194955987.html" target="_blank" rel="noopener nofollow">Visa Hits $385.57 Record, Then Surrenders the Breakout</a></span></p>
-<p class="head"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/why-visa-v-4-1-153024338.html" target="_blank" rel="noopener nofollow">Why Is Visa (V) Up 4.1% Since Last Earnings Report?</a></span></p>
-<p class="head"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/visas-bluefin-partnership-strengthen-merchant-142000436.html" target="_blank" rel="noopener nofollow">Can Visa's Bluefin Partnership Strengthen Its Merchant Growth?</a></span></p>
-<p class="head"><span class="d">08-27</span><span><a href="https://investorshub.advfn.com/market-news/article/35215/visa-expands-ai-cybersecurity-tools-and-advisory-services" target="_blank" rel="noopener nofollow">Visa expands AI cybersecurity tools and advisory services</a></span></p>
+<details><summary>TSM<span class="n">2 direct, 3 sector</span></summary>
+<p class="head"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/tsmc-adrs-jump-2-nvidia-170617812.html" target="_blank" rel="noopener nofollow">TSMC ADRs Jump 2% as Nvidia Extends the Foundry Runway</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://finance.yahoo.com/technology/ai/articles/tsmc-advancing-a14-technology-roadmap-135200442.html" target="_blank" rel="noopener nofollow">How TSMC is Advancing its A14 Technology Roadmap for AI Transformation</a></span></p>
+<p class="head sector"><span class="d">08-27</span><span><a href="https://www.thestreet.com/investing/stocks/morgan-stanley-keeps-cisco-at-135-on-tsmc-supply-edge" target="_blank" rel="noopener nofollow">Morgan Stanley reveals Cisco's quiet edge over rivals</a></span></p>
+<p class="head sector"><span class="d">08-27</span><span><a href="https://247wallst.com/investing/2026/08/27/forget-smh-and-its-87-year-three-semiconductor-funds-did-much-better/" target="_blank" rel="noopener nofollow">Forget SMH and Its 87% Year: Three Semiconductor Funds Did Much Better</a></span></p>
+<p class="head sector"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/technology/articles/amkor-apos-underappreciated-beneficiary-apos-181628185.html" target="_blank" rel="noopener nofollow">Amkor 'Underappreciated Beneficiary' of Advanced Semiconductor Packaging, BofA Says</a></span></p>
+</details>
+<details><summary>V<span class="n">3 direct, 2 sector</span></summary>
+<p class="head"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/mastercard-restarts-syrian-payments-15-192859110.html" target="_blank" rel="noopener nofollow">Mastercard Restarts Syrian Payments After 15 Years--and Visa Arrives Too</a></span></p>
+<p class="head"><span class="d">08-27</span><span><a href="https://finance.yahoo.com/markets/stocks/articles/visa-reopens-syria-one-payment-191442505.html" target="_blank" rel="noopener nofollow">Visa Reopens Syria With One Payment and No Monopoly</a></span></p>
+<p class="head"><span class="d">08-28</span><span><a href="https://www.fool.com/investing/2026/08/28/bill-ackman-just-made-his-biggest-portfolio-overha/" target="_blank" rel="noopener nofollow">Bill Ackman Just Made His Biggest Portfolio Overhaul in Years, Adding Netflix, Visa, and Mastercard to Pershing Square. What's the Thesis Behind the Switch?</a></span></p>
+<p class="head sector"><span class="d">08-27</span><span><a href="https://www.kiplinger.com/investing/analysts-top-sandp-500-stocks-to-buy-now" target="_blank" rel="noopener nofollow">Analysts' Top S&amp;P 500 Stocks to Buy Now</a></span></p>
+<p class="head sector"><span class="d">08-27</span><span><a href="https://www.trefis.com/articles/613290/paypal-stocks-biggest-risk-shows-up-in-its-take-rate/2026-08-27" target="_blank" rel="noopener nofollow">PayPal Stock's Biggest Risk Shows Up In Its Take Rate</a></span></p>
 </details>
 <h2>Dropped</h2>
-<div class="drop"><div class="k">Gate 1 trend</div><div class="v">AMD, AMZN, AVGO, GOOGL, JPM, LLY</div></div>
-<div class="drop"><div class="k">Gate 2 earnings</div><div class="v">PANW(2026-09-01), QQQ[macro: PPI, CPI], SPY[macro: PPI, CPI], IWM[macro: PPI, CPI]</div></div>
-<div class="drop"><div class="k">Post-earnings T+1</div><div class="v">CRWD(reported 2026-08-26), NVDA(reported 2026-08-26)</div></div>
-<div class="drop"><div class="k">Width pre-filter</div><div class="v">NFLX(5%W=$3.98)</div></div>
+<div class="drop"><div class="k">Gate 1 trend</div><div class="v">AMD, AMZN, AVGO, GOOGL, JPM, LLY, PANW, IWM</div></div>
+<div class="drop"><div class="k">Gate 2 earnings</div><div class="v">QQQ[macro: FOMC], SPY[macro: FOMC]</div></div>
+<div class="drop"><div class="k">Width pre-filter</div><div class="v">NFLX(5%W=$4.08)</div></div>
 <h2>Sources</h2>
-<div class="drop"><div class="v">Earnings: yfinance + nasdaq<br>Nasdaq calendar 2026-08-27 .. 2026-09-30 (362 companies)<br>Cross-check: 1 dated, 11 cleared by full-window scan, 0 unconfirmed<br>Macro: 5 events, FOMC from fed.gov (live), BLS live</div></div>
+<div class="drop"><div class="v">Earnings: yfinance + nasdaq<br>Nasdaq calendar 2026-08-28 .. 2026-10-01 (325 companies)<br>Cross-check: 0 dated, 11 cleared by full-window scan, 0 unconfirmed<br>Macro: 5 events, FOMC from fed.gov (live), BLS live</div></div>
 <p class="sub">None of these is IR. Confirm at source anything that binds.</p>
 <div class="foot"><b>Δ</b> target short-leg delta (roughly the chance of finishing in the money) &middot; <b>Short</b> strike sold &middot; <b>Width</b> distance to the strike bought &middot; <b>IV</b> priced-in move &middot; <b>HV</b> actual recent move.<br>IV is per-strike and delayed. Bid/ask is context, not a gate. Gates are hard vetoes, not quotas — cash is a valid outcome.</div>
 <p class="sig">Built and maintained by <b>JH</b>. The universe, the gates, the delta anchors and the 11% floor are JH’s own rules — not a standard, not a service, and not financial advice.</p>
@@ -573,5 +614,5 @@ function initRun(cfg){
   window.addEventListener('resize',function(){
     pinned=null;tipEl.classList.remove('show');});
 }
-</script><script>initRun({runNumber:"32",builtUtc:"2026-08-27T15:58:56Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
+</script><script>initRun({runNumber:"33",builtUtc:"2026-08-28T14:40:52Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
 </div></body></html>
