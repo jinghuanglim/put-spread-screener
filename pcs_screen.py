@@ -1980,6 +1980,12 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 .head a{color:inherit;text-decoration:underline;text-underline-offset:3px;
   text-decoration-color:var(--line)}
 .head a:hover{text-decoration-color:var(--accent)}
+.note{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:15px 17px;margin-bottom:14px}
+dl.legend.icons{gap:11px 15px}
+dl.legend.icons dt{font-family:inherit;font-size:19px;line-height:1.5}
+.gloss{display:flex;flex-wrap:wrap;gap:7px 20px;font-size:14.5px;color:var(--ink)}
+.gloss b{color:var(--ink)}
 .drop{background:var(--panel);border:1px solid var(--line);border-radius:9px;
   padding:13px 15px;margin-bottom:9px;font-size:15px}
 .drop .k{font-size:12.5px;text-transform:uppercase;letter-spacing:.07em;
@@ -2528,17 +2534,30 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                     H.append(f'<tr class="fl"><td colspan="{len(cells)}">'
                              f'<div class="chips">{chips}</div></td></tr>')
         H.append('</tbody></table></div>')
-        H.append(f'<p class="sub" style="margin-top:10px">Hover or tap any flag '
-                 f'to see what it means, or <b>news</b> to read the headlines '
-                 f'for that name \u2014 Gate 3 is yours to apply. '
-                 f'<b>Target</b> is '
+        # Three separate captions, each true only for as long as it took to
+        # read the one before it, said less between them than one card says
+        # once: what a flag means, where the news lives, and what number the
+        # ticket has to clear \u2014 in the order your eye actually meets them.
+        red_flags_live = bool(used) and any(f in used for f in HOT_FLAGS)
+        H.append('<h2>Reading this table</h2>')
+        H.append('<div class="note"><dl class="legend icons">')
+        H.append(f'<dt>\U0001f6a9</dt><dd>Hover a flag on desktop, or tap it '
+                 f'on mobile, to see what it means.'
+                 + (' <b>Red</b> flags need settling before acting \u2014 the '
+                    'row may not mean what it appears to.' if red_flags_live
+                    else '') + '</dd>')
+        H.append('<dt>\U0001f4f0</dt><dd>The newspaper icon beside a name '
+                 'opens its headlines. Gate 3 is not automated \u2014 '
+                 'Gate 3 is yours to apply.</dd>')
+        H.append(f'<dt>\U0001f3af</dt><dd><b>Target</b> is '
                  f'{CREDIT_FLOOR*100:.0f}% of the width \u2014 the least the '
                  f'spread may be sold for, and what to aim at when you price '
-                 f'it live. This page does not quote options; it tells you the '
-                 f'number to beat.</p>')
-        H.append(f'<p class="sub" style="margin-top:10px">All expiries '
-                 f'{_esc(rows[0]["expiry"])}. The 11%W floor is yours to '
-                 f'enforce at ticket.</p>')
+                 f'it live. This page does not quote options; it tells you '
+                 f'the number to beat.</dd>')
+        H.append(f'<dt>\U0001f4c5</dt><dd>All expiries '
+                 f'{_esc(rows[0]["expiry"])}. The 11%W floor above is yours '
+                 f'to enforce at the ticket.</dd>')
+        H.append('</dl></div>')
 
         multi = [c for c in CLUSTER_ORDER
                  if len(by_c.get(c, [])) > 1 and c != "Unclustered"]
@@ -2546,32 +2565,23 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
             names = "; ".join(
                 f"{c} ({', '.join(r['t'] for r in by_c[c])})" for c in multi)
             H.append('<h2>Rows are grouped by what moves together</h2>')
-            H.append(f'<p class="sub">{_esc(names)}. Names inside a group tend '
+            H.append(f'<div class="note"><p class="sub" style="margin:0">'
+                     f'\U0001f9e9 {_esc(names)}. Names inside a group tend '
                      f'to fall on the same days, so holding several is closer '
                      f'to one larger position than to several independent '
                      f'ones. Passing the gates says nothing about how much of '
                      f'any of it to hold \u2014 that is position sizing, and '
-                     f'this page does not do it.</p>')
+                     f'this page does not do it.</p></div>')
         for note in cross_cluster_notes([r["t"] for r in rows]):
             H.append(f'<div class="banner warn"><b class="t">Two groups, one bet</b>'
                      f'{_esc(note)}</div>')
 
-        seen = []
-        for f in used:
-            k = _legend_key(f)
-            if k not in seen:
-                seen.append(k)
-        if seen:
-            if any(f in used for f in HOT_FLAGS):
-                H.append('<p class="sub">Flags in <span class="chip hot">red'
-                         '</span> need settling before acting \u2014 the row '
-                         'may not mean what it appears to.</p>')
 
     # ------------------------------------------------ what this is
     H.append('<h2>What the screen does</h2>')
     H.append(
-        '<details><summary>The three gates, and what they do not cover'
-        '</summary>'
+        '<details><summary>\U0001f6a6 The three gates, and what they do not '
+        'cover</summary>'
         '<p class="head"><span>Each name is tested in order. Any failure drops '
         'it and nothing downstream can rescue it — these are vetoes, not '
         'scores, so there is no "good enough on balance".</span></p>'
@@ -2621,9 +2631,11 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
 
     # ------------------------------------------------ dropped + sources
     H.append('<h2>Dropped</h2>')
-    for k, label in (("trend", "Gate 1 trend"), ("earnings", "Gate 2 earnings"),
-                     ("postearn", "Post-earnings T+1"),
-                     ("width", "Width pre-filter"), ("data", "Data failure")):
+    for k, label in (("trend", "\U0001f4c9 Gate 1 trend"),
+                     ("earnings", "\U0001f4c5 Gate 2 earnings"),
+                     ("postearn", "\u23f1\ufe0f Post-earnings T+1"),
+                     ("width", "\U0001f4cf Width pre-filter"),
+                     ("data", "\u26a0\ufe0f Data failure")):
         if dropped.get(k):
             H.append(f'<div class="drop"><div class="k">{label}</div>'
                      f'<div class="v">{_esc(", ".join(dropped[k]))}</div></div>')
@@ -2651,17 +2663,24 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         bits.append(f"EARNINGS CONFLICT — {c}")
     H.append('<div class="drop"><div class="v">'
              + "<br>".join(_esc(x) for x in bits) + '</div></div>')
-    H.append('<p class="sub">None of these is IR. Confirm at source anything '
-             'that binds.</p>')
+    H.append('<p class="sub">\U0001f50e None of these is IR. Confirm at '
+             'source anything that binds.</p>')
 
-    H.append('<div class="foot">'
-             '<b>Δ</b> target short-leg delta (roughly the chance of '
-             'finishing in the money) &middot; <b>Short</b> strike sold &middot; '
-             '<b>Width</b> distance to the strike bought &middot; <b>IV</b> '
-             'priced-in move &middot; <b>HV</b> actual recent move.<br>'
-             'IV is per-strike and delayed. Bid/ask is context, not a gate. '
-             'Gates are hard vetoes, not quotas — cash is a valid outcome.'
-             '</div>')
+    H.append('<h2>Glossary</h2>')
+    H.append(
+        '<div class="note">'
+        '<div class="gloss">'
+        '<span><b>\u0394</b> target short-leg delta \u2014 roughly the odds '
+        'of finishing in the money</span>'
+        '<span><b>Short</b> strike sold</span>'
+        '<span><b>Width</b> distance to the strike bought</span>'
+        '<span><b>IV</b> priced-in move (per-strike, delayed)</span>'
+        '<span><b>HV</b> actual recent move</span>'
+        '</div>'
+        '<p class="sub" style="margin:10px 0 0">Bid/ask is context, not a '
+        'gate. Gates are hard vetoes, not quotas \u2014 cash is a valid '
+        'outcome.</p>'
+        '</div>')
     if who:
         H.append(f'<p class="sig">Built and maintained by <b>{_esc(who)}</b>. '
                  f'The universe, the gates, the delta anchors and the 11% floor '
