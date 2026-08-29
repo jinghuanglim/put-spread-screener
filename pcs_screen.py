@@ -1828,12 +1828,17 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .sig b{color:var(--ink)}
 .stat.now .v{color:var(--accent)}
 .chip{cursor:help}
-.nb{background:var(--accent);color:var(--btnink);border:none;border-radius:6px;
-  padding:3px 10px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;
-  white-space:nowrap}
-.nb.hot{background:var(--alarmbg);color:var(--alarm);
-  box-shadow:inset 0 0 0 1px var(--alarm)}
-.nb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.nb{background:none;border:none;border-radius:7px;padding:3px 5px;
+  font-size:15px;line-height:1;cursor:pointer;position:relative;
+  display:inline-flex;align-items:center;vertical-align:middle;
+  margin-left:7px}
+.nb:hover,.nb:focus-visible{background:var(--chip)}
+.nb:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.nb.hot{box-shadow:inset 0 0 0 1.5px var(--alarm)}
+.nbc{position:absolute;top:-3px;right:-5px;background:var(--accent);
+  color:var(--btnink);font-size:10px;font-weight:700;line-height:1;
+  min-width:14px;height:14px;border-radius:7px;padding:0 3px;
+  display:flex;align-items:center;justify-content:center}
 #nv{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.55);
   display:flex;align-items:center;justify-content:center;padding:20px}
 #nv[hidden]{display:none}
@@ -2143,8 +2148,20 @@ function initRun(cfg){
   if(nv){
     var nvt=document.getElementById('nvt'),
         nvb=nv.querySelector('.nvbody'),opener=null;
+    // Hiding the body's scrollbar to lock background scroll makes the page
+    // a few pixels wider, so everything shifts sideways for an instant - the
+    // "little screen moving" jump. Padding the body by exactly the vanished
+    // scrollbar's width keeps the layout still.
+    function lockScroll(){
+      var sw=window.innerWidth-document.documentElement.clientWidth;
+      document.body.style.overflow='hidden';
+      if(sw>0)document.body.style.paddingRight=sw+'px';
+    }
+    function unlockScroll(){
+      document.body.style.overflow='';document.body.style.paddingRight='';
+    }
     function closeNews(){
-      nv.hidden=true;document.body.style.overflow='';
+      nv.hidden=true;unlockScroll();
       if(opener)opener.focus();opener=null;
     }
     function openNews(t,btn){
@@ -2162,7 +2179,7 @@ function initRun(cfg){
             (o.x?'\u25cf':'\u25cb')+' '+o.d+'</span>'+body+'</p>';
         }).join('');
       }
-      opener=btn||null;nv.hidden=false;document.body.style.overflow='hidden';
+      opener=btn||null;nv.hidden=false;lockScroll();
       var x=document.getElementById('nvx');if(x)x.focus();
     }
     document.addEventListener('click',function(e){
@@ -2215,15 +2232,15 @@ function initRun(cfg){
   }
   function hideTip(){if(!pinned){tipEl.classList.remove('show');}}
   document.addEventListener('mouseover',function(e){
-    var c=e.target.closest?e.target.closest('.chip'):null;
+    var c=e.target.closest?e.target.closest('.chip,.nb'):null;
     if(c&&!pinned)showTip(c);
   });
   document.addEventListener('mouseout',function(e){
-    var c=e.target.closest?e.target.closest('.chip'):null;
+    var c=e.target.closest?e.target.closest('.chip,.nb'):null;
     if(c)hideTip();
   });
   document.addEventListener('focusin',function(e){
-    var c=e.target.closest?e.target.closest('.chip'):null;
+    var c=e.target.closest?e.target.closest('.chip,.nb'):null;
     if(c)showTip(c);
   });
   document.addEventListener('focusout',function(){pinned=null;hideTip();});
@@ -2450,8 +2467,42 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                          f"</span>" if dgap > 0.02 else f"{r['delta']:.2f}")
                 dtip = (f"screened at {r['delta']:.2f}; nearest listed strike "
                         f"is {r['act_delta']:.2f}")
+                # The button used to live in a row of its own at the foot of
+                # the card, worded "news 1" - a bare count with no icon or
+                # context, planted a full scroll away from the name it was
+                # about. It now sits on the name itself, where the eye already
+                # is, as a small icon a thumb can also reach on the last row.
+                items = news_out.get(r["t"])
+                nb = ""
+                if items is not None:
+                    n = len(items)
+                    dir_n = sum(1 for x in items if x[2])
+                    failed = n == 0
+                    if failed:
+                        ntip = ("No headlines came back for this name \u2014 "
+                                "check it by hand before acting")
+                        nalabel = f"News for {r['t']}: none came back"
+                        badge = ""
+                    else:
+                        ntip = (f"{dir_n} of {n} headline"
+                                f"{'s' if n != 1 else ''} look directly "
+                                f"relevant \u2014 tap to read"
+                                if dir_n else
+                                f"{n} headline{'s' if n != 1 else ''}, none "
+                                f"flagged as directly relevant \u2014 tap to "
+                                f"read")
+                        nalabel = (f"News for {r['t']}: {dir_n} of {n} "
+                                   f"directly relevant")
+                        badge = (f'<span class="nbc">{dir_n}</span>'
+                                 if dir_n else "")
+                    nb = (f'<button class="nb{" hot" if failed else ""}" '
+                          f'data-news="{_esc(r["t"])}" '
+                          f'data-tip="{_esc(ntip)}" '
+                          f'aria-label="{_esc(nalabel)}">'
+                          f'\U0001f4f0{badge}</button>')
                 cells = [
-                    ("Ticker", f'<span class="tk">{_esc(r["t"])}</span>', "tkcell"),
+                    ("Ticker", f'<span class="tk">{_esc(r["t"])}</span>{nb}',
+                     "tkcell"),
                     ("Delta", f'<span class="chip bare" tabindex="0" '
                               f'data-tip="{_esc(dtip)}">{dcell}</span>', "num"),
                     ("Spot", f"{r['spot']:.2f}", "num"),
@@ -2473,22 +2524,9 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                 # and landed off-screen behind a horizontal scrollbar — the one
                 # thing on the row you cannot afford to miss, hidden by
                 # default. On their own line they always fit, and they wrap.
-                # The headlines belong beside the row they are about. As a
-                # section at the foot of the page you had to scroll away from
-                # the name you were judging, read, then find your way back -
-                # once per candidate, on a phone, nine times over.
-                items = news_out.get(r["t"])
-                nb = ""
-                if items is not None:
-                    n = len(items)
-                    dir_n = sum(1 for x in items if x[2])
-                    nb = (f'<button class="nb{"" if n else " hot"}" '
-                          f'data-news="{_esc(r["t"])}">'
-                          + (f'news {dir_n}' if n else 'news failed')
-                          + '</button>')
-                if chips or nb:
+                if chips:
                     H.append(f'<tr class="fl"><td colspan="{len(cells)}">'
-                             f'<div class="chips">{chips}{nb}</div></td></tr>')
+                             f'<div class="chips">{chips}</div></td></tr>')
         H.append('</tbody></table></div>')
         H.append(f'<p class="sub" style="margin-top:10px">Hover or tap any flag '
                  f'to see what it means, or <b>news</b> to read the headlines '
