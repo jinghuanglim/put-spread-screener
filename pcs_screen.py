@@ -1938,9 +1938,6 @@ tr:last-child td{border-bottom:none}
   -webkit-tap-highlight-color:transparent}
 .btn:active{transform:translateY(1px)}
 .btn[disabled]{opacity:.55;cursor:default}
-.ro{display:inline-flex;align-items:center;gap:8px;color:var(--dim);
-  font-size:15px;background:var(--chip);border:1px solid var(--line);
-  border-radius:9px;padding:9px 14px}
 
 .btn .dot{width:15px;height:15px;border-radius:50%;flex:none;
   border:2px solid currentColor;border-top-color:transparent;
@@ -2052,13 +2049,13 @@ function initRun(cfg){
   function stop(){if(timer){clearInterval(timer);timer=null;}}
   function show(on){if(bar)bar.style.display=on?'block':'none';}
   function busy(){
-    if(go&&go.tagName==='BUTTON'){go.disabled=true;
+    if(go.tagName==='BUTTON'){go.disabled=true;
       go.innerHTML='<span class="dot"></span>Running';}
     show(true);
     say(began?Math.round((Date.now()-began)/1000)+'s':'');
   }
   function idle(){
-    if(go&&go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
+    if(go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
     show(false);
   }
   function giveUp(msg){
@@ -2121,7 +2118,7 @@ function initRun(cfg){
     }).catch(function(){});
   }
 
-  if(go&&go.tagName==='BUTTON'){
+  if(go.tagName==='BUTTON'){
     go.addEventListener('click',function(){
       mine=true;began=Date.now();waiting=Date.now();busy();
       fetch(cfg.dispatch,{method:'POST'})
@@ -2300,15 +2297,20 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         actions_url = f"https://github.com/{repo}/actions/workflows/{wf}"
         H.append('<div class="runbar">')
         if dispatch:
+            # This button only ever triggers workflow_dispatch on the code
+            # already sitting in the repo. It takes no input, so it cannot
+            # change what runs - it re-screens with live market data and
+            # rewrites docs/, nothing else. Code changes are a separate
+            # trigger entirely: the `push:` path in screen.yml, which only
+            # fires for someone who can push to this repo.
             H.append('<button class="btn" id="go">Run screen</button>')
         else:
-            # A run does not just refresh a view - it rebuilds this page and
-            # republishes it for everyone. That is a deployment, and a
-            # deployment is not something a page hands to whoever opens it.
-            # With no dispatch endpoint there is no button at all, and no
-            # deep-link either: a link into Actions is still an invitation.
-            H.append('<span class="ro">Read-only \u00b7 refreshed when the '
-                     'screen is re-run</span>')
+            # No dispatch endpoint configured, so the button cannot POST
+            # anywhere without a token — and a token in a page anyone can view
+            # is a token anyone can use. It deep-links into the Actions tab
+            # instead, where GitHub does the authenticating.
+            H.append(f'<a class="btn" id="go" href="{_esc(actions_url)}" '
+                     f'target="_blank" rel="noopener">Run screen &rarr;</a>')
         H.append('<span class="runstat" id="stat"></span></div>')
         H.append('<div class="bar" id="bar"><div></div></div>')
         H.append('<div class="fresh" id="fresh"></div>')
@@ -2322,8 +2324,7 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                    f'runNumber:{_js(str(regime.get("run_number") or ""))},'
                    f'builtUtc:{_js(str(regime.get("built_utc") or ""))},'
                    f'dispatch:{_js(dispatch)},'
-                   f'actions:{_js(actions_url if dispatch else "")}}});'
-                   f'</script>')
+                   f'actions:{_js(actions_url)}}});</script>')
     H.append('<div class="grid">')
     if built:
         # Freshness is the first thing anyone needs from a page like this, and
@@ -3277,14 +3278,9 @@ Producer Price Index for October 2026
         f'{html.count(chr(60)+"a href=" + chr(34) + "http")} links')
     withbtn = render_html(rows, dropped, conflicts, news,
                           dict(regime, repo="me/repo", run_id="123"), today)
-    chk("configuring a repo alone does not add the Run button",
-        'id="go"' not in withbtn)
-    chk("with no dispatch endpoint there is no button at all",
-        'id="go"' not in withbtn)
-    chk("and no deep-link into Actions either, since that runs it too",
-        "actions/workflows" not in withbtn)
-    chk("the page says why it is read-only instead",
-        'class="ro"' in withbtn and "Read-only" in withbtn)
+    chk("configuring a repo adds the Run button", 'id="go"' in withbtn)
+    chk("with no dispatch endpoint the button is a link, not a POST",
+        '<a class="btn" id="go" href="https://github.com/me/repo' in withbtn)
     chk("no token, secret or Authorization header reaches the browser",
         not any(k in withbtn.lower() for k in
                 ("authorization", "token", "bearer", "secret", "ghp_")))
@@ -3300,6 +3296,9 @@ Producer Price Index for October 2026
                       today)
     chk("a dispatch endpoint turns it into a real button",
         '<button class="btn" id="go"' in dsp)
+    chk("the click sends no body — it dispatches the workflow already in the "
+        "repo, it cannot ask for different code to run",
+        "method:'POST'" in dsp and "body:" not in dsp)
     chk("config values are JSON-encoded, not pasted into the script",
         '"https://w.example/go"' in dsp)
     chk("angle brackets cannot escape the inline script",
