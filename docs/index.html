@@ -145,6 +145,9 @@ tr:last-child td{border-bottom:none}
   -webkit-tap-highlight-color:transparent}
 .btn:active{transform:translateY(1px)}
 .btn[disabled]{opacity:.55;cursor:default}
+.ro{display:inline-flex;align-items:center;gap:8px;color:var(--dim);
+  font-size:15px;background:var(--chip);border:1px solid var(--line);
+  border-radius:9px;padding:9px 14px}
 
 .btn .dot{width:15px;height:15px;border-radius:50%;flex:none;
   border:2px solid currentColor;border-top-color:transparent;
@@ -217,14 +220,14 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <h1>Put credit spread screen</h1>
 <span class="by">JH’s rules</span>
 </div>
-<p class="sub">2026-08-29 &middot; US session 2026-08-28 &middot; spot live &middot; DTE 14–21 &middot; <b>run #35</b></p>
+<p class="sub">2026-08-29 &middot; US session 2026-08-28 &middot; spot live &middot; DTE 14–21 &middot; <b>run #36</b></p>
 <div class="runbar">
 <button class="btn" id="go">Run screen</button>
 <span class="runstat" id="stat"></span></div>
 <div class="bar" id="bar"><div></div></div>
 <div class="fresh" id="fresh"></div>
 <div class="grid">
-<div class="stat now"><div class="k">Last run</div><div class="v"><span id="built" data-utc="2026-08-29T01:40:43Z">01:40 UTC</span></div></div>
+<div class="stat now"><div class="k">Last run</div><div class="v"><span id="built" data-utc="2026-08-29T01:50:25Z">01:50 UTC</span></div></div>
 <div class="stat"><div class="k">VIX</div><div class="v">14.43</div></div>
 <div class="stat"><div class="k">SPX vs 20-MA</div><div class="v">+0.13%</div></div>
 <div class="stat"><div class="k">Condor</div><div class="v">NO-GO</div></div>
@@ -429,13 +432,13 @@ function initRun(cfg){
   function stop(){if(timer){clearInterval(timer);timer=null;}}
   function show(on){if(bar)bar.style.display=on?'block':'none';}
   function busy(){
-    if(go.tagName==='BUTTON'){go.disabled=true;
+    if(go&&go.tagName==='BUTTON'){go.disabled=true;
       go.innerHTML='<span class="dot"></span>Running';}
     show(true);
     say(began?Math.round((Date.now()-began)/1000)+'s':'');
   }
   function idle(){
-    if(go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
+    if(go&&go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
     show(false);
   }
   function giveUp(msg){
@@ -498,7 +501,7 @@ function initRun(cfg){
     }).catch(function(){});
   }
 
-  if(go.tagName==='BUTTON'){
+  if(go&&go.tagName==='BUTTON'){
     go.addEventListener('click',function(){
       mine=true;began=Date.now();waiting=Date.now();busy();
       fetch(cfg.dispatch,{method:'POST'})
@@ -619,5 +622,5 @@ function initRun(cfg){
   window.addEventListener('resize',function(){
     pinned=null;tipEl.classList.remove('show');});
 }
-</script><script>initRun({runNumber:"35",builtUtc:"2026-08-29T01:40:43Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
+</script><script>initRun({runNumber:"36",builtUtc:"2026-08-29T01:50:25Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
 </div></body></html>
