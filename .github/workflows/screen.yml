@@ -1,9 +1,17 @@
 name: screen
 
-# No schedule. This runs only when you press the button — from the page, or
-# from the "Run workflow" control on this tab.
+# No schedule. This runs when you upload a new pcs_screen.py, or when you press
+# "Run workflow" on this tab. The page itself has no button — a run rebuilds
+# and republishes the site, which is a deployment, and only you can deploy.
 on:
   workflow_dispatch:
+  # Uploading a new pcs_screen.py IS the deploy. Pushing it rebuilds and
+  # republishes the page, so nobody has to press anything afterwards - and
+  # nobody but you can trigger it, because nobody else can push.
+  push:
+    paths:
+      - 'pcs_screen.py'
+      - '.github/workflows/screen.yml'
 
 permissions:
   contents: write           # commits the log and the page back
@@ -53,6 +61,29 @@ jobs:
             if [ "$attempt" -lt 3 ]; then sleep 90; fi
           done
           echo "::error::all three attempts failed - not publishing"
+          exit 1
+
+      # A red build used to be invisible to anyone on the page: nothing new
+      # published, so the status line waited out five minutes and then shrugged
+      # at you. Writing the outcome to the same tiny file the page already
+      # polls turns that into "Run #25 failed" within seconds. This step does
+      # not rescue the job - it stays red - it only makes the failure legible
+      # to someone who is not watching the Actions tab.
+      - name: Publish the failure
+        if: failure()
+        run: |
+          mkdir -p docs
+          printf '{"run":"%s","utc":"%s","state":"failed"}\n' \
+            "$GITHUB_RUN_NUMBER" "$(date -u +%FT%TZ)" > docs/version.json
+          git config user.name  "screener-bot"
+          git config user.email "screener-bot@users.noreply.github.com"
+          git add docs/version.json
+          git diff --staged --quiet && echo "already marked" && exit 0
+          git commit -m "run $GITHUB_RUN_NUMBER failed"
+          for attempt in 1 2 3; do
+            if git push; then exit 0; fi
+            git pull --rebase --autostash || exit 1
+          done
           exit 1
 
       - name: Commit
