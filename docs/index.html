@@ -35,12 +35,17 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .sig b{color:var(--ink)}
 .stat.now .v{color:var(--accent)}
 .chip{cursor:help}
-.nb{background:var(--accent);color:var(--btnink);border:none;border-radius:6px;
-  padding:3px 10px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;
-  white-space:nowrap}
-.nb.hot{background:var(--alarmbg);color:var(--alarm);
-  box-shadow:inset 0 0 0 1px var(--alarm)}
-.nb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.nb{background:none;border:none;border-radius:7px;padding:3px 5px;
+  font-size:15px;line-height:1;cursor:pointer;position:relative;
+  display:inline-flex;align-items:center;vertical-align:middle;
+  margin-left:7px}
+.nb:hover,.nb:focus-visible{background:var(--chip)}
+.nb:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.nb.hot{box-shadow:inset 0 0 0 1.5px var(--alarm)}
+.nbc{position:absolute;top:-3px;right:-5px;background:var(--accent);
+  color:var(--btnink);font-size:10px;font-weight:700;line-height:1;
+  min-width:14px;height:14px;border-radius:7px;padding:0 3px;
+  display:flex;align-items:center;justify-content:center}
 #nv{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.55);
   display:flex;align-items:center;justify-content:center;padding:20px}
 #nv[hidden]{display:none}
@@ -217,14 +222,14 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <h1>Put credit spread screen</h1>
 <span class="by">JH’s rules</span>
 </div>
-<p class="sub">2026-08-29 &middot; US session 2026-08-28 &middot; spot live &middot; DTE 14–21 &middot; <b>run #38</b></p>
+<p class="sub">2026-08-29 &middot; US session 2026-08-28 &middot; spot live &middot; DTE 14–21 &middot; <b>run #39</b></p>
 <div class="runbar">
 <button class="btn" id="go">Run screen</button>
 <span class="runstat" id="stat"></span></div>
 <div class="bar" id="bar"><div></div></div>
 <div class="fresh" id="fresh"></div>
 <div class="grid">
-<div class="stat now"><div class="k">Last run</div><div class="v"><span id="built" data-utc="2026-08-29T02:11:43Z">02:11 UTC</span></div></div>
+<div class="stat now"><div class="k">Last run</div><div class="v"><span id="built" data-utc="2026-08-29T02:22:41Z">02:22 UTC</span></div></div>
 <div class="stat"><div class="k">VIX</div><div class="v">14.43</div></div>
 <div class="stat"><div class="k">SPX vs 20-MA</div><div class="v">+0.13%</div></div>
 <div class="stat"><div class="k">Condor</div><div class="v">NO-GO</div></div>
@@ -247,7 +252,7 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 </tr></thead><tbody>
 <tr class="grp"><td colspan="11">Semis <span class="cnt">1 name</span></td></tr>
 <tr class="row">
-<td class="tkcell" data-l="Ticker"><span class="tk">NVDA</span></td>
+<td class="tkcell" data-l="Ticker"><span class="tk">NVDA</span><button class="nb" data-news="NVDA" data-tip="1 of 5 headlines look directly relevant — tap to read" aria-label="News for NVDA: 1 of 5 directly relevant">📰<span class="nbc">1</span></button></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.20; nearest listed strike is 0.17">0.20<span class="drift"> →0.17</span></span></td>
 <td class="num" data-l="Spot">217.55</td>
 <td class="num" data-l="Short">202.5</td>
@@ -259,10 +264,10 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <td class="num" data-l="IV/HV">0.79</td>
 <td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip hot" tabindex="0" data-tip="knife — +0.16% vs 20-day avg 217.21. Feeds can disagree on the sign here. Verify.">knife</span><span class="chip" tabindex="0" data-tip="inv — priced for 34% move, actually moved 43%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap2d — reported 2d ago; that jump inflates HV, so 'inv' may be fake.">gap2d</span><span class="chip" tabindex="0" data-tip="T+2 — reported 2d ago. Earliest entry you allow.">T+2</span><span class="chip" tabindex="0" data-tip="cap0.20 — nearest strike to 0.20Δ is over the 0.20 hard cap, so this is the next one out. Less credit, by rule.">cap0.20</span><button class="nb" data-news="NVDA">news 1</button></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip hot" tabindex="0" data-tip="knife — +0.16% vs 20-day avg 217.21. Feeds can disagree on the sign here. Verify.">knife</span><span class="chip" tabindex="0" data-tip="inv — priced for 34% move, actually moved 43%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap2d — reported 2d ago; that jump inflates HV, so 'inv' may be fake.">gap2d</span><span class="chip" tabindex="0" data-tip="T+2 — reported 2d ago. Earliest entry you allow.">T+2</span><span class="chip" tabindex="0" data-tip="cap0.20 — nearest strike to 0.20Δ is over the 0.20 hard cap, so this is the next one out. Less credit, by rule.">cap0.20</span></div></td></tr>
 <tr class="grp"><td colspan="11">Networking <span class="cnt">1 name</span></td></tr>
 <tr class="row">
-<td class="tkcell" data-l="Ticker"><span class="tk">ANET</span></td>
+<td class="tkcell" data-l="Ticker"><span class="tk">ANET</span><button class="nb" data-news="ANET" data-tip="4 of 5 headlines look directly relevant — tap to read" aria-label="News for ANET: 4 of 5 directly relevant">📰<span class="nbc">4</span></button></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.14">0.15</span></td>
 <td class="num" data-l="Spot">195.38</td>
 <td class="num" data-l="Short">175.0</td>
@@ -274,10 +279,10 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <td class="num" data-l="IV/HV">0.84</td>
 <td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="prov — only 0.9% above 20-day avg. One down day drops it out of Gate 1.">prov</span><span class="chip" tabindex="0" data-tip="inv — priced for 45% move, actually moved 54%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap24d — reported 24d ago; that jump inflates HV, so 'inv' may be fake.">gap24d</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 15% of price. You pay it twice on a spread.">ba</span><button class="nb" data-news="ANET">news 4</button></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="prov — only 0.9% above 20-day avg. One down day drops it out of Gate 1.">prov</span><span class="chip" tabindex="0" data-tip="inv — priced for 45% move, actually moved 54%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap24d — reported 24d ago; that jump inflates HV, so 'inv' may be fake.">gap24d</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 15% of price. You pay it twice on a spread.">ba</span></div></td></tr>
 <tr class="grp"><td colspan="11">Security <span class="cnt">1 name</span></td></tr>
 <tr class="row">
-<td class="tkcell" data-l="Ticker"><span class="tk">CRWD</span></td>
+<td class="tkcell" data-l="Ticker"><span class="tk">CRWD</span><button class="nb" data-news="CRWD" data-tip="2 of 5 headlines look directly relevant — tap to read" aria-label="News for CRWD: 2 of 5 directly relevant">📰<span class="nbc">2</span></button></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
 <td class="num" data-l="Spot">218.40</td>
 <td class="num" data-l="Short">195.0</td>
@@ -289,10 +294,10 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <td class="num" data-l="IV/HV">0.70</td>
 <td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 50% move, actually moved 71%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap2d — reported 2d ago; that jump inflates HV, so 'inv' may be fake.">gap2d</span><span class="chip" tabindex="0" data-tip="T+2 — reported 2d ago. Earliest entry you allow.">T+2</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 14% of price. You pay it twice on a spread.">ba</span><button class="nb" data-news="CRWD">news 2</button></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 50% move, actually moved 71%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap2d — reported 2d ago; that jump inflates HV, so 'inv' may be fake.">gap2d</span><span class="chip" tabindex="0" data-tip="T+2 — reported 2d ago. Earliest entry you allow.">T+2</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 14% of price. You pay it twice on a spread.">ba</span></div></td></tr>
 <tr class="grp"><td colspan="11">Mega-cap platform <span class="cnt">3 names</span></td></tr>
 <tr class="row">
-<td class="tkcell" data-l="Ticker"><span class="tk">META</span></td>
+<td class="tkcell" data-l="Ticker"><span class="tk">META</span><button class="nb" data-news="META" data-tip="4 of 5 headlines look directly relevant — tap to read" aria-label="News for META: 4 of 5 directly relevant">📰<span class="nbc">4</span></button></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
 <td class="num" data-l="Spot">578.02</td>
 <td class="num" data-l="Short">535.0</td>
@@ -304,9 +309,9 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <td class="num" data-l="IV/HV">0.80</td>
 <td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="prov — only 0.6% above 20-day avg. One down day drops it out of Gate 1.">prov</span><span class="chip" tabindex="0" data-tip="inv — priced for 34% move, actually moved 42%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap30d — reported 30d ago; that jump inflates HV, so 'inv' may be fake.">gap30d</span><button class="nb" data-news="META">news 4</button></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="prov — only 0.6% above 20-day avg. One down day drops it out of Gate 1.">prov</span><span class="chip" tabindex="0" data-tip="inv — priced for 34% move, actually moved 42%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap30d — reported 30d ago; that jump inflates HV, so 'inv' may be fake.">gap30d</span></div></td></tr>
 <tr class="row">
-<td class="tkcell" data-l="Ticker"><span class="tk">MSFT</span></td>
+<td class="tkcell" data-l="Ticker"><span class="tk">MSFT</span><button class="nb" data-news="MSFT" data-tip="1 of 5 headlines look directly relevant — tap to read" aria-label="News for MSFT: 1 of 5 directly relevant">📰<span class="nbc">1</span></button></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.16">0.15</span></td>
 <td class="num" data-l="Spot">513.53</td>
 <td class="num" data-l="Short">485.0</td>
@@ -318,9 +323,9 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <td class="num" data-l="IV/HV">0.52</td>
 <td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 25% move, actually moved 49%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap30d — reported 30d ago; that jump inflates HV, so 'inv' may be fake.">gap30d</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 12% of price. You pay it twice on a spread.">ba</span><button class="nb" data-news="MSFT">news 1</button></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 25% move, actually moved 49%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap30d — reported 30d ago; that jump inflates HV, so 'inv' may be fake.">gap30d</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 12% of price. You pay it twice on a spread.">ba</span></div></td></tr>
 <tr class="row">
-<td class="tkcell" data-l="Ticker"><span class="tk">AAPL</span></td>
+<td class="tkcell" data-l="Ticker"><span class="tk">AAPL</span><button class="nb" data-news="AAPL" data-tip="3 of 5 headlines look directly relevant — tap to read" aria-label="News for AAPL: 3 of 5 directly relevant">📰<span class="nbc">3</span></button></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.16">0.15</span></td>
 <td class="num" data-l="Spot">319.70</td>
 <td class="num" data-l="Short">302.5</td>
@@ -332,10 +337,10 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <td class="num" data-l="IV/HV">0.82</td>
 <td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 25% move, actually moved 30%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap29d — reported 29d ago; that jump inflates HV, so 'inv' may be fake.">gap29d</span><span class="chip" tabindex="0" data-tip="fb0.18 — may step to 0.18Δ only after 11% fails live. No further.">fb0.18</span><span class="chip" tabindex="0" data-tip="oi244 — 244 open vs your 500 rule. Worse fills, harder to exit.">oi244</span><button class="nb" data-news="AAPL">news 3</button></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 25% move, actually moved 30%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap29d — reported 29d ago; that jump inflates HV, so 'inv' may be fake.">gap29d</span><span class="chip" tabindex="0" data-tip="fb0.18 — may step to 0.18Δ only after 11% fails live. No further.">fb0.18</span><span class="chip" tabindex="0" data-tip="oi244 — 244 open vs your 500 rule. Worse fills, harder to exit.">oi244</span></div></td></tr>
 <tr class="grp"><td colspan="11">High-beta <span class="cnt">2 names</span></td></tr>
 <tr class="row">
-<td class="tkcell" data-l="Ticker"><span class="tk">PLTR</span></td>
+<td class="tkcell" data-l="Ticker"><span class="tk">PLTR</span><button class="nb" data-news="PLTR" data-tip="5 of 5 headlines look directly relevant — tap to read" aria-label="News for PLTR: 5 of 5 directly relevant">📰<span class="nbc">5</span></button></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
 <td class="num" data-l="Spot">186.29</td>
 <td class="num" data-l="Short">167.5</td>
@@ -347,9 +352,9 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <td class="num" data-l="IV/HV">0.50</td>
 <td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 46% move, actually moved 92%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap25d — reported 25d ago; that jump inflates HV, so 'inv' may be fake.">gap25d</span><span class="chip" tabindex="0" data-tip="oi456 — 456 open vs your 500 rule. Worse fills, harder to exit.">oi456</span><button class="nb" data-news="PLTR">news 5</button></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 46% move, actually moved 92%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap25d — reported 25d ago; that jump inflates HV, so 'inv' may be fake.">gap25d</span><span class="chip" tabindex="0" data-tip="oi456 — 456 open vs your 500 rule. Worse fills, harder to exit.">oi456</span></div></td></tr>
 <tr class="row">
-<td class="tkcell" data-l="Ticker"><span class="tk">TSLA</span></td>
+<td class="tkcell" data-l="Ticker"><span class="tk">TSLA</span><button class="nb" data-news="TSLA" data-tip="5 of 5 headlines look directly relevant — tap to read" aria-label="News for TSLA: 5 of 5 directly relevant">📰<span class="nbc">5</span></button></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.16">0.15</span></td>
 <td class="num" data-l="Spot">348.75</td>
 <td class="num" data-l="Short">320.0</td>
@@ -361,10 +366,10 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <td class="num" data-l="IV/HV">0.64</td>
 <td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 38% move, actually moved 60%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap37d — reported 37d ago; that jump inflates HV, so 'inv' may be fake.">gap37d</span><button class="nb" data-news="TSLA">news 5</button></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 38% move, actually moved 60%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap37d — reported 37d ago; that jump inflates HV, so 'inv' may be fake.">gap37d</span></div></td></tr>
 <tr class="grp"><td colspan="11">Defensive/financial <span class="cnt">2 names</span></td></tr>
 <tr class="row">
-<td class="tkcell" data-l="Ticker"><span class="tk">JNJ</span></td>
+<td class="tkcell" data-l="Ticker"><span class="tk">JNJ</span><button class="nb" data-news="JNJ" data-tip="4 of 5 headlines look directly relevant — tap to read" aria-label="News for JNJ: 4 of 5 directly relevant">📰<span class="nbc">4</span></button></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.16">0.15</span></td>
 <td class="num" data-l="Spot">268.04</td>
 <td class="num" data-l="Short">255.0</td>
@@ -376,9 +381,9 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <td class="num" data-l="IV/HV">1.04</td>
 <td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="prov — only 1.7% above 20-day avg. One down day drops it out of Gate 1.">prov</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="oi229 — 229 open vs your 500 rule. Worse fills, harder to exit.">oi229</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 39% of price. You pay it twice on a spread.">ba</span><button class="nb" data-news="JNJ">news 4</button></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="prov — only 1.7% above 20-day avg. One down day drops it out of Gate 1.">prov</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="oi229 — 229 open vs your 500 rule. Worse fills, harder to exit.">oi229</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 39% of price. You pay it twice on a spread.">ba</span></div></td></tr>
 <tr class="row">
-<td class="tkcell" data-l="Ticker"><span class="tk">V</span></td>
+<td class="tkcell" data-l="Ticker"><span class="tk">V</span><button class="nb" data-news="V" data-tip="5 of 5 headlines look directly relevant — tap to read" aria-label="News for V: 5 of 5 directly relevant">📰<span class="nbc">5</span></button></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.16">0.15</span></td>
 <td class="num" data-l="Spot">381.60</td>
 <td class="num" data-l="Short">365.0</td>
@@ -390,7 +395,7 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 <td class="num" data-l="IV/HV">1.08</td>
 <td class="num" data-l="DTE">21</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="gap31d — reported 31d ago; that jump inflates HV, so 'inv' may be fake.">gap31d</span><span class="chip" tabindex="0" data-tip="fb0.20 — may step to 0.20Δ only after 11% fails live. No further.">fb0.20</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 25% of price. You pay it twice on a spread.">ba</span><button class="nb" data-news="V">news 5</button></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="gap31d — reported 31d ago; that jump inflates HV, so 'inv' may be fake.">gap31d</span><span class="chip" tabindex="0" data-tip="fb0.20 — may step to 0.20Δ only after 11% fails live. No further.">fb0.20</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 25% of price. You pay it twice on a spread.">ba</span></div></td></tr>
 </tbody></table></div>
 <p class="sub" style="margin-top:10px">Hover or tap any flag to see what it means, or <b>news</b> to read the headlines for that name — Gate 3 is yours to apply. <b>Target</b> is 11% of the width — the least the spread may be sold for, and what to aim at when you price it live. This page does not quote options; it tells you the number to beat.</p>
 <p class="sub" style="margin-top:10px">All expiries 2026-09-18. The 11%W floor is yours to enforce at ticket.</p>
@@ -523,8 +528,20 @@ function initRun(cfg){
   if(nv){
     var nvt=document.getElementById('nvt'),
         nvb=nv.querySelector('.nvbody'),opener=null;
+    // Hiding the body's scrollbar to lock background scroll makes the page
+    // a few pixels wider, so everything shifts sideways for an instant - the
+    // "little screen moving" jump. Padding the body by exactly the vanished
+    // scrollbar's width keeps the layout still.
+    function lockScroll(){
+      var sw=window.innerWidth-document.documentElement.clientWidth;
+      document.body.style.overflow='hidden';
+      if(sw>0)document.body.style.paddingRight=sw+'px';
+    }
+    function unlockScroll(){
+      document.body.style.overflow='';document.body.style.paddingRight='';
+    }
     function closeNews(){
-      nv.hidden=true;document.body.style.overflow='';
+      nv.hidden=true;unlockScroll();
       if(opener)opener.focus();opener=null;
     }
     function openNews(t,btn){
@@ -542,7 +559,7 @@ function initRun(cfg){
             (o.x?'●':'○')+' '+o.d+'</span>'+body+'</p>';
         }).join('');
       }
-      opener=btn||null;nv.hidden=false;document.body.style.overflow='hidden';
+      opener=btn||null;nv.hidden=false;lockScroll();
       var x=document.getElementById('nvx');if(x)x.focus();
     }
     document.addEventListener('click',function(e){
@@ -595,15 +612,15 @@ function initRun(cfg){
   }
   function hideTip(){if(!pinned){tipEl.classList.remove('show');}}
   document.addEventListener('mouseover',function(e){
-    var c=e.target.closest?e.target.closest('.chip'):null;
+    var c=e.target.closest?e.target.closest('.chip,.nb'):null;
     if(c&&!pinned)showTip(c);
   });
   document.addEventListener('mouseout',function(e){
-    var c=e.target.closest?e.target.closest('.chip'):null;
+    var c=e.target.closest?e.target.closest('.chip,.nb'):null;
     if(c)hideTip();
   });
   document.addEventListener('focusin',function(e){
-    var c=e.target.closest?e.target.closest('.chip'):null;
+    var c=e.target.closest?e.target.closest('.chip,.nb'):null;
     if(c)showTip(c);
   });
   document.addEventListener('focusout',function(){pinned=null;hideTip();});
@@ -619,5 +636,5 @@ function initRun(cfg){
   window.addEventListener('resize',function(){
     pinned=null;tipEl.classList.remove('show');});
 }
-</script><script>initRun({runNumber:"38",builtUtc:"2026-08-29T02:11:43Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
+</script><script>initRun({runNumber:"39",builtUtc:"2026-08-29T02:22:41Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
 </div></body></html>
