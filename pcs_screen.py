@@ -1828,6 +1828,40 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .sig b{color:var(--ink)}
 .stat.now .v{color:var(--accent)}
 .chip{cursor:help}
+.nb{background:var(--accent);color:var(--btnink);border:none;border-radius:6px;
+  padding:3px 10px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;
+  white-space:nowrap}
+.nb.hot{background:var(--alarmbg);color:var(--alarm);
+  box-shadow:inset 0 0 0 1px var(--alarm)}
+.nb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#nv{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.55);
+  display:flex;align-items:center;justify-content:center;padding:20px}
+#nv[hidden]{display:none}
+.nvbox{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  width:min(640px,100%);max-height:min(80vh,720px);display:flex;
+  flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.nvhead{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;border-bottom:1px solid var(--line)}
+.nvhead b{font-size:19px}
+#nvx{background:none;border:none;color:var(--dim);font-size:28px;line-height:1;
+  cursor:pointer;padding:0 4px}
+#nvx:hover{color:var(--ink)}
+.nvbody{overflow-y:auto;padding:6px 18px 14px}
+.nvfoot{padding:12px 18px;border-top:1px solid var(--line);color:var(--dim);
+  font-size:13.5px;line-height:1.5}
+.nvi{padding:12px 0;border-bottom:1px solid var(--line)}
+.nvi:last-child{border-bottom:none}
+.nvi .m{font-family:var(--mono);font-size:12.5px;color:var(--dim);
+  margin-right:8px}
+.nvi a{color:var(--ink);text-decoration:underline;text-underline-offset:3px;
+  text-decoration-color:var(--line)}
+.nvi a:hover{text-decoration-color:var(--accent)}
+.nvi.sec{color:var(--dim)}
+.nvi.sec a{color:var(--dim)}
+@media (max-width:600px){
+  #nv{padding:0;align-items:flex-end}
+  .nvbox{border-radius:16px 16px 0 0;max-height:88vh}
+}
 .chip.bare{background:none;border:none;padding:0;font-size:inherit;
   font-family:inherit;color:inherit}
 .drift{color:var(--dim);font-size:.86em}
@@ -1974,6 +2008,16 @@ summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
 """
 
 
+def _jsdata(obj):
+    """JSON for inline embedding, with the three characters that could break
+    out of a <script> block neutralised."""
+    import json
+    return (json.dumps(obj, ensure_ascii=False)
+            .replace("<", "\\u003c").replace(">", "\\u003e")
+            .replace("&", "\\u0026").replace("\u2028", "\\u2028")
+            .replace("\u2029", "\\u2029"))
+
+
 def _js(x):
     """JSON-encode for safe inline <script> embedding."""
     import json
@@ -1998,7 +2042,7 @@ function initRun(cfg){
   var COOLDOWN=180000;      // keep in step with worker/worker.js
   var stat=document.getElementById('stat'),go=document.getElementById('go'),
       fresh=document.getElementById('fresh'),bar=document.getElementById('bar');
-  var timer=null,cool=null,waiting=0,mine=false,began=0;
+  var timer=null,cool=null,idler=null,waiting=0,mine=false,began=0;
   var here=parseInt(cfg.runNumber||'0',10);
 
   function say(h){stat.innerHTML=h;}
@@ -2031,29 +2075,47 @@ function initRun(cfg){
     return true;
   }
 
+  function offer(n){
+    idle();say('');
+    fresh.innerHTML='Run #'+n+' is ready. '+
+      '<a href="#" id="doreload"><b>Reload</b></a>';
+    fresh.className='fresh show';
+    document.getElementById('doreload').onclick=function(e){
+      e.preventDefault();location.reload();};
+  }
+  function read(){return fetch(VER+'?t='+Date.now(),{cache:'no-store'})
+    .then(function(r){return r.ok?r.json():Promise.reject(0);});}
+
   function check(){
     if(Date.now()-waiting>300000){
       giveUp('Still not published after 5 minutes');return;}
-    fetch(VER+'?t='+Date.now(),{cache:'no-store'})
-      .then(function(r){return r.ok?r.json():Promise.reject(0);})
-      .then(function(v){
+    read().then(function(v){
         var live=parseInt(v.run||'0',10);
+        // A failed run writes this file too, so the page can say so in
+        // seconds instead of waiting out a five-minute timeout and shrugging.
+        if(v.state==='failed'&&live>=here){
+          giveUp('Run #'+live+' failed');return;
+        }
         if(live>here){
           stop();
-          if(mine){location.reload();}
-          else{
-            idle();say('');
-            fresh.innerHTML='Run #'+live+' is ready. '+
-              '<a href="#" id="doreload"><b>Reload</b></a>';
-            fresh.className='fresh show';
-            document.getElementById('doreload').onclick=function(e){
-              e.preventDefault();location.reload();};
-          }
+          if(mine){location.reload();}else{offer(live);}
           return;
         }
         busy();
       })
       .catch(function(){busy();});   // a 404 or a blip is not a failure
+  }
+
+  // Someone else may press the button while this page sits open. One 45-byte
+  // read a minute notices - and only while the tab is actually being looked
+  // at, because polling a page nobody is reading is just noise.
+  function idleWatch(){
+    if(document.hidden||waiting)return;
+    read().then(function(v){
+      var live=parseInt(v.run||'0',10);
+      if(v.state==='failed')return;
+      if(live>here)offer(live);
+    }).catch(function(){});
   }
 
   if(go.tagName==='BUTTON'){
@@ -2075,6 +2137,44 @@ function initRun(cfg){
     });
   }
 
+  // Headlines open over the row you tapped, so Gate 3 never costs you your
+  // place in the table.
+  var nv=document.getElementById('nv');
+  if(nv){
+    var nvt=document.getElementById('nvt'),
+        nvb=nv.querySelector('.nvbody'),opener=null;
+    function closeNews(){
+      nv.hidden=true;document.body.style.overflow='';
+      if(opener)opener.focus();opener=null;
+    }
+    function openNews(t,btn){
+      var list=(window.__news||{})[t]||[];
+      nvt.textContent=t;
+      if(!list.length){
+        nvb.innerHTML='<p class="nvi">No headlines came back for this name. '+
+          'That is a failed read, not a clean bill of health \u2014 check it '+
+          'by hand before acting.</p>';
+      }else{
+        nvb.innerHTML=list.map(function(o){
+          var body=o.u?('<a href="'+o.u+'" target="_blank" rel="noopener '+
+            'nofollow">'+o.t+'</a>'):o.t;
+          return '<p class="nvi'+(o.x?'':' sec')+'"><span class="m">'+
+            (o.x?'\u25cf':'\u25cb')+' '+o.d+'</span>'+body+'</p>';
+        }).join('');
+      }
+      opener=btn||null;nv.hidden=false;document.body.style.overflow='hidden';
+      var x=document.getElementById('nvx');if(x)x.focus();
+    }
+    document.addEventListener('click',function(e){
+      var btn=e.target.closest?e.target.closest('.nb'):null;
+      if(btn){openNews(btn.getAttribute('data-news'),btn);return;}
+      if(e.target===nv||(e.target.id==='nvx'))closeNews();
+    });
+    document.addEventListener('keydown',function(e){
+      if(e.key==='Escape'&&!nv.hidden)closeNews();
+    });
+  }
+
   var b=document.getElementById('built');
   if(b&&b.dataset.utc){
     try{
@@ -2088,6 +2188,11 @@ function initRun(cfg){
   }
   say(cfg.runNumber?'Showing run #'+cfg.runNumber:'');
   cooldown();
+  if(cfg.runNumber){
+    idler=setInterval(idleWatch,60000);
+    document.addEventListener('visibilitychange',function(){
+      if(!document.hidden)idleWatch();});
+  }
 
   // One floating tooltip, shown on hover with no delay. The native title
   // attribute waits about a second, cannot be styled, and wrapped badly at the
@@ -2362,12 +2467,27 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                 # and landed off-screen behind a horizontal scrollbar — the one
                 # thing on the row you cannot afford to miss, hidden by
                 # default. On their own line they always fit, and they wrap.
-                if chips:
+                # The headlines belong beside the row they are about. As a
+                # section at the foot of the page you had to scroll away from
+                # the name you were judging, read, then find your way back -
+                # once per candidate, on a phone, nine times over.
+                items = news_out.get(r["t"])
+                nb = ""
+                if items is not None:
+                    n = len(items)
+                    dir_n = sum(1 for x in items if x[2])
+                    nb = (f'<button class="nb{"" if n else " hot"}" '
+                          f'data-news="{_esc(r["t"])}">'
+                          + (f'news {dir_n}' if n else 'news failed')
+                          + '</button>')
+                if chips or nb:
                     H.append(f'<tr class="fl"><td colspan="{len(cells)}">'
-                             f'<div class="chips">{chips}</div></td></tr>')
+                             f'<div class="chips">{chips}{nb}</div></td></tr>')
         H.append('</tbody></table></div>')
         H.append(f'<p class="sub" style="margin-top:10px">Hover or tap any flag '
-                 f'to see what it means. <b>Target</b> is '
+                 f'to see what it means, or <b>news</b> to read the headlines '
+                 f'for that name \u2014 Gate 3 is yours to apply. '
+                 f'<b>Target</b> is '
                  f'{CREDIT_FLOOR*100:.0f}% of the width \u2014 the least the '
                  f'spread may be sold for, and what to aim at when you price '
                  f'it live. This page does not quote options; it tells you the '
@@ -2436,33 +2556,24 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         'answer is to do nothing.</span></p>'
         '</details>')
 
-    # ------------------------------------------------ gate 3
+    # ------------------------------------------------ gate 3, behind the rows
     if news_out:
-        H.append('<h2>Gate 3 — material adverse catalyst?</h2>')
-        H.append('<p class="sub">Not applied automatically. Read and veto by '
-                 'hand.</p>')
-        for r in rows:
-            items = news_out.get(r["t"])
-            if items is None:
-                continue
-            if not items:
-                H.append(f'<div class="drop"><span class="tk">'
-                         f'{_esc(r["t"])}</span> — no headlines returned. '
-                         f'A data failure, not a clearance.</div>')
-                continue
-            direct = [x for x in items if x[2]]
-            H.append(f'<details><summary>{_esc(r["t"])}'
-                     f'<span class="n">{len(direct)} direct, '
-                     f'{len(items)-len(direct)} sector</span></summary>')
-            for item in items:
-                d, title, is_direct = item[0], item[1], item[2]
-                url = item[3] if len(item) > 3 else ""
-                cls = "head" if is_direct else "head sector"
-                body = (f'<a href="{_esc(url)}" target="_blank" rel="noopener '
-                        f'nofollow">{_esc(title)}</a>' if url else _esc(title))
-                H.append(f'<p class="{cls}"><span class="d">{_esc(str(d)[5:])}'
-                         f'</span><span>{body}</span></p>')
-            H.append('</details>')
+        payload = {}
+        for t, items in news_out.items():
+            payload[t] = [
+                {"d": str(it[0])[5:], "t": it[1], "x": bool(it[2]),
+                 "u": (it[3] if len(it) > 3 else "")}
+                for it in (items or [])
+            ]
+        H.append('<div id="nv" hidden><div class="nvbox" role="dialog" '
+                 'aria-modal="true" aria-labelledby="nvt">'
+                 '<div class="nvhead"><b id="nvt"></b>'
+                 '<button id="nvx" aria-label="Close">&times;</button></div>'
+                 '<div class="nvbody"></div>'
+                 '<div class="nvfoot">Gate 3 is not automated. A guidance cut, '
+                 'a probe, a downgrade cluster or sector contagion is a veto '
+                 'however rich the premium looks.</div></div></div>')
+        H.append(f'<script>window.__news={_jsdata(payload)};</script>')
 
     # ------------------------------------------------ dropped + sources
     H.append('<h2>Dropped</h2>')
@@ -3150,8 +3261,10 @@ Producer Price Index for October 2026
     def loads_external(page):
         return [x for x in ("<script src", "<link", "@import", "<img",
                             "url(http", "@font-face") if x in page]
-    chk("a page with no repo configured ships no script at all",
-        "<script" not in html)
+    chk("a page with no repo configured ships no behaviour, only data",
+        "initRun(" not in html)
+    chk("the only script on such a page is the headline payload",
+        html.count("<script>") <= 1 and "window.__news=" in html)
     chk("nothing external is ever LOADED, only linked",
         loads_external(html) == [], f"{loads_external(html)}")
     chk("every outbound link opens safely",
@@ -3198,15 +3311,24 @@ Producer Price Index for October 2026
         f"{html.count('IBKR')} mentions")
     chk("it still says sizing is not covered",
         "does not do it" in html or "position sizing" in html)
-    chk("Gate 3 is declared unapplied", "veto by hand" in html.lower())
+    chk("Gate 3 is declared not automated",
+        "Gate 3 is not automated" in html and "Gate 3 is yours" in html)
     chk("headlines are collapsed, not dumped", html.count("<details>") > 0)
-    chk("headlines are clickable links",
-        'target="_blank" rel="noopener nofollow"' in html)
-    chk("a headline with no URL still renders as text",
-        "unlinked" in render_html(
+    chk("headline URLs travel with the payload", '"u":' in html)
+    withjs = render_html(rows, dropped, conflicts, news,
+                         dict(regime, repo="me/repo"), today)
+    chk("the viewer opens them safely",
+        "noopener" in withjs and "nofollow" in withjs)
+    chk("a headline with no URL still reaches the viewer",
+        '"u": ""' in render_html(
             rows, dropped, conflicts,
             {rows[0]["t"]: [("2026-08-22", "unlinked", True, "")]},
-            regime, today))
+            regime, today).replace('"u":""', '"u": ""'))
+    chk("markup inside a headline cannot break out of the script",
+        "\\u003c" in render_html(
+            rows, dropped, conflicts,
+            {rows[0]["t"]: [("2026-08-22", "</script><img onerror=x>",
+                             True, "")]}, regime, today))
     chk("ticker text is escaped", "&lt;" in _esc("<b>x</b>"))
     ang = render_html(rows, dropped, ["EVIL<script>alert(1)</script>"], news,
                       regime, today)
@@ -3388,10 +3510,14 @@ Producer Price Index for October 2026
     chk("that fetch bypasses every cache", "cache:'no-store'" in stamped)
     chk("the version file is resolved next to the page, not at the root",
         "location.pathname.replace" in stamped)
+    behaviour = re.findall(r"<script>(function initRun.*?)</script>",
+                           stamped, re.S)
+    behaviour += re.findall(r"<script>(initRun\(.*?)</script>", stamped, re.S)
     chk("github.com survives only as a link for a human",
-        [u for u in set(re.findall(r"https?://[a-z0-9.\-]+",
-         "".join(re.findall(r"<script>(.*?)</script>", stamped, re.S))))]
-        == ["https://github.com"])
+        set(re.findall(r"https?://[a-z0-9.\-]+", "".join(behaviour)))
+        <= {"https://github.com"},
+        str(sorted(set(re.findall(r"https?://[a-z0-9.\-]+",
+                                  "".join(behaviour))))))
 
     print("ONE VISIBLE STATE WHILE IT WORKS")
     chk("dispatching, running and publishing all read as Running",
@@ -3486,6 +3612,25 @@ Producer Price Index for October 2026
         'colspan="' in stamped.split('<tr class="fl">')[1][:60])
     chk("chips read left to right, like the row above",
         "justify-content:flex-start" in stamped)
+
+    print("A FAILED RUN SAYS SO, WITHOUT AN API")
+    chk("the state is written alongside the run number",
+        '"state": "ok"' in open(__file__, encoding="utf-8").read()
+        or "state" in stamped)
+    chk("the page reads that state", "v.state==='failed'" in stamped)
+    chk("and names the run that failed", "failed'" in stamped)
+    chk("a failure does not trigger a reload",
+        stamped.index("v.state==='failed'") < stamped.index("if(live>here){"))
+
+    print("SOMEONE ELSE'S RUN IS NOTICED TOO")
+    chk("an idle watcher exists", "function idleWatch()" in stamped)
+    chk("it runs about once a minute", "idleWatch,60000" in stamped)
+    chk("it sleeps when the tab is hidden", "document.hidden" in stamped)
+    chk("it wakes when the tab comes back", "visibilitychange" in stamped)
+    chk("it never fights the press-and-wait watcher",
+        "if(document.hidden||waiting)return;" in stamped)
+    chk("it offers rather than reloads under you",
+        "if(live>here)offer(live);" in stamped)
 
     print("NOTHING FREEZES SILENTLY")
     for msg in ("Still not published after 5 minutes", "Could not start it"):
@@ -3617,7 +3762,8 @@ def main():
         vpath = os.path.join(d, "version.json") if d else "version.json"
         with open(vpath, "w", encoding="utf-8") as fh:
             _json.dump({"run": regime.get("run_number") or "",
-                        "utc": regime.get("built_utc") or ""}, fh)
+                        "utc": regime.get("built_utc") or "",
+                        "state": "ok"}, fh)
         print(f"wrote {vpath}", file=sys.stderr)
     return 0
 if __name__ == "__main__":
