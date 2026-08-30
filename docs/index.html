@@ -142,9 +142,9 @@ tr.grp td .cnt{color:var(--dim);font-weight:400;margin-left:8px;
   text-transform:none;letter-spacing:0}
 tr:last-child td{border-bottom:none}
 .tk{font-weight:600}
-.chips{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-start}
-.chip{background:var(--chip);border-radius:6px;padding:3px 8px;font-size:13px;
-  font-family:var(--mono);color:var(--dim);white-space:nowrap}
+.chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-start}
+.chip{background:var(--chip);border-radius:7px;padding:4px 10px;font-size:13.5px;
+  font-family:inherit;color:var(--ink);white-space:nowrap}
 .chip.hot{background:var(--alarmbg);color:var(--alarm)}
 .runbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:18px 0 4px}
 .btn{display:inline-flex;align-items:center;gap:9px;background:var(--accent);
@@ -238,7 +238,7 @@ dl.legend.icons dt{font-family:inherit;font-size:19px;line-height:1.5}
 <div class="bar" id="bar"><div></div></div>
 <div class="fresh" id="fresh"></div>
 <div class="grid">
-<div class="stat now"><div class="k">Last run</div><div class="v"><span id="built" data-utc="2026-08-30T08:09:08Z">08:09 UTC</span></div></div>
+<div class="stat now"><div class="k">Last run</div><div class="v"><span id="built" data-utc="2026-08-30T08:18:03Z">08:18 UTC</span></div></div>
 <div class="stat"><div class="k">VIX</div><div class="v">14.43</div></div>
 <div class="stat"><div class="k">SPX vs 20-MA</div><div class="v">-0.01%</div></div>
 <div class="stat"><div class="k">Condor</div><div class="v">NO-GO</div></div>
@@ -275,7 +275,7 @@ dl.legend.icons dt{font-family:inherit;font-size:19px;line-height:1.5}
 <td class="num" data-l="IV/HV">0.85</td>
 <td class="num" data-l="DTE">19</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="prov — only 0.5% above 20-day avg. One down day drops it out of Gate 1.">prov</span><span class="chip" tabindex="0" data-tip="inv — priced for 47% move, actually moved 55%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap26d — reported 26d ago; that jump inflates HV, so 'inv' may be fake.">gap26d</span><span class="chip" tabindex="0" data-tip="oi57 — 57 open vs your 500 rule. Worse fills, harder to exit.">oi57</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 15% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="Barely trending — only 0.5% above 20-day avg. One down day drops it out of Gate 1.">Barely trending</span><span class="chip" tabindex="0" data-tip="IV below actual move — priced for 47% move, actually moved 55%. Underpaid.">IV below move</span><span class="chip" tabindex="0" data-tip="Earnings 26d ago — that jump inflates HV, so the IV flag above may just be the earnings gap.">Earnings 26d ago</span><span class="chip" tabindex="0" data-tip="Low open interest — 57 open vs your 500 rule. Worse fills, harder to exit.">Low OI (57)</span><span class="chip" tabindex="0" data-tip="Wide bid/ask — gap is 15% of price. You pay it twice on a spread.">Wide spread</span></div></td></tr>
 <tr class="grp"><td colspan="11">Security <span class="cnt">1 name</span></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">CRWD</span><button class="nb" data-news="CRWD" data-tip="5 of 5 headlines look directly relevant — tap to read" aria-label="News for CRWD: 5 of 5 directly relevant">📰<span class="nbc">5</span></button></td>
@@ -290,7 +290,7 @@ dl.legend.icons dt{font-family:inherit;font-size:19px;line-height:1.5}
 <td class="num" data-l="IV/HV">0.71</td>
 <td class="num" data-l="DTE">19</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 51% move, actually moved 73%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap4d — reported 4d ago; that jump inflates HV, so 'inv' may be fake.">gap4d</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 14% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="IV below actual move — priced for 51% move, actually moved 73%. Underpaid.">IV below move</span><span class="chip" tabindex="0" data-tip="Earnings 4d ago — that jump inflates HV, so the IV flag above may just be the earnings gap.">Earnings 4d ago</span><span class="chip" tabindex="0" data-tip="Wide bid/ask — gap is 14% of price. You pay it twice on a spread.">Wide spread</span></div></td></tr>
 <tr class="grp"><td colspan="11">Mega-cap platform <span class="cnt">3 names</span></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">META</span><button class="nb" data-news="META" data-tip="5 of 5 headlines look directly relevant — tap to read" aria-label="News for META: 5 of 5 directly relevant">📰<span class="nbc">5</span></button></td>
@@ -305,7 +305,7 @@ dl.legend.icons dt{font-family:inherit;font-size:19px;line-height:1.5}
 <td class="num" data-l="IV/HV">0.83</td>
 <td class="num" data-l="DTE">19</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip hot" tabindex="0" data-tip="knife — +0.39% vs 20-day avg 575.77. Feeds can disagree on the sign here. Verify.">knife</span><span class="chip" tabindex="0" data-tip="inv — priced for 34% move, actually moved 42%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap32d — reported 32d ago; that jump inflates HV, so 'inv' may be fake.">gap32d</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip hot" tabindex="0" data-tip="Knife-edge trend — +0.39% vs 20-day avg 575.77. Feeds can disagree on the sign here. Verify.">Knife-edge trend</span><span class="chip" tabindex="0" data-tip="IV below actual move — priced for 34% move, actually moved 42%. Underpaid.">IV below move</span><span class="chip" tabindex="0" data-tip="Earnings 32d ago — that jump inflates HV, so the IV flag above may just be the earnings gap.">Earnings 32d ago</span></div></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">MSFT</span><button class="nb" data-news="MSFT" data-tip="2 of 5 headlines look directly relevant — tap to read" aria-label="News for MSFT: 2 of 5 directly relevant">📰<span class="nbc">2</span></button></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
@@ -319,7 +319,7 @@ dl.legend.icons dt{font-family:inherit;font-size:19px;line-height:1.5}
 <td class="num" data-l="IV/HV">0.53</td>
 <td class="num" data-l="DTE">19</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 26% move, actually moved 49%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap32d — reported 32d ago; that jump inflates HV, so 'inv' may be fake.">gap32d</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 12% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="IV below actual move — priced for 26% move, actually moved 49%. Underpaid.">IV below move</span><span class="chip" tabindex="0" data-tip="Earnings 32d ago — that jump inflates HV, so the IV flag above may just be the earnings gap.">Earnings 32d ago</span><span class="chip" tabindex="0" data-tip="No fallback — if 11% fails at 0.15Δ, skip. Never step closer to the money.">No fallback</span><span class="chip" tabindex="0" data-tip="Wide bid/ask — gap is 12% of price. You pay it twice on a spread.">Wide spread</span></div></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">AAPL</span><button class="nb" data-news="AAPL" data-tip="5 of 5 headlines look directly relevant — tap to read" aria-label="News for AAPL: 5 of 5 directly relevant">📰<span class="nbc">5</span></button></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.16">0.15</span></td>
@@ -333,7 +333,7 @@ dl.legend.icons dt{font-family:inherit;font-size:19px;line-height:1.5}
 <td class="num" data-l="IV/HV">0.83</td>
 <td class="num" data-l="DTE">19</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 26% move, actually moved 31%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap31d — reported 31d ago; that jump inflates HV, so 'inv' may be fake.">gap31d</span><span class="chip" tabindex="0" data-tip="fb0.18 — may step to 0.18Δ only after 11% fails live. No further.">fb0.18</span><span class="chip" tabindex="0" data-tip="oi244 — 244 open vs your 500 rule. Worse fills, harder to exit.">oi244</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="IV below actual move — priced for 26% move, actually moved 31%. Underpaid.">IV below move</span><span class="chip" tabindex="0" data-tip="Earnings 31d ago — that jump inflates HV, so the IV flag above may just be the earnings gap.">Earnings 31d ago</span><span class="chip" tabindex="0" data-tip="Fallback 0.18Δ — may step here only after 11% fails live. No further.">Fallback 0.18Δ</span><span class="chip" tabindex="0" data-tip="Low open interest — 244 open vs your 500 rule. Worse fills, harder to exit.">Low OI (244)</span></div></td></tr>
 <tr class="grp"><td colspan="11">High-beta <span class="cnt">2 names</span></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">PLTR</span><button class="nb" data-news="PLTR" data-tip="5 of 5 headlines look directly relevant — tap to read" aria-label="News for PLTR: 5 of 5 directly relevant">📰<span class="nbc">5</span></button></td>
@@ -348,7 +348,7 @@ dl.legend.icons dt{font-family:inherit;font-size:19px;line-height:1.5}
 <td class="num" data-l="IV/HV">0.51</td>
 <td class="num" data-l="DTE">19</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 47% move, actually moved 91%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap27d — reported 27d ago; that jump inflates HV, so 'inv' may be fake.">gap27d</span><span class="chip" tabindex="0" data-tip="oi456 — 456 open vs your 500 rule. Worse fills, harder to exit.">oi456</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="IV below actual move — priced for 47% move, actually moved 91%. Underpaid.">IV below move</span><span class="chip" tabindex="0" data-tip="Earnings 27d ago — that jump inflates HV, so the IV flag above may just be the earnings gap.">Earnings 27d ago</span><span class="chip" tabindex="0" data-tip="Low open interest — 456 open vs your 500 rule. Worse fills, harder to exit.">Low OI (456)</span></div></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">TSLA</span><button class="nb" data-news="TSLA" data-tip="5 of 5 headlines look directly relevant — tap to read" aria-label="News for TSLA: 5 of 5 directly relevant">📰<span class="nbc">5</span></button></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
@@ -362,7 +362,7 @@ dl.legend.icons dt{font-family:inherit;font-size:19px;line-height:1.5}
 <td class="num" data-l="IV/HV">0.66</td>
 <td class="num" data-l="DTE">19</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="inv — priced for 39% move, actually moved 59%. Underpaid.">inv</span><span class="chip" tabindex="0" data-tip="gap39d — reported 39d ago; that jump inflates HV, so 'inv' may be fake.">gap39d</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="IV below actual move — priced for 39% move, actually moved 59%. Underpaid.">IV below move</span><span class="chip" tabindex="0" data-tip="Earnings 39d ago — that jump inflates HV, so the IV flag above may just be the earnings gap.">Earnings 39d ago</span></div></td></tr>
 <tr class="grp"><td colspan="11">Defensive/financial <span class="cnt">2 names</span></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">JNJ</span><button class="nb" data-news="JNJ" data-tip="5 of 5 headlines look directly relevant — tap to read" aria-label="News for JNJ: 5 of 5 directly relevant">📰<span class="nbc">5</span></button></td>
@@ -377,7 +377,7 @@ dl.legend.icons dt{font-family:inherit;font-size:19px;line-height:1.5}
 <td class="num" data-l="IV/HV">1.07</td>
 <td class="num" data-l="DTE">19</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="prov — only 1.5% above 20-day avg. One down day drops it out of Gate 1.">prov</span><span class="chip" tabindex="0" data-tip="nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.">nofb</span><span class="chip" tabindex="0" data-tip="oi229 — 229 open vs your 500 rule. Worse fills, harder to exit.">oi229</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 39% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="Barely trending — only 1.5% above 20-day avg. One down day drops it out of Gate 1.">Barely trending</span><span class="chip" tabindex="0" data-tip="No fallback — if 11% fails at 0.15Δ, skip. Never step closer to the money.">No fallback</span><span class="chip" tabindex="0" data-tip="Low open interest — 229 open vs your 500 rule. Worse fills, harder to exit.">Low OI (229)</span><span class="chip" tabindex="0" data-tip="Wide bid/ask — gap is 39% of price. You pay it twice on a spread.">Wide spread</span></div></td></tr>
 <tr class="row">
 <td class="tkcell" data-l="Ticker"><span class="tk">V</span><button class="nb" data-news="V" data-tip="5 of 5 headlines look directly relevant — tap to read" aria-label="News for V: 5 of 5 directly relevant">📰<span class="nbc">5</span></button></td>
 <td class="num" data-l="Delta"><span class="chip bare" tabindex="0" data-tip="screened at 0.15; nearest listed strike is 0.15">0.15</span></td>
@@ -391,7 +391,7 @@ dl.legend.icons dt{font-family:inherit;font-size:19px;line-height:1.5}
 <td class="num" data-l="IV/HV">1.16</td>
 <td class="num" data-l="DTE">19</td>
 </tr>
-<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="gap33d — reported 33d ago; that jump inflates HV, so 'inv' may be fake.">gap33d</span><span class="chip" tabindex="0" data-tip="fb0.20 — may step to 0.20Δ only after 11% fails live. No further.">fb0.20</span><span class="chip" tabindex="0" data-tip="ba — bid/ask gap is 25% of price. You pay it twice on a spread.">ba</span></div></td></tr>
+<tr class="fl"><td colspan="11"><div class="chips"><span class="chip" tabindex="0" data-tip="Earnings 33d ago — that jump inflates HV, so the IV flag above may just be the earnings gap.">Earnings 33d ago</span><span class="chip" tabindex="0" data-tip="Fallback 0.20Δ — may step here only after 11% fails live. No further.">Fallback 0.20Δ</span><span class="chip" tabindex="0" data-tip="Wide bid/ask — gap is 25% of price. You pay it twice on a spread.">Wide spread</span></div></td></tr>
 </tbody></table></div>
 <h2>Reading this table</h2>
 <div class="note"><dl class="legend icons">
@@ -648,5 +648,5 @@ function initRun(cfg){
   window.addEventListener('resize',function(){
     pinned=null;tipEl.classList.remove('show');});
 }
-</script><script>initRun({runNumber:"42",builtUtc:"2026-08-30T08:09:08Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
+</script><script>initRun({runNumber:"43",builtUtc:"2026-08-30T08:18:03Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
 </div></body></html>
