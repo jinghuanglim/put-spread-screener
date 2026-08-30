@@ -83,7 +83,7 @@ def _get(params):
 def infobox_logo_file(title):
     """The exact file an editor put in the infobox's `logo=` field."""
     data = _get({"action": "parse", "page": title, "prop": "wikitext",
-                 "section": 0, "format": "json"})
+                 "section": 0, "redirects": 1, "format": "json"})
     if "error" in data:
         return None
     wikitext = data.get("parse", {}).get("wikitext", {}).get("*", "")
@@ -92,7 +92,9 @@ def infobox_logo_file(title):
         return None
     name = m.group(1).strip()
     name = re.sub(r"^\[\[(?:File|Image):", "", name, flags=re.I)
-    name = name.split("]]")[0].split("|")[0].strip()
+    # "{{!}}" is how a template argument spells a literal "|" (a raw pipe
+    # there would end the argument early) — treat it the same as "|".
+    name = name.split("{{!}}")[0].split("]]")[0].split("|")[0].strip()
     return name if name else None
 
 
@@ -118,7 +120,16 @@ def main():
     out = {}
     if os.path.exists(OUT):
         with open(OUT, encoding="utf-8") as fh:
-            out = json.load(fh)
+            raw = fh.read()
+        if raw.strip():
+            try:
+                out = json.loads(raw)
+            except ValueError as e:
+                print(f"Warning: {OUT} is not valid JSON ({e}) — "
+                      f"starting fresh instead of overwriting it. Fix or "
+                      f"delete the existing file if you want to keep it.",
+                      file=sys.stderr)
+                out = {}
     todo = [(t, title) for t, title in WIKI_TITLE.items() if t not in out]
     if not todo:
         print("logos.json already has every ticker.", file=sys.stderr)
