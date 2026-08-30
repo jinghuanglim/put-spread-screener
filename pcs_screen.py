@@ -1325,12 +1325,16 @@ def _wrap(text, width):
     import textwrap
     return textwrap.wrap(text, width) or [text]
 def explain_notes(r, verbose=False):
-    """One short line per flag. --why gives the long form."""
+    """One short line per flag. --why gives the long form.
+    Each opens with a plain-English label rather than the internal code
+    (which still appears on the chip itself via _flag_label) — the code was
+    never the point, the sentence after the dash always was."""
     out = []
     for n in [x for x in r["notes"].split(",") if x]:
         if n == "knife":
-            out.append(f"knife — {r['sma_margin']*100:+.2f}% vs 20-day avg "
-                       f"{r['sma20']:.2f}. Feeds can disagree on the sign here. Verify.")
+            out.append(f"Knife-edge trend \u2014 {r['sma_margin']*100:+.2f}% vs "
+                       f"20-day avg {r['sma20']:.2f}. Feeds can disagree on the "
+                       f"sign here. Verify.")
             if verbose:
                 out.append(f"        window {r['sma_from']}..{r['sma_to']}, "
                            f"{r['sma_n']} bars, regular-hours closes.")
@@ -1340,45 +1344,87 @@ def explain_notes(r, verbose=False):
                            "211.50 ETH). Pull IBKR with outside_rth=False and "
                            "the two feeds match to the cent.")
         elif n == "prov":
-            out.append(f"prov — only {r['sma_margin']*100:.1f}% above 20-day avg. "
-                       f"One down day drops it out of Gate 1.")
+            out.append(f"Barely trending \u2014 only {r['sma_margin']*100:.1f}% "
+                       f"above 20-day avg. One down day drops it out of Gate 1.")
         elif n == "inv":
-            out.append(f"inv — priced for {r['iv']*100:.0f}% move, actually moved "
+            out.append(f"IV below actual move \u2014 priced for "
+                       f"{r['iv']*100:.0f}% move, actually moved "
                        f"{r['hv']*100:.0f}%. Underpaid.")
         elif n.startswith("gap"):
             d = n[3:-1]
-            out.append(f"gap{d}d — reported {d}d ago; that jump inflates HV, so "
-                       f"'inv' may be fake.")
+            out.append(f"Earnings {d}d ago \u2014 that jump inflates HV, so "
+                       f"the IV flag above may just be the earnings gap.")
         elif n == "nofb":
-            out.append("nofb — if 11% fails at 0.15Δ, skip. Never step closer to the money.")
+            out.append("No fallback \u2014 if 11% fails at 0.15\u0394, skip. "
+                       "Never step closer to the money.")
         elif n.startswith("fb") and n != "nofb":
-            out.append(f"fb{n[2:]} — may step to {n[2:]}Δ only after 11% fails live. "
-                       f"No further.")
+            out.append(f"Fallback {n[2:]}\u0394 \u2014 may step here only after "
+                       f"11% fails live. No further.")
         elif n.startswith("blowoff"):
-            out.append(f"{n} — {n[7:]} above 20-day avg. Vertical run, not trend. "
-                       f"Never step Δ up.")
+            out.append(f"Blow-off run \u2014 {n[7:]} above 20-day avg. Vertical "
+                       f"run, not trend. Never step \u0394 up.")
         elif n == "T+2":
-            out.append("T+2 — reported 2d ago. Earliest entry you allow.")
+            out.append("T+2, earliest entry \u2014 reported 2d ago. Earliest "
+                       "entry you allow.")
         elif n.startswith("oi"):
-            out.append(f"oi{n[2:]} — {n[2:]} open vs your 500 rule. Worse fills, "
-                       f"harder to exit.")
+            out.append(f"Low open interest \u2014 {n[2:]} open vs your 500 "
+                       f"rule. Worse fills, harder to exit.")
         elif n == "ba":
             mid = (r["ask"] + r["bid"]) / 2
             pct = ((r["ask"] - r["bid"]) / mid * 100) if mid else 0
-            out.append(f"ba — bid/ask gap is {pct:.0f}% of price. You pay it twice "
-                       f"on a spread.")
+            out.append(f"Wide bid/ask \u2014 gap is {pct:.0f}% of price. You "
+                       f"pay it twice on a spread.")
         elif n.startswith("cap") and n != "capped":
-            out.append(f"{n} — nearest strike to {n[3:]}\u0394 is over the 0.20 hard "
-                       f"cap, so this is the next one out. Less credit, by rule.")
+            out.append(f"Delta capped \u2014 nearest strike to {n[3:]}\u0394 is "
+                       f"over the 0.20 hard cap, so this is the next one out. "
+                       f"Less credit, by rule.")
         elif n == "noq":
-            out.append("noq — no bid/ask posted. Price shown is not tradeable.")
+            out.append("No quote \u2014 no bid/ask posted. Price shown is not "
+                       "tradeable.")
         elif n == "unclus":
-            out.append("unclus — no cluster cap applies. Per-name and total only.")
+            out.append("No cluster cap \u2014 applies. Per-name and total only.")
         elif n == "stale":
-            out.append("stale — live read failed, using previous close. Strike may shift.")
+            out.append("Stale price \u2014 live read failed, using previous "
+                       "close. Strike may shift.")
         else:
             out.append(n)
     return out
+
+
+def _flag_label(code):
+    """The word on the chip itself. A chip that says "oi114" makes you open
+    the tooltip just to find out it's about liquidity; one that already says
+    "Low open interest" tells you that before you've touched it — the
+    tooltip is then there for the number and the rule, not the vocabulary."""
+    if code == "knife":
+        return "Knife-edge trend"
+    if code == "prov":
+        return "Barely trending"
+    if code == "stale":
+        return "Stale price"
+    if code == "inv":
+        return "IV below move"
+    if code.startswith("gap") and code.endswith("d"):
+        return f"Earnings {code[3:-1]}d ago"
+    if code == "unclus":
+        return "No cluster cap"
+    if code == "nofb":
+        return "No fallback"
+    if code.startswith("fb") and code != "nofb":
+        return f"Fallback {code[2:]}\u0394"
+    if code.startswith("blowoff"):
+        return f"Blow-off {code[7:]}"
+    if code == "T+2":
+        return "T+2 earnings"
+    if code.startswith("oi"):
+        return f"Low OI ({code[2:]})"
+    if code == "ba":
+        return "Wide spread"
+    if code.startswith("cap") and code != "capped":
+        return "\u0394 capped"
+    if code == "noq":
+        return "No quote"
+    return code
 FLAG_LEGEND = [
     ("knife", "within 0.5% of SMA20 — Gate 1 could flip on one print"),
     ("prov",  "under 2% above SMA20 — one down day drops it out of Gate 1"),
@@ -1935,9 +1981,9 @@ tr.grp td .cnt{color:var(--dim);font-weight:400;margin-left:8px;
   text-transform:none;letter-spacing:0}
 tr:last-child td{border-bottom:none}
 .tk{font-weight:600}
-.chips{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-start}
-.chip{background:var(--chip);border-radius:6px;padding:3px 8px;font-size:13px;
-  font-family:var(--mono);color:var(--dim);white-space:nowrap}
+.chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-start}
+.chip{background:var(--chip);border-radius:7px;padding:4px 10px;font-size:13.5px;
+  font-family:inherit;color:var(--ink);white-space:nowrap}
 .chip.hot{background:var(--alarmbg);color:var(--alarm)}
 .runbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:18px 0 4px}
 .btn{display:inline-flex;align-items:center;gap:9px;background:var(--accent);
@@ -2523,7 +2569,7 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                     f'<span class="chip{" hot" if f in HOT_FLAGS else ""}" '
                     f'tabindex="0" '
                     f'data-tip="{_esc(tips[i] if i < len(tips) else f)}">'
-                    f'{_esc(f)}</span>' for i, f in enumerate(flags))
+                    f'{_esc(_flag_label(f))}</span>' for i, f in enumerate(flags))
                 ivhv = f"{r['ivhv']:.2f}" if r["ivhv"] else "n/a"
                 hv = f"{r['hv']*100:.1f}%" if r["hv"] else "n/a"
                 tg = (f"{r['target']:.2f}"
