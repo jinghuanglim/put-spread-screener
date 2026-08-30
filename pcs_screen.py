@@ -1889,6 +1889,9 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim)
   padding:12px 14px}
 .stat .k{font-size:12.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim)}
 .stat .v{font-size:22px;font-variant-numeric:tabular-nums;margin-top:3px}
+.stat .v .rn{display:block;font-size:12.5px;font-weight:400;color:var(--dim);
+  margin-top:2px}
+#ustime{font-variant-numeric:tabular-nums}
 .banner{border-radius:10px;padding:14px 16px;margin:16px 0;font-size:16px;
   border:1px solid transparent}
 .banner.warn{background:var(--warnbg);border-color:var(--warn);color:var(--ink)}
@@ -2148,6 +2151,17 @@ function initRun(cfg){
     });
   }
 
+  // The market date above answers "which trading day". This answers
+  // "is it open right now" without making anyone do the UTC-to-ET math
+  // themselves. Intl carries the IANA rules already, so no tz data ships.
+  var usClock=document.getElementById('ustime');
+  if(usClock){
+    var fmt=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',
+      hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+    var tick=function(){usClock.textContent=fmt.format(new Date())+' ET';};
+    tick();setInterval(tick,1000);
+  }
+
   // Headlines open over the row you tapped, so Gate 3 never costs you your
   // place in the table.
   var nv=document.getElementById('nv');
@@ -2298,21 +2312,31 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     # A date alone cannot answer "did my run land?" — two screens on the same
     # day look identical. The run number and build time make the page
     # self-identifying, so the question is settled by looking at it rather than
-    # by trusting a status line that polls an API.
+    # by trusting a status line that polls an API. That job now lives on the
+    # Last run tile below, not the subtitle, so the subtitle is free to say
+    # only what changes your read of the table: what day the gates ran
+    # against, and whether the numbers are live or stale.
     built = regime.get("built_utc") or ""
     rnum = regime.get("run_number") or ""
-    stamp = ""
-    if rnum:
-        stamp = f' &middot; <b>run #{_esc(rnum)}</b>'
-    H.append(f'<p class="sub">{_esc(today)} &middot; US session '
-             f'{_esc(regime.get("us_date","?"))} &middot; spot {feed} '
-             f'&middot; DTE {DTE_MIN}–{DTE_MAX}{stamp}</p>')
+    repo = regime.get("repo")
+    # "spot live" told you a fact and made you guess what it meant. Either
+    # word alone answers it: the Spot column is a live quote right now, or it
+    # is still yesterday's close because the market has not opened yet.
+    feed_label = {"live": "prices are live",
+                  "prev close": "prices are yesterday\u2019s close"
+                  }.get(feed, f"prices: {feed}")
+    # A ticking clock needs JS, so it only appears on a page that ships JS at
+    # all (see "a page with no repo configured ships no behaviour" below) -
+    # a frozen clock reading the build time forever would be worse than none.
+    clock = ' &middot; <span id="ustime"></span>' if repo else ''
+    H.append(f'<p class="sub">Market date '
+             f'{_esc(regime.get("us_date","?"))} (US/Eastern){clock} '
+             f'&middot; {_esc(feed_label)}</p>')
 
     vix = f"{regime['vix']:.2f}" if regime["vix"] is not None else "unread"
     stv = (f"{regime['stretch']*100:+.2f}%" if regime["stretch"] is not None
            else "unread")
     tail_js = ""
-    repo = regime.get("repo")
     if repo:
         wf = regime.get("workflow_file", "screen.yml")
         run_id = regime.get("run_id") or ""
@@ -2351,10 +2375,13 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     H.append('<div class="grid">')
     if built:
         # Freshness is the first thing anyone needs from a page like this, and
-        # it was buried in a grey subtitle. It gets a tile.
+        # it was buried in a grey subtitle. It gets a tile - run number
+        # included, so two screens on the same day are still distinguishable
+        # without also cluttering the one-line subtitle above the fold.
+        rn = f' <span class="rn">run #{_esc(rnum)}</span>' if rnum else ''
         H.append(f'<div class="stat now"><div class="k">Last run</div>'
                  f'<div class="v"><span id="built" data-utc="{_esc(built)}">'
-                 f'{_esc(built[11:16])} UTC</span></div></div>')
+                 f'{_esc(built[11:16])} UTC</span>{rn}</div></div>')
     for k, v in (("VIX", vix), ("SPX vs 20-MA", stv),
                  ("Condor", "GO" if go else "NO-GO"),
                  ("Candidates", str(len(rows)))):
