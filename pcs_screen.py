@@ -2223,7 +2223,10 @@ function initRun(cfg){
       }
     }catch(e){}
   }
-  say(cfg.runNumber?'Showing run #'+cfg.runNumber:'');
+  // The run number already lives on the Last run tile - repeating it
+  // here too just made two labels for one fact. This line is left
+  // blank until there is something to actually report (running,
+  // ready-in countdown, a failure) rather than restating the tile.
   cooldown();
   if(cfg.runNumber){
     idler=setInterval(idleWatch,60000);
@@ -2321,10 +2324,14 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     repo = regime.get("repo")
     # "spot live" told you a fact and made you guess what it meant. Either
     # word alone answers it: the Spot column is a live quote right now, or it
-    # is still yesterday's close because the market has not opened yet.
-    feed_label = {"live": "prices are live",
-                  "prev close": "prices are yesterday\u2019s close"
-                  }.get(feed, f"prices: {feed}")
+    # is still yesterday's close because the market has not opened yet. Both
+    # come from yfinance, whose free "live" quote is itself Yahoo's delayed
+    # feed \u2014 not exchange real-time \u2014 so that gets said too rather
+    # than implied by the word "live".
+    feed_label = {
+        "live": "prices are live (yfinance, ~15\u201320 min delayed)",
+        "prev close": "prices are yesterday\u2019s close (yfinance)",
+    }.get(feed, f"prices: {feed} (yfinance)")
     # A ticking clock needs JS, so it only appears on a page that ships JS at
     # all (see "a page with no repo configured ships no behaviour" below) -
     # a frozen clock reading the build time forever would be worse than none.
@@ -2375,13 +2382,16 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     H.append('<div class="grid">')
     if built:
         # Freshness is the first thing anyone needs from a page like this, and
-        # it was buried in a grey subtitle. It gets a tile - run number
-        # included, so two screens on the same day are still distinguishable
-        # without also cluttering the one-line subtitle above the fold.
-        rn = f' <span class="rn">run #{_esc(rnum)}</span>' if rnum else ''
+        # it was buried in a grey subtitle. It gets a tile. The run number
+        # used to ride along here too, but the button enforces a 3-minute
+        # cooldown between runs (see COOLDOWN in the script below), so two
+        # runs never round to the same displayed minute - the time alone
+        # already tells two runs apart. The number still travels to the
+        # script that polls for a fresher build; it just has no reason to
+        # also print itself on the page.
         H.append(f'<div class="stat now"><div class="k">Last run</div>'
                  f'<div class="v"><span id="built" data-utc="{_esc(built)}">'
-                 f'{_esc(built[11:16])} UTC</span>{rn}</div></div>')
+                 f'{_esc(built[11:16])} UTC</span></div></div>')
     for k, v in (("VIX", vix), ("SPX vs 20-MA", stv),
                  ("Condor", "GO" if go else "NO-GO"),
                  ("Candidates", str(len(rows)))):
@@ -2423,6 +2433,37 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         H.append('<div class="banner alarm"><b class="t">Macro calendar incomplete</b>'
                  'CPI/NFP dates are missing. A clear macro line is NOT a '
                  'clearance.</div>')
+
+    # ------------------------------------------------ what this is (read
+    # this before the table, not after — it explains what a row surviving
+    # actually claims, so the table means something the first time you see
+    # it instead of needing a footnote once you're already looking at it)
+    H.append('<h2>What the screen does</h2>')
+    H.append(
+        '<details><summary>\U0001f6a6 The three gates \u2014 and what they '
+        'don\u2019t cover</summary>'
+        '<p class="head"><span>Each name is tested in order. Any failure '
+        'drops it \u2014 these are vetoes, not scores, so there is no '
+        '"good enough on balance".</span></p>'
+        '<dl class="legend">'
+        '<dt>Gate 1 &middot; trend</dt><dd>Price must sit above the average '
+        'of the previous 20 trading days (completed days only) \u2014 '
+        'however good the premium looks.</dd>'
+        '<dt>Gate 2 &middot; earnings</dt><dd>No results due on or before '
+        'expiry. A date inside the window risks the overnight gap this '
+        'structure cannot survive. Two sources are cross-checked; a '
+        'disagreement is flagged, not guessed at.</dd>'
+        '<dt>Gate 3 &middot; news</dt><dd><strong>Not automated.</strong> '
+        'Headlines are printed below for you to read \u2014 a guidance cut, '
+        'probe or downgrade is a veto regardless of premium.</dd>'
+        '<dt>Width filter</dt><dd>Strikes must sit at least $5 apart, ruling '
+        'out anything trading under roughly $100.</dd>'
+        '</dl>'
+        '<p class="head"><span><strong>Not covered:</strong> this does not '
+        'price anything, size a position, or know what you already hold. '
+        'Passing means it survived three filters, nothing more \u2014 most '
+        'days, the honest answer is to do nothing.</span></p>'
+        '</details>')
 
     # ------------------------------------------------ table
     H.append('<h2>Candidates — gates 1–2 passed</h2>')
@@ -2603,39 +2644,6 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
             H.append(f'<div class="banner warn"><b class="t">Two groups, one bet</b>'
                      f'{_esc(note)}</div>')
 
-
-    # ------------------------------------------------ what this is
-    H.append('<h2>What the screen does</h2>')
-    H.append(
-        '<details><summary>\U0001f6a6 The three gates, and what they do not '
-        'cover</summary>'
-        '<p class="head"><span>Each name is tested in order. Any failure drops '
-        'it and nothing downstream can rescue it — these are vetoes, not '
-        'scores, so there is no "good enough on balance".</span></p>'
-        '<dl class="legend">'
-        '<dt>Gate 1 &middot; trend</dt><dd>Last price must be above the average '
-        'of the previous 20 trading days. Below it, the name is out, however '
-        'attractive the premium. The average uses completed days only, so '
-        'today\u2019s part-formed bar cannot flatter it.</dd>'
-        '<dt>Gate 2 &middot; earnings</dt><dd>No scheduled results on or before '
-        'expiry. An earnings date inside the window is the single largest '
-        'source of the overnight gap this structure cannot survive. Dates come '
-        'from two independent sources; when they disagree the name is flagged '
-        'rather than guessed at. Index funds have no earnings, so they are '
-        'tested against CPI, jobs and Fed days instead.</dd>'
-        '<dt>Gate 3 &middot; news</dt><dd><strong>Not automated.</strong> '
-        'Headlines are printed below for a person to read. A guidance cut, a '
-        'probe, a downgrade cluster or sector contagion is a veto no matter '
-        'how rich the premium looks. Nothing here decides that for you.</dd>'
-        '<dt>width filter</dt><dd>The two strikes must sit at least $5 apart, '
-        'which rules out anything trading under roughly $100.</dd>'
-        '</dl>'
-        '<p class="head"><span><strong>What it does not do:</strong> it does '
-        'not price anything, check that the credit is worth the risk, size a '
-        'position, or know what you already hold. A name appearing here means '
-        'it survived three filters \u2014 nothing more. Most days the honest '
-        'answer is to do nothing.</span></p>'
-        '</details>')
 
     # ------------------------------------------------ gate 3, behind the rows
     if news_out:
@@ -3519,8 +3527,9 @@ Producer Price Index for October 2026
                           dict(regime, repo="me/repo", run_id="999",
                                run_number="14",
                                built_utc="2026-08-23T08:20:11Z"), today)
-    chk("run number is on the page", "run #14" in stamped)
     chk("run time is on the page", "08:20 UTC" in stamped)
+    chk("the run number is not printed twice over — once was enough",
+        "run #" not in stamped)
     chk("the script runs after the markup it touches",
         stamped.index('id="built"') < stamped.index("function initRun"),
         "script is last")
