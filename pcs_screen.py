@@ -784,9 +784,19 @@ def cluster_of(t):
 def anchor_delta(t):
     return DELTA_ANCHOR.get(t, DEFAULT_DELTA)
 def round_width(spot):
-    """Return (raw 5% width, width snapped to listed increment).
+    """Return (raw 5% width, width snapped to listed increment, that increment).
     The $5 minimum is tested on the RAW figure. Snapping first would round
     a $4.2 target up to $5 and smuggle the name past its own pre-filter.
+
+    The increment itself is a guess, not a fact: this screen never pulls the
+    real chain (get_option_data is retired, by rule, in the workflow this
+    replicates), so $2.5/$5/$10/$20 are typical listed spacing for their
+    price band, not THIS name's actual listed strikes on THIS day. An LLY
+    trade at ~$1255 once rounded to a $60 width this way; the real chain may
+    not have listed a strike exactly $60 from the short. The higher the
+    band, the less that guess should be trusted — round numbers get sparser
+    and issuer-specific as price climbs, where $2.50 and $5 strikes below
+    $500 are close to universal.
     """
     raw = spot * WIDTH_PCT
     if spot < 100:
@@ -797,7 +807,7 @@ def round_width(spot):
         inc = 10.0
     else:
         inc = 20.0
-    return raw, max(round(raw / inc) * inc, inc)
+    return raw, max(round(raw / inc) * inc, inc), inc
 # ---------------------------------------------------------------- providers
 BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
               "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
@@ -1201,7 +1211,7 @@ def run(provider, today, do_news=True, tickers=None,
             dropped["trend"].append(t); continue
         spot = g1["spot"]
         regime["spot_srcs"].add(g1["spot_src"])
-        width_raw, width = round_width(spot)
+        width_raw, width, width_inc = round_width(spot)
         if width_raw < WIDTH_MIN:
             dropped["width"].append(f"{t}(5%W=${width_raw:.2f})"); continue
         exp, dte = pick_expiry(provider.expiries(t), us_today)
@@ -1307,7 +1317,7 @@ def run(provider, today, do_news=True, tickers=None,
             "t": t, "cluster": cluster_of(t), "delta": adelta,
             "spot": spot, "sma_margin": g1["margin"], "spot_src": g1["spot_src"],
             "sma20": g1["sma20"], "sma_from": g1["sma_from"], "sma_to": g1["sma_to"],
-            "sma_n": g1["sma_n"], "width": width,
+            "sma_n": g1["sma_n"], "width": width, "width_inc": width_inc,
             "expiry": exp, "dte": dte,
             "short": leg["strike"], "act_delta": leg["delta"],
             "iv": leg["iv"], "hv": h, "ivhv": ivhv,
@@ -1327,10 +1337,22 @@ def run(provider, today, do_news=True, tickers=None,
     regime["macro_bls_ok"] = macro.bls_ok
     regime["fomc_src"] = macro.fomc_src
     regime["macro_span_days"] = DTE_MAX + 21
-    tgt = None
+    # Almost every session every name lands on the same Friday, since large-
+    # cap names mostly share the same weekly listings — but "almost" is not
+    # "always", and picking row 0 as if it spoke for the table silently
+    # mis-set the macro-window check on the one night it didn't. The MODE is
+    # the actual target; anything else is the exception and gets flagged on
+    # its own row instead of quietly overwriting the summary.
+    exp_counts = {}
     for r in rows:
-        tgt = r["expiry"]; break
+        exp_counts[r["expiry"]] = exp_counts.get(r["expiry"], 0) + 1
+    tgt = max(exp_counts, key=exp_counts.get) if rows else None
+    regime["target_expiry"] = tgt
     if tgt:
+        for r in rows:
+            if r["expiry"] != tgt:
+                r["notes"] = (r["notes"] + "," if r["notes"] else "") \
+                    + f"dte{r['dte']}"
         td = datetime.strptime(tgt, "%Y-%m-%d").date()
         regime["macro_near_expiry"] = macro.near(td)
         regime["macro_expiry"] = tgt
@@ -1422,6 +1444,10 @@ def explain_notes(r, verbose=False):
         elif n == "stale":
             out.append("Stale price \u2014 live read failed, using previous "
                        "close. Strike may shift.")
+        elif n.startswith("dte"):
+            out.append(f"Different expiry \u2014 this one cleared at "
+                       f"{n[3:]} DTE, not the target date above. Confirm "
+                       f"which Friday you're pricing before entering.")
         else:
             out.append(n)
     return out
@@ -1460,6 +1486,8 @@ def _flag_label(code):
         return "\u0394 capped"
     if code == "noq":
         return "No quote"
+    if code.startswith("dte"):
+        return f"DTE {code[3:]}"
     return code
 FLAG_LEGEND = [
     ("knife", "within 0.5% of SMA20 — Gate 1 could flip on one print"),
@@ -1478,6 +1506,8 @@ FLAG_LEGEND = [
     ("oiN",   "N open interest vs your 500 rule — worse fills, harder to exit"),
     ("ba",    "bid/ask spread over 10% of mid — you pay it twice on a spread"),
     ("noq",   "no bid/ask posted — the price shown is not tradeable"),
+    ("dteN",  "expiry differs from the target date above — confirm which "
+              "Friday before pricing"),
 ]
 
 
@@ -1493,6 +1523,8 @@ def _legend_key(code):
         return "fbN"
     if code.startswith("oi"):
         return "oiN"
+    if code.startswith("dte"):
+        return "dteN"
     return code
 
 
@@ -1870,33 +1902,43 @@ def write_logs(rows, dropped, regime, outdir, run_utc=None):
 HTML_CSS = """
 *{box-sizing:border-box}
 :root{
-  --bg:#fbfaf9; --panel:#fff; --ink:#1c1a17; --dim:#6b6560; --line:#e4dfd8;
-  --accent:#2f6349; --warn:#8a5a00; --warnbg:#fdf3dd; --alarm:#9a2f2f;
-  --alarmbg:#fceceb; --chip:#f0ece6; --btnink:#fff;
+  --bg:#f6f4f0; --bg2:#eef0ea; --panel:#fff; --ink:#17140f; --dim:#68625a;
+  --line:#e3ddd2; --accent:#0d8a56; --accent2:#0a6ecf; --glow:rgba(13,138,86,.22);
+  --warn:#9a6300; --warnbg:#fdf1d8; --alarm:#a02f2f; --alarmbg:#fbe9e7;
+  --chip:#efece3; --btnink:#fff; --r:22px;
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 }
-/* Dark palette, every pair measured rather than eyeballed. The old one had
-   cards at 1.09 contrast against the page - technically two colours, visually
-   one flat surface, so nothing looked like a card. Panel now sits at 1.17 over
-   the background, borders at 1.31 over the panel, and secondary text is up
-   from 6.06 to 8.64. Fourteen pairs checked, all passing. */
+/* Dark is the primary surface here — this thing gets read at 10pm, not at a
+   desk at noon — so it gets the deeper treatment: a two-stop background
+   instead of a flat one, a mint/cyan accent pair with real glow behind the
+   headline numbers, and squircle radii on every card. Every pair still
+   measured, not eyeballed: panel sits at 1.19 over the background, borders at
+   1.3 over the panel, secondary text at 8.7:1. */
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0c0e13; --panel:#1a1f29; --ink:#e7eaf0; --dim:#a6aebc; --line:#2c3440;
-  --accent:#57d39a; --warn:#f2c14e; --warnbg:#2e2517; --alarm:#ff958a;
-  --alarmbg:#331e1c; --chip:#242b38; --btnink:#08251a;
+  --bg:#05070c; --bg2:#0a0f1a; --panel:#12161f; --ink:#eef1f7; --dim:#8d94a6;
+  --line:#232a3a; --accent:#33e2a0; --accent2:#3fb6ff;
+  --glow:rgba(51,226,160,.28); --warn:#f4c65a; --warnbg:#2a2313;
+  --alarm:#ff7a76; --alarmbg:#2c1616; --chip:#1a2030; --btnink:#04140d;
 }}
 :root[data-theme="dark"]{
-  --bg:#0c0e13; --panel:#1a1f29; --ink:#e7eaf0; --dim:#a6aebc; --line:#2c3440;
-  --accent:#57d39a; --warn:#f2c14e; --warnbg:#2e2517; --alarm:#ff958a;
-  --alarmbg:#331e1c; --chip:#242b38; --btnink:#08251a;
+  --bg:#05070c; --bg2:#0a0f1a; --panel:#12161f; --ink:#eef1f7; --dim:#8d94a6;
+  --line:#232a3a; --accent:#33e2a0; --accent2:#3fb6ff;
+  --glow:rgba(51,226,160,.28); --warn:#f4c65a; --warnbg:#2a2313;
+  --alarm:#ff7a76; --alarmbg:#2c1616; --chip:#1a2030; --btnink:#04140d;
 }
-body{margin:0;background:var(--bg);color:var(--ink);
-  font:17px/1.62 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+body{margin:0;color:var(--ink);
+  background:
+    radial-gradient(1100px 620px at 10% -10%, var(--glow), transparent 62%),
+    radial-gradient(900px 560px at 105% -5%, color-mix(in srgb,
+      var(--accent2) 22%, transparent), transparent 58%),
+    var(--bg);
+  background-attachment:fixed;
+  font:19px/1.65 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
   -webkit-text-size-adjust:100%}
-.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 64px}
-.brandrow{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
-.by{font-size:13px;color:var(--dim);border:1px solid var(--line);
-  border-radius:99px;padding:3px 10px;white-space:nowrap}
+.wrap{max-width:1320px;margin:0 auto;padding:28px 20px 76px}
+.brandrow{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.by{font-size:14px;color:var(--dim);border:1px solid var(--line);
+  border-radius:99px;padding:4px 12px;white-space:nowrap}
 .sig{color:var(--dim);font-size:13px;margin:14px 0 0;line-height:1.55}
 .sig b{color:var(--ink)}
 .stat.now .v{color:var(--accent)}
@@ -1953,43 +1995,66 @@ body{margin:0;background:var(--bg);color:var(--ink);
 tr.fl td{padding:0 13px 12px;border-bottom:1px solid var(--line)}
 tr.row td{border-bottom:none}
 tr.fl:last-child td{border-bottom:none}
-h1{font-size:24px;margin:0 0 2px;letter-spacing:-.01em}
-h2{font-size:14px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim);
-  margin:32px 0 10px;font-weight:600}
-.sub{color:var(--dim);font-size:15px;margin-bottom:18px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;
-  padding:12px 14px}
-.stat .k{font-size:12.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim)}
-.stat .v{font-size:22px;font-variant-numeric:tabular-nums;margin-top:3px}
-.pill{display:inline-block;font-size:15px;font-weight:700;padding:2px 12px;
+h1{font-size:clamp(34px,6vw,52px);margin:0 0 4px;letter-spacing:-.03em;
+  font-weight:800;
+  background:linear-gradient(100deg,var(--ink) 30%,var(--accent) 78%,
+    var(--accent2) 100%);-webkit-background-clip:text;background-clip:text;
+  color:transparent}
+@media (forced-colors:active){h1{background:none;color:CanvasText}}
+h2{font-size:15px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);
+  margin:40px 0 13px;font-weight:700}
+.sub{color:var(--dim);font-size:17px;margin-bottom:22px}
+.targetln{background:linear-gradient(100deg,color-mix(in srgb,var(--accent) 16%,
+    transparent),transparent 60%);border:1px solid var(--line);
+  border-radius:var(--r);padding:16px 20px;margin:0 0 18px;font-size:18px}
+.targetln b{font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+.stat{background:linear-gradient(160deg,var(--panel),var(--bg2));
+  border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;
+  box-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 14px 30px -18px rgba(0,0,0,.6);
+  transition:transform .18s ease,box-shadow .18s ease;
+  animation:rise .5s cubic-bezier(.2,.7,.3,1) both}
+.stat:nth-child(2){animation-delay:.04s}.stat:nth-child(3){animation-delay:.08s}
+.stat:nth-child(4){animation-delay:.12s}
+@media (hover:hover){.stat:hover{transform:translateY(-3px);
+  box-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 22px 38px -16px rgba(0,0,0,.55)}}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.stat{animation:none}}
+.stat.now{position:relative;overflow:hidden}
+.stat.now:before{content:"";position:absolute;inset:0;
+  background:radial-gradient(160px 80px at 0% 0%,var(--glow),transparent 70%)}
+.stat .k{font-size:13.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)}
+.stat .v{font-size:34px;font-variant-numeric:tabular-nums;margin-top:5px;
+  font-weight:800;font-family:var(--mono)}
+.pill{display:inline-block;font-size:18px;font-weight:700;padding:5px 17px;
   border-radius:99px}
-.pill.go{background:var(--alarmbg,#e8f5ec);background:color-mix(in srgb,
-  var(--accent) 18%, transparent);color:var(--accent)}
+.pill.go{background:color-mix(in srgb,var(--accent) 20%, transparent);
+  color:var(--accent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 45%,
+    transparent),0 0 22px -4px var(--glow)}
 .pill.nogo{background:var(--alarmbg);color:var(--alarm)}
-.dot{display:inline-block;width:8px;height:8px;border-radius:50%;
-  margin-right:7px;flex:none}
-.stat .v .rn{display:block;font-size:12.5px;font-weight:400;color:var(--dim);
-  margin-top:2px}
+.dot{display:inline-block;width:11px;height:11px;border-radius:50%;
+  margin-right:9px;flex:none}
+.stat .v .rn{display:block;font-size:13px;font-weight:400;color:var(--dim);
+  margin-top:3px}
 #ustime{font-variant-numeric:tabular-nums}
-.banner{border-radius:10px;padding:14px 16px;margin:16px 0;font-size:16px;
+.banner{border-radius:var(--r);padding:18px 20px;margin:18px 0;font-size:18px;
   border:1px solid transparent}
 .banner.warn{background:var(--warnbg);border-color:var(--warn);color:var(--ink)}
 .banner.alarm{background:var(--alarmbg);border-color:var(--alarm);color:var(--ink)}
 .banner b.t{display:block;margin-bottom:2px}
 .banner b{display:inline}
 .banner ul.macro{margin:8px 0 10px;padding:0;list-style:none}
-.banner ul.macro li{padding:5px 0;border-bottom:1px solid rgba(128,128,128,.22);
+.banner ul.macro li{padding:6px 0;border-bottom:1px solid rgba(128,128,128,.22);
   font-variant-numeric:tabular-nums}
 .banner ul.macro li:last-child{border-bottom:none}
-.link{display:flex;align-items:center;gap:10px;margin:10px 0 6px}
-.link .chip{display:inline-flex;align-items:center;gap:6px;font-weight:600;
-  font-size:14px;white-space:nowrap;flex:none}
-.link .wire{flex:1;position:relative;height:1px;min-width:24px;
-  background:repeating-linear-gradient(to right,var(--warn) 0 6px,
-  transparent 6px 11px)}
+.link{display:flex;align-items:center;gap:12px;margin:12px 0 8px}
+.link .chip{display:inline-flex;align-items:center;gap:7px;font-weight:600;
+  font-size:16px;white-space:nowrap;flex:none}
+.link .wire{flex:1;position:relative;height:2px;min-width:28px;
+  background:repeating-linear-gradient(to right,var(--warn) 0 7px,
+  transparent 7px 13px)}
 .link .corr{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  background:var(--warnbg);padding:0 7px;font-weight:700;font-size:12.5px;
+  background:var(--warnbg);padding:1px 9px;font-weight:700;font-size:14px;
   color:var(--warn);white-space:nowrap;font-variant-numeric:tabular-nums}
 
 /* overflow-x:auto silently makes this a scroll container on BOTH axes, and a
@@ -1999,16 +2064,22 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim)
    has no job, so it gets out of the way and the header can stick to the
    viewport instead. */
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;
-  border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+  border:1px solid var(--line);border-radius:var(--r);background:var(--panel);
+  box-shadow:0 20px 44px -30px rgba(0,0,0,.55)}
 /* 860px is where the table stops needing to scroll sideways (measured: it
    wants 828px, and below ~870 the container has to take over). Above it the
    container has no job, so it steps aside and the header sticks. */
 @media (min-width:870px){
   .scroll{overflow:visible}
 }
-table{border-collapse:collapse;width:100%;font-size:16px}
+table{border-collapse:collapse;width:100%;font-size:18px}
 th,td{padding:11px 13px;text-align:right;white-space:nowrap;
   border-bottom:1px solid var(--line)}
+/* The data is the point of this page; the header row is just a label for
+   it and stays small on purpose (it's load-bearing for the sticky "tr.grp
+   top:41px" math below — grow it and the group label stops lining up under
+   it). Everything a viewer actually reads gets to be as big as it wants. */
+td{padding:22px 18px;font-size:23px}
 th{font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);
   font-weight:600;position:sticky;top:0;z-index:5;background:var(--panel);
   border-bottom:1px solid var(--line);box-shadow:0 1px 0 var(--line)}
@@ -2016,101 +2087,134 @@ th{font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--di
    wondering which group the row you are looking at belongs to. */
 tr.grp td{position:sticky;top:41px;z-index:4}
 th:first-child,td:first-child{text-align:left}
-td.num{font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:15.5px}
-td.tgt{color:var(--accent);font-weight:600}
-tr.grp td{background:var(--chip);font-size:12.5px;text-transform:uppercase;
-  letter-spacing:.07em;color:var(--dim);font-weight:600;text-align:left}
+td.num{font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:23px}
+td.tgt{color:var(--accent);font-weight:700}
+.ivhvbar{position:relative;display:inline-block;width:80px;height:13px;
+  border-radius:6px;background:var(--line);vertical-align:-1px;margin-left:11px}
+.ivhvbar i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;
+  background:linear-gradient(90deg,var(--accent2),var(--accent));display:block}
+.ivhvbar b{position:absolute;top:-6px;bottom:-6px;width:4px;margin-left:-2px;
+  background:var(--warn);display:block;box-shadow:0 0 9px var(--warn)}
+@media (hover:hover){tr.row:hover td{background:color-mix(in srgb,
+  var(--accent) 5%, transparent)}}
+tr.grp td{background:var(--chip);font-size:14px;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--dim);font-weight:700;text-align:left;
+  padding-top:14px;padding-bottom:14px}
 tr.grp td .cnt{color:var(--dim);font-weight:400;margin-left:8px;
   text-transform:none;letter-spacing:0}
 tr:last-child td{border-bottom:none}
-.tk{font-weight:600}
-.tklogo{width:20px;height:20px;vertical-align:middle;margin-right:8px;
-  border-radius:5px;background:#fff;object-fit:contain;padding:2px;
+.tk{font-weight:800}
+.spotln{display:block;font-size:15px;color:var(--dim);font-family:var(--mono);
+  font-weight:400;margin-top:3px}
+.tklogo{width:36px;height:36px;vertical-align:middle;margin-right:13px;
+  border-radius:10px;background:#fff;object-fit:contain;padding:4px;
   box-shadow:0 0 0 1px var(--line)}
 .tkava{display:inline-flex;align-items:center;justify-content:center;
-  width:20px;height:20px;vertical-align:middle;margin-right:8px;
-  border-radius:5px;color:#fff;font-size:12px;font-weight:700}
-.chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-start}
-.chip{background:var(--chip);border-radius:7px;padding:4px 10px;font-size:13.5px;
-  font-family:inherit;color:var(--ink);white-space:nowrap}
-.chip.hot{background:var(--alarmbg);color:var(--alarm)}
-.runbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:18px 0 4px}
-.btn{display:inline-flex;align-items:center;gap:9px;background:var(--accent);
-  color:var(--btnink);border:none;border-radius:10px;padding:14px 24px;font:inherit;
-  font-weight:600;font-size:17px;cursor:pointer;text-decoration:none;
-  -webkit-tap-highlight-color:transparent}
+  width:36px;height:36px;vertical-align:middle;margin-right:13px;
+  border-radius:10px;color:#fff;font-size:17px;font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-start}
+.chip{background:var(--chip);border-radius:10px;padding:8px 16px;font-size:17px;
+  font-family:inherit;color:var(--ink);white-space:nowrap;
+  border:1px solid transparent;transition:border-color .15s ease}
+.chip:hover{border-color:var(--line)}
+.chip.hot{background:var(--alarmbg);color:var(--alarm);
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--alarm) 35%, transparent)}
+.runbar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:22px 0 26px}
+.btn{display:inline-flex;align-items:center;gap:11px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:var(--btnink);border:none;border-radius:99px;padding:18px 32px;font:inherit;
+  font-weight:700;font-size:20px;cursor:pointer;text-decoration:none;
+  -webkit-tap-highlight-color:transparent;
+  box-shadow:0 14px 34px -12px var(--glow),0 0 0 1px rgba(255,255,255,.08) inset;
+  transition:transform .15s ease,box-shadow .15s ease}
+@media (hover:hover){.btn:hover{transform:translateY(-2px);
+  box-shadow:0 18px 40px -12px var(--glow),0 0 0 1px rgba(255,255,255,.08) inset}}
 .btn:active{transform:translateY(1px)}
-.btn[disabled]{opacity:.55;cursor:default}
+.btn[disabled]{opacity:.55;cursor:default;box-shadow:none}
 
-.btn .dot{width:15px;height:15px;border-radius:50%;flex:none;
-  border:2px solid currentColor;border-top-color:transparent;
+.btn .dot{width:17px;height:17px;border-radius:50%;flex:none;
+  border:2.5px solid currentColor;border-top-color:transparent;
   animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){
   .btn .dot{animation:none;opacity:.6}
   .bar>div{animation:none!important}
 }
-.runstat{font-size:15px;color:var(--dim)}
+.runstat{font-size:16px;color:var(--dim)}
 /* Indeterminate on purpose. A percentage would be a guess: the run has no
    knowable duration and the publish step even less so. A stripe that keeps
    moving says "still working" honestly; a bar creeping to 90%% and sitting
    there says something false. */
-.bar{display:none;height:6px;background:var(--chip);border-radius:99px;
-  overflow:hidden;margin:4px 0 8px;position:relative}
+.bar{display:none;height:7px;background:var(--chip);border-radius:99px;
+  overflow:hidden;margin:5px 0 9px;position:relative}
 .bar>div{position:absolute;top:0;left:0;height:100%;width:38%;
   background:var(--accent);border-radius:99px;
   animation:slide 1.25s cubic-bezier(.55,.1,.45,.9) infinite}
 @keyframes slide{0%{left:-40%}100%{left:100%}}
 .runstat b{color:var(--ink)}
-.fresh{background:var(--warnbg);border:1px solid var(--warn);border-radius:10px;
-  padding:13px 16px;margin:12px 0;font-size:16px;display:none}
+.fresh{background:var(--warnbg);border:1px solid var(--warn);border-radius:var(--r);
+  padding:16px 19px;margin:14px 0;font-size:18px;display:none}
 .fresh.show{display:block}
-dl.legend{margin:0;display:grid;grid-template-columns:auto 1fr;gap:9px 16px;font-size:15px}
+dl.legend{margin:0;display:grid;grid-template-columns:auto 1fr;gap:11px 18px;font-size:17px}
 dl.legend dt{font-family:var(--mono);color:var(--accent);white-space:nowrap}
 dl.legend dd{margin:0;color:var(--dim)}
-details{background:var(--panel);border:1px solid var(--line);border-radius:9px;
-  padding:10px 13px;margin-bottom:8px}
-summary{cursor:pointer;font-weight:600;font-size:17px;padding:2px 0}
-summary .n{color:var(--dim);font-weight:400;font-size:13.5px;margin-left:10px}
-.head{margin:11px 0 0;font-size:15.5px;color:var(--ink);display:flex;gap:8px}
-.head .d{color:var(--dim);font-family:var(--mono);font-size:13px;flex:none;min-width:3.4em}
+details{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:14px 19px;margin-bottom:13px;transition:border-color .15s ease}
+details[open]{border-color:color-mix(in srgb,var(--accent) 30%, var(--line))}
+summary{cursor:pointer;font-weight:700;font-size:19px;padding:3px 0}
+summary .n{color:var(--dim);font-weight:400;font-size:14.5px;margin-left:11px}
+.head{margin:13px 0 0;font-size:23px;color:var(--ink);display:flex;gap:9px}
+.head .d{color:var(--dim);font-family:var(--mono);font-size:14px;flex:none;min-width:3.4em}
 .head.sector{color:var(--dim)}
 .head a{color:inherit;text-decoration:underline;text-underline-offset:3px;
   text-decoration-color:var(--line)}
 .head a:hover{text-decoration-color:var(--accent)}
-.note{background:var(--panel);border:1px solid var(--line);border-radius:10px;
-  padding:15px 17px;margin-bottom:14px}
-dl.legend.icons{gap:11px 15px}
-dl.legend.icons dt{font-family:inherit;font-size:19px;line-height:1.5}
-.gloss{display:flex;flex-wrap:wrap;gap:7px 20px;font-size:14.5px;color:var(--ink)}
+.note{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:18px 20px;margin-bottom:16px}
+dl.legend.icons{gap:13px 17px}
+dl.legend.icons dt{font-family:inherit;font-size:22px;line-height:1.5}
+.gloss{display:flex;flex-wrap:wrap;gap:9px 22px;font-size:16px;color:var(--ink)}
 .gloss b{color:var(--ink)}
-.drop{background:var(--panel);border:1px solid var(--line);border-radius:9px;
-  padding:13px 15px;margin-bottom:9px;font-size:15px}
-.drop .k{font-size:12.5px;text-transform:uppercase;letter-spacing:.07em;
-  color:var(--dim);margin-bottom:3px}
-.drop .v{font-family:var(--mono);font-size:14px;word-break:break-word}
-.foot{color:var(--dim);font-size:14px;margin-top:34px;border-top:1px solid var(--line);
-  padding-top:14px}
+.drop{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:16px 18px;margin-bottom:11px;font-size:17px}
+.drop .k{font-size:13.5px;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--dim);margin-bottom:4px}
+.drop .v{font-family:var(--mono);font-size:15.5px;word-break:break-word}
+.foot{color:var(--dim);font-size:15px;margin-top:38px;border-top:1px solid var(--line);
+  padding-top:16px}
 .foot code{font-family:var(--mono)}
 /* Cards below 870, table above - the same width at which the table stops
    needing to scroll sideways. Between the old 720 and 870 the table technically
    rendered but had to be dragged left and right, which is the worst of both:
    too cramped to read as a table, too wide to read as a card. */
 @media (max-width:869px){
-  .wrap{padding:14px 11px 48px}
+  .wrap{padding:18px 14px 52px}
   thead{display:none}
   table,tbody,tr,td{display:block;width:100%}
-  tr.row{padding:14px 15px 8px}
-  tr.fl td{padding:0 15px 14px}
+  /* No thead here — cards stack full-width and never need to scroll
+     sideways, so overflow-x:auto is pure liability: per the same quirk
+     noted above .scroll, it silently makes this box the sticky positioning
+     context too. The group label below is the only thing standing in for
+     a header on a phone, and stuck to THIS box's edge it never visibly
+     sticks to anything — it just scrolls past like every other row, which
+     is what "the header disappears" actually was. */
+  .scroll{overflow:visible}
+  tr.row{padding:18px 18px 10px 15px;border-left:4px solid var(--c,transparent)}
+  tr.fl{border-left:4px solid var(--c,transparent)}
+  tr.fl td{padding:0 18px 17px}
   tr.fl{border-bottom:1px solid var(--line)}
   tr.fl:last-child{border-bottom:none}
-  tr.grp td{border:none;padding:10px 13px 4px;display:block;text-align:left}
+  /* Sticks to the real viewport now, not a box with nowhere to scroll — so
+     scrolling through a long group keeps its name pinned at the very top,
+     the closest thing a card layout has to a persistent column header. */
+  tr.grp td{border:none;padding:10px 13px;display:block;text-align:left;
+    top:0;box-shadow:0 1px 0 var(--line)}
   tr.grp td:before{content:none}
-  td{border:none;padding:2px 0;text-align:right;display:flex;
-     justify-content:space-between;align-items:baseline;gap:12px;white-space:normal}
-  td:before{content:attr(data-l);font-size:13px;text-transform:uppercase;
+  td{border:none;padding:4px 0;text-align:right;display:flex;
+     justify-content:space-between;align-items:baseline;gap:14px;white-space:normal}
+  td:before{content:attr(data-l);font-size:15px;text-transform:uppercase;
      letter-spacing:.06em;color:var(--dim);text-align:left;flex:none}
-  td.tkcell{font-size:20px;margin-bottom:8px}
+  td.tkcell{font-size:32px;margin-bottom:12px}
   td.tkcell:before{content:none}
   .chips{justify-content:flex-start}
 }
@@ -2570,25 +2674,48 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     if not rows:
         H.append('<div class="drop">Nothing passed. Cash is a valid outcome.</div>')
     else:
+        tgt_exp = regime.get("target_expiry")
+        if tgt_exp:
+            # DTE was a column that printed the same number on almost every
+            # row — every name's own confirmation of a fact about the
+            # session, not about the name. Said once, above the table, it
+            # reads as what it is: today's target date. A name that landed
+            # on a different Friday still gets its own flag on its row
+            # (dteN) rather than silently agreeing with a header that no
+            # longer applies to it.
+            tgt_d = datetime.strptime(tgt_exp, "%Y-%m-%d").date()
+            tgt_dte = next((r["dte"] for r in rows if r["expiry"] == tgt_exp),
+                            None)
+            H.append(f'<p class="targetln">\U0001f3af Today’s target: '
+                     f'<b>{tgt_d.strftime("%a %d %b")}</b> '
+                     f'({tgt_dte} DTE) — {CREDIT_FLOOR*100:.0f}%W floor '
+                     f'is yours to enforce at the ticket.</p>')
         H.append('<div class="scroll"><table><thead><tr>')
+        # Spot, short, long and width are all one live read away from being
+        # wrong — the point of this table is which names cleared the gates,
+        # not a price to trust over your broker's own quote. So they collapse
+        # to a reference (spot rides quietly under the ticker; short/long/
+        # width sit behind one tap on Strikes) instead of five separate
+        # columns each asking to be read as precise. IV, HV and their ratio
+        # get the same treatment: most sessions the only thing worth reading
+        # at a glance is the bar, so the three numbers move behind one tap
+        # too instead of occupying three columns nobody but the curious reads.
         HEADS = [
             ("Ticker", "", ""),
             ("Δ", "Delta", "the short-leg delta this name is screened at — "
                            "roughly its chance of finishing in the money. "
                            "Hover a value to see the delta of the strike "
                            "actually listed."),
-            ("Spot", "", "last traded price"),
-            ("Short", "", "strike sold"),
-            ("Long", "", "strike bought, one width below"),
-            ("Width", "", "distance between the two strikes"),
+            ("Strikes", "", "short / long — tap for width and the spot it "
+                            "was priced off. Reference only; a live read can "
+                            "move these before you get to the ticket."),
             ("Target", "Target credit",
              f"{CREDIT_FLOOR*100:.0f}% of the width — the least this spread "
              "may be sold for. Aim at or above it when you price the ticket "
              "in IBKR."),
-            ("IV", "", "implied volatility: the move being priced in"),
-            ("HV", "", "realised volatility: the move actually delivered"),
-            ("IV/HV", "", "under 1.00 means it is priced for less than it moved"),
-            ("DTE", "", "days to expiry"),
+            ("IV/HV", "", "the bar: fill is implied volatility, the tick is "
+                          "realised — tap for both numbers. Tick past the "
+                          "fill means priced for less than it actually moved."),
         ]
         for h, full, tip in HEADS:
             t = f' title="{_esc(full + (" — " if full else "") + tip)}"' if tip else ""
@@ -2607,7 +2734,7 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
             # of the market, so the page states the correlation and stops.
             n = len(grp)
             dot = CLUSTER_COLOR.get(c, "#a8a29e")
-            H.append(f'<tr class="grp"><td colspan="11">'
+            H.append(f'<tr class="grp"><td colspan="{len(HEADS)}">'
                      f'<span class="dot" style="background:{dot}"></span>'
                      f'{_esc(c)} '
                      f'<span class="cnt">{n} name{"" if n == 1 else "s"}'
@@ -2687,22 +2814,56 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                 logo = (f'<img class="tklogo" src="{LOGOS[r["t"]]}" alt="" '
                         f'width="20" height="20">' if r["t"] in LOGOS
                         else _ticker_avatar(r["t"]))
+                # A ratio alone ("1.4") makes you do the division in your
+                # head to see how far IV has pulled from HV. The bar shows it:
+                # fill is IV against a fixed 70% reference, the tick is where
+                # HV actually landed. Tick left of the fill = HV under IV,
+                # the ordinary and wanted case; tick past the fill's end is
+                # the `inv` flag made visible.
+                iv_pct = min(100, (r["iv"] or 0) / 0.70 * 100)
+                hv_pct = min(100, (r["hv"] or 0) / 0.70 * 100) if r["hv"] else None
+                bar = (f'<span class="ivhvbar" aria-hidden="true">'
+                       f'<i style="width:{iv_pct:.0f}%"></i>'
+                       + (f'<b style="left:{hv_pct:.0f}%"></b>'
+                          if hv_pct is not None else '')
+                       + '</span>')
+                strikes_tip = (f"short {r['short']:.1f} / long {lg} — "
+                                f"${wd:.1f} wide, off a spot read of "
+                                f"{r['spot']:.2f}")
+                # Below $500 the $2.50/$5 strike spacing this guesses at is
+                # close to universal - a safe bet even without the real
+                # chain. Above it the guess gets shakier per dollar of
+                # price, and an LLY trade once rounded to a $60 width this
+                # way that the real chain didn't actually list. Say so here
+                # rather than let a coarse-tier name look as certain as a
+                # cheap one.
+                if r.get("width_inc", 0) >= 10:
+                    strikes_tip += (" — this price range is a guess at the "
+                                     "real spacing, not a chain pull. "
+                                     "Confirm the actual listed strikes "
+                                     "before pricing.")
+                ivhv_tip = (f"IV {r['iv']*100:.1f}% (priced-in move) vs HV "
+                            f"{hv} (actual recent move), {r['dte']} DTE")
                 cells = [
                     ("Ticker", f'{logo}<span class="tk">{_esc(r["t"])}</span>'
-                               f'{nb}', "tkcell"),
+                               f'{nb}<span class="spotln">{r["spot"]:.2f}</span>',
+                     "tkcell"),
                     ("Delta", f'<span class="chip bare" tabindex="0" '
                               f'data-tip="{_esc(dtip)}">{dcell}</span>', "num"),
-                    ("Spot", f"{r['spot']:.2f}", "num"),
-                    ("Short", f"{r['short']:.1f}", "num"),
-                    ("Long", lg, "num"),
-                    ("Width", f"{wd:.1f}", "num"),
+                    ("Strikes", f'<span class="chip bare" tabindex="0" '
+                                f'data-tip="{_esc(strikes_tip)}">'
+                                f'{r["short"]:.1f}/{lg}</span>', "num"),
                     ("Target credit", tg, "num tgt"),
-                    ("IV", f"{r['iv']*100:.1f}%", "num"),
-                    ("HV", hv, "num"),
-                    ("IV/HV", ivhv, "num"),
-                    ("DTE", str(r["dte"]), "num"),
+                    ("IV/HV", f'<span class="chip bare" tabindex="0" '
+                              f'data-tip="{_esc(ivhv_tip)}">{ivhv}{bar}'
+                              f'</span>', "num ivhv"),
                 ]
-                H.append('<tr class="row">')
+                # The cluster dot already carries the colour; a mobile card is
+                # far enough from its group header that the colour is worth
+                # repeating on the card itself, as a left edge, so the eye
+                # still knows what it's looking at after scrolling past the
+                # header.
+                H.append(f'<tr class="row" style="--c:{dot}">')
                 for label, val, cls in cells:
                     H.append(f'<td class="{cls}" data-l="{label}">{val}</td>')
                 H.append('</tr>')
@@ -2719,9 +2880,12 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         # read the one before it, said less between them than one card says
         # once: what a flag means, where the news lives, and what number the
         # ticket has to clear \u2014 in the order your eye actually meets them.
+        # Collapsed by default: a phone screen that opens straight into four
+        # paragraphs before the next real number is exactly the "wordy"
+        # complaint this page kept earning.
         red_flags_live = bool(used) and any(f in used for f in HOT_FLAGS)
-        H.append('<h2>Reading this table</h2>')
-        H.append('<div class="note"><dl class="legend icons">')
+        H.append('<details><summary>\U0001f4d6 Reading this table</summary>')
+        H.append('<dl class="legend icons">')
         H.append(f'<dt>\U0001f6a9</dt><dd>Hover a flag on desktop, or tap it '
                  f'on mobile, to see what it means.'
                  + (' <b>Red</b> flags need settling before acting \u2014 the '
@@ -2735,11 +2899,12 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                  f'spread may be sold for, and what to aim at when you price '
                  f'it live. This page does not quote options; it tells you '
                  f'the number to beat.</dd>')
-        H.append(f'<dt>\U0001f4c5</dt><dd>All expiries '
-                 f'{_esc(rows[0]["expiry"])}. The {CREDIT_FLOOR*100:.0f}%W '
-                 f'floor above is yours to enforce at the ticket.</dd>')
-        H.append('</dl></div>')
-
+        H.append('<dt>\U0001f4ca</dt><dd>The small bar is IV vs HV — '
+                 'tap it, or the strikes beside it, for the numbers behind '
+                 'the picture. A name on a different Friday than the target '
+                 'date above carries its own <b>DTE</b> flag rather than '
+                 'silently agreeing with it.</dd>')
+        H.append('</dl></details>')
         multi = [c for c in CLUSTER_ORDER
                  if len(by_c.get(c, [])) > 1 and c != "Unclustered"]
         if multi:
@@ -2797,7 +2962,7 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
             H.append(f'<div class="drop"><div class="k">{label}</div>'
                      f'<div class="v">{_esc(", ".join(dropped[k]))}</div></div>')
 
-    H.append('<h2>Sources</h2>')
+    H.append('<details><summary>\U0001f50e Sources &amp; glossary</summary>')
     a, b = regime.get("nq_span") or (None, None)
     cov = regime.get("nq_cover") or {}
     clr = regime.get("nq_clear") or {}
@@ -2820,30 +2985,22 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         bits.append(f"EARNINGS CONFLICT — {c}")
     H.append('<div class="drop"><div class="v">'
              + "<br>".join(_esc(x) for x in bits) + '</div></div>')
-    H.append('<p class="sub">\U0001f50e None of these is IR. Confirm at '
-             'source anything that binds.</p>')
-
-    H.append('<h2>Glossary</h2>')
-    H.append(
-        '<div class="note">'
-        '<div class="gloss">'
-        '<span><b>\u0394</b> target short-leg delta \u2014 roughly the odds '
-        'of finishing in the money</span>'
-        '<span><b>Short</b> strike sold</span>'
-        '<span><b>Width</b> distance to the strike bought</span>'
-        '<span><b>IV</b> priced-in move (per-strike, delayed)</span>'
-        '<span><b>HV</b> actual recent move</span>'
-        '</div>'
-        '<p class="sub" style="margin:10px 0 0">Bid/ask is context, not a '
-        'gate. Gates are hard vetoes, not quotas \u2014 cash is a valid '
-        'outcome.</p>'
-        '</div>')
+    H.append('<p class="sub" style="margin:6px 0 0">None of these is IR. '
+             'Confirm at source anything that binds.</p>')
+    H.append('<div class="gloss" style="margin-top:12px">'
+             '<span><b>\u0394</b> target short-leg delta \u2014 roughly the '
+             'odds of finishing in the money</span>'
+             '<span><b>Strikes</b> short/long sold and bought — reference '
+             'only, priced off one spot read that can be stale</span>'
+             '<span><b>IV</b> priced-in move (per-strike, delayed)</span>'
+             '<span><b>HV</b> actual recent move</span>'
+             '</div>'
+             '<p class="sub" style="margin:10px 0 0">Bid/ask is context, '
+             'not a gate. Gates are hard vetoes, not quotas \u2014 cash is '
+             'a valid outcome.</p></details>')
     if who:
-        H.append(f'<p class="sig">Built and maintained by <b>{_esc(who)}</b>. '
-                 f'The universe, the gates, the delta anchors and the '
-                 f'{CREDIT_FLOOR*100:.0f}% floor are {_esc(who)}\u2019s own '
-                 f'rules \u2014 not a standard, not a service, and not '
-                 f'financial advice.</p>')
+        H.append(f'<p class="sig">{_esc(who)}\u2019s rules \u2014 not a '
+                 f'standard, not a service, and not financial advice.</p>')
     else:
         H.append('<p class="sig">Not financial advice.</p>')
     if tail_js:
@@ -3356,6 +3513,47 @@ Producer Price Index for October 2026
                             earn_src=NullEarnings(), macro_src=StubMacro())
     chk("T+1 drop is reported under its own heading",
         any("NVDA" in x for x in drp["postearn"]), f"{drp['postearn']}")
+    print("EXPIRY MODE, NOT ROW 0 (2-1-12 DTE column removal)")
+    class DteMix:
+        """Two names share the normal weekly list; one is one Friday short,
+        forcing it onto a different expiry — the case a single shared
+        column silently couldn't show."""
+        def bars(self, t, days=150):
+            base, n = 200.0, 65
+            return {"closes": [round(base*(1+0.0025*(i-(n-1))), 2)
+                                for i in range(n)],
+                    "dates": [today - timedelta(days=(n-i)) for i in range(n)]}
+        def live_spot(self, t): return 200.0
+        def expiries(self, t):
+            if t == "ODD":
+                return [(today + timedelta(days=20)).isoformat()]
+            d = today
+            while d.weekday() != 4: d += timedelta(days=1)
+            return [(d + timedelta(days=7*k)).isoformat() for k in range(6)]
+        def put_chain(self, t, e):
+            return [{"strike": k, "iv": 0.40, "bid": 1.0, "ask": 1.05,
+                     "oi": 900} for k in range(150, 200, 5)]
+        def earnings(self, t):
+            return [("nasdaq", today + timedelta(days=55))]
+        def news(self, t, n=4): return []
+    mrows, mdrop, _, _, mregime = run(
+        DteMix(), today, do_news=False, tickers=["NVDA", "AMD", "ODD"],
+        us_today_override=today, earn_src=NullEarnings(), macro_src=StubMacro())
+    chk("all three survive to a row", len(mrows) == 3, f"{mdrop}")
+    majority = next(r["expiry"] for r in mrows if r["t"] == "NVDA")
+    odd = next(r for r in mrows if r["t"] == "ODD")
+    chk("the majority expiry, not row 0, becomes the target",
+        mregime.get("target_expiry") == majority)
+    chk("the minority row is flagged, the majority rows are not",
+        f"dte{odd['dte']}" in odd["notes"].split(",")
+        and not any(n.startswith("dte") for r in mrows if r["t"] != "ODD"
+                    for n in r["notes"].split(",")))
+    mhtml = render_html(mrows, mdrop, [], {}, mregime, today)
+    chk("the page states the target date once, above the table",
+        'class="targetln"' in mhtml)
+    chk("the outlier explains itself on hover",
+        "Confirm which Friday" in mhtml)
+
     print("HERMETIC FIXTURE (network tripwire)")
     import urllib.request as _u
     _real = _u.urlopen
@@ -3580,12 +3778,76 @@ Producer Price Index for October 2026
         or "Flags</h2>" not in html)
     chk("chips are reachable by keyboard too", 'tabindex="0"' in html)
     nth = html.count("</th>")      # one per header, unambiguous
-    chk("the numeric table is 11 columns, with flags on their own row",
-        nth == 11, f"{nth} headers")
+    chk("the table is 5 columns, with flags on their own row",
+        nth == 5, f"{nth} headers")
     chk("actual delta is no longer its own column",
         'data-l="Actual Δ"' not in html)
     chk("but it is still one hover away",
         "nearest listed strike is" in html)
+    chk("spot, short, long, width, IV, HV and DTE no longer get their own "
+        "columns",
+        not any(f'data-l="{lbl}"' in html
+                for lbl in ("Spot", "Short", "Long", "Width",
+                            "IV", "HV", "DTE")))
+    chk("spot rides quietly under the ticker instead",
+        'class="spotln"' in html
+        and all(f'{r["spot"]:.2f}' in html for r in rows))
+    chk("short/long/width are one tap away on Strikes, not gone",
+        'data-l="Strikes"' in html and "wide, off a spot read of" in html)
+    print("WIDTH GUESS IS FLAGGED WHERE IT'S SHAKIEST (the LLY $60 case)")
+    chk("round_width now names its own increment",
+        round_width(1255.40) == (1255.40 * WIDTH_PCT, 60.0, 20.0))
+
+    class PriceTierMix:
+        """LLY (~$1255, the real case that prompted this) beside a cheap,
+        ordinary name — one row per width-guess confidence tier."""
+        def bars(self, t, days=150):
+            base = 1255.40 if t == "LLY" else 120.0
+            n = 65
+            return {"closes": [round(base*(1+0.0025*(i-(n-1))), 2)
+                                for i in range(n)],
+                    "dates": [today - timedelta(days=(n-i)) for i in range(n)]}
+        def live_spot(self, t): return None
+        def expiries(self, t):
+            d = today
+            while d.weekday() != 4: d += timedelta(days=1)
+            return [(d + timedelta(days=7*k)).isoformat() for k in range(4)]
+        def put_chain(self, t, e):
+            spot = 1255.40 if t == "LLY" else 120.0
+            inc = 20.0 if t == "LLY" else 2.5
+            atm = round(spot/inc)*inc
+            return [{"strike": atm - k*inc, "iv": 0.40, "bid": 1.0,
+                     "ask": 1.05, "oi": 900} for k in range(-4, 15)]
+        def earnings(self, t):
+            return [("nasdaq", today + timedelta(days=55))]
+        def news(self, t, n=4): return []
+    trows, tdrop, _, _, _ = run(
+        PriceTierMix(), today, do_news=False, tickers=["LLY", "AAPL"],
+        us_today_override=today, earn_src=NullEarnings(), macro_src=StubMacro())
+    chk("both tiers actually survive to a row", len(trows) == 2, f"{tdrop}")
+    thtml = render_html(trows, tdrop, [], {}, {"vix": None, "stretch": None,
+                        "spx": None, "errors": [], "us_date": today, "tz": "ET"},
+                        today)
+
+    def tip_for(ticker, page):
+        idx = page.find(f'<span class="tk">{ticker}</span>')
+        chunk = page[idx:idx + 600] if idx != -1 else ""
+        m = re.search(r'data-tip="([^"]*wide, off a spot read of[^"]*)"',
+                       chunk)
+        return m.group(1) if m else ""
+
+    chk("the $1255 name gets the extra caution on hover",
+        "Confirm the actual listed strikes" in tip_for("LLY", thtml),
+        tip_for("LLY", thtml))
+    chk("the $120 name is not over-warned",
+        "Confirm the actual listed strikes" not in tip_for("AAPL", thtml),
+        tip_for("AAPL", thtml))
+    chk("IV/HV keeps its column, but the raw numbers move behind a tap",
+        'data-l="IV/HV"' in html and "priced-in move" in html
+        and 'class="ivhvbar"' in html)
+    chk("DTE is said once, above the table, not once per row",
+        'class="targetln"' in html and "DTE)" in html
+        and 'data-l="DTE"' not in html)
 
     print("UNATTENDED-RUN SAFETY")
     chk("a healthy run is not flagged as data loss",
@@ -3816,7 +4078,7 @@ Producer Price Index for October 2026
     # is not unique, so a global search says "present" for every row as soon as
     # one row has it.
     import re as _re
-    blocks = _re.findall(r'<tr class="row">(.*?)</tr>', html, _re.S)
+    blocks = _re.findall(r'<tr class="row"[^>]*>(.*?)</tr>', html, _re.S)
     chk("one row block per candidate", len(blocks) == len(rows),
         f"{len(blocks)} vs {len(rows)}")
     shown = 0
@@ -3841,6 +4103,13 @@ Producer Price Index for October 2026
     chk("the cluster label sticks under it too", "top:41px" in html)
     chk("the header is opaque, not see-through",
         "background:var(--panel);\n  border-bottom" in html)
+    chk("mobile has no sideways-scroll box left over to trap the sticky "
+        "group label",
+        ".scroll{overflow:visible}" in html.split(
+            "@media (max-width:869px){", 1)[-1])
+    chk("on mobile the group label sticks to the real top, not the "
+        "desktop header's offset",
+        "top:0;box-shadow:0 1px 0 var(--line)" in html)
 
     print("FLAGS DO NOT FALL OFF THE TABLE")
     chk("flags are a full-width row, not a fifteenth column",
@@ -3886,10 +4155,10 @@ Producer Price Index for October 2026
                for f in HOT_FLAGS))
 
     print("TYPOGRAPHY")
-    chk("base font is comfortable on a phone", "font:17px/1.62" in html)
-    chk("numeric cells stay legible", "font-size:15.5px" in html)
-    chk("headline text is not smaller than the table", "font-size:15.5px" in html)
-    chk("tap target on the button is finger-sized", "padding:14px 24px" in html)
+    chk("base font is bold and readable", "font:19px/1.65" in html)
+    chk("numeric cells are big, not squinted at", "font-size:23px" in html)
+    chk("headline text is not smaller than the table", "font-size:23px" in html)
+    chk("tap target on the button is finger-sized", "padding:18px 32px" in html)
 
     print("CONDOR GATE")
     R = lambda v, s: {"vix": v, "stretch": s, "spx": None, "errors": []}
