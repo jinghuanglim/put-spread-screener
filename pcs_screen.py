@@ -22,7 +22,7 @@ from datetime import datetime, date, timedelta
 # job the run number does for a single run but for the code across all of
 # them. Independent of the workflow doc's own 2-1-N numbering, which tracks
 # strategy/rule changes, not this file's.
-SCREEN_VERSION = "1.3"
+SCREEN_VERSION = "1.4"
 # ---------------------------------------------------------------- config
 UNIVERSE = ["AAPL","AMD","AMZN","ANET","AVGO","CRM","CRWD","DELL","GOOGL",
             "JNJ","JPM","META","MSFT","NFLX","NVDA","PANW","PLTR","TSLA",
@@ -1429,16 +1429,16 @@ def explain_notes(r, verbose=False):
             out.append(f"Blow-off run \u2014 {n[7:]} above 20-day avg. Vertical "
                        f"run, not trend. Never step \u0394 up.")
         elif n == "T+2":
-            out.append("T+2, earliest entry \u2014 reported 2d ago. Earliest "
-                       "entry you allow.")
+            out.append("T+2, earliest entry \u2014 reported 2d ago. The "
+                       "earliest entry allowed.")
         elif n.startswith("oi"):
-            out.append(f"Low open interest \u2014 {n[2:]} open vs your 500 "
-                       f"rule. Worse fills, harder to exit.")
+            out.append(f"Low open interest \u2014 {n[2:]} open vs the 500 "
+                       f"minimum. Worse fills, harder to exit.")
         elif n == "ba":
             mid = (r["ask"] + r["bid"]) / 2
             pct = ((r["ask"] - r["bid"]) / mid * 100) if mid else 0
-            out.append(f"Wide bid/ask \u2014 gap is {pct:.0f}% of price. You "
-                       f"pay it twice on a spread.")
+            out.append(f"Wide bid/ask \u2014 gap is {pct:.0f}% of price. "
+                       f"Paid twice on a spread.")
         elif n.startswith("cap") and n != "capped":
             out.append(f"Delta capped \u2014 nearest strike to {n[3:]}\u0394 is "
                        f"over the 0.20 hard cap, so this is the next one out. "
@@ -1454,7 +1454,7 @@ def explain_notes(r, verbose=False):
         elif n.startswith("dte"):
             out.append(f"Different expiry \u2014 this one cleared at "
                        f"{n[3:]} DTE, not the target date above. Confirm "
-                       f"which Friday you're pricing before entering.")
+                       f"which Friday before entering.")
         else:
             out.append(n)
     return out
@@ -1509,9 +1509,9 @@ FLAG_LEGEND = [
               "live. No further"),
     ("capN",  "nearest strike to N\u0394 breached the 0.20 hard cap — stepped out, less credit"),
     ("blowoffN", "N% above SMA20 — vertical run, not trend. Never step \u0394 up"),
-    ("T+2",   "reported 2 days ago — the earliest entry you allow"),
-    ("oiN",   "N open interest vs your 500 rule — worse fills, harder to exit"),
-    ("ba",    "bid/ask spread over 10% of mid — you pay it twice on a spread"),
+    ("T+2",   "reported 2 days ago — the earliest entry allowed"),
+    ("oiN",   "N open interest vs the 500 minimum — worse fills, harder to exit"),
+    ("ba",    "bid/ask spread over 10% of mid — paid twice on a spread"),
     ("noq",   "no bid/ask posted — the price shown is not tradeable"),
     ("dteN",  "expiry differs from the target date above — confirm which "
               "Friday before pricing"),
@@ -1992,10 +1992,16 @@ body{margin:0;color:var(--ink);
 .chip.bare{background:none;border:none;padding:0;font-size:inherit;
   font-family:inherit;color:inherit}
 /* cursor:help is invisible on a touchscreen - this is the same signal
-   that works with a finger, a mouse, or a screen reader's own cursor. */
-.infoicon{display:inline-block;margin-left:5px;font-size:.72em;
-  color:var(--accent);vertical-align:.1em}
-.chip.hot .infoicon{color:var(--alarm)}
+   that works with a finger, a mouse, or a screen reader's own cursor. A
+   bare unicode ⓘ rendered thin and near-invisible on some phone fonts -
+   this draws its own solid badge instead of trusting a glyph nobody
+   agreed on the weight of. */
+.infoicon{display:inline-flex;align-items:center;justify-content:center;
+  width:20px;height:20px;margin-left:7px;border-radius:50%;
+  background:var(--accent);color:var(--btnink);font-size:13px;
+  font-weight:900;font-style:italic;font-family:Georgia,"Times New Roman",
+  serif;line-height:1;vertical-align:-5px;flex:none}
+.chip.hot .infoicon{background:var(--alarm)}
 .drift{color:var(--dim);font-size:.86em}
 .chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #tip{position:fixed;z-index:99;max-width:min(340px,calc(100vw - 24px));
@@ -2015,6 +2021,9 @@ h1{font-size:clamp(34px,6vw,52px);margin:0 0 4px;letter-spacing:-.03em;
 @media (forced-colors:active){h1{background:none;color:CanvasText}}
 h2{font-size:15px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);
   margin:40px 0 13px;font-weight:700}
+.hcnt{display:inline-block;background:var(--accent);color:var(--btnink);
+  font-size:13px;font-weight:800;letter-spacing:0;text-transform:none;
+  padding:2px 10px;border-radius:99px;margin-left:8px;vertical-align:2px}
 .sub{color:var(--dim);font-size:17px;margin-bottom:22px}
 .targetln{background:linear-gradient(100deg,color-mix(in srgb,var(--accent) 16%,
     transparent),transparent 60%);border:1px solid var(--line);
@@ -2033,7 +2042,13 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);
 @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.stat{animation:none}}
 .stat.now{position:relative;overflow:hidden}
-.stat.now:before{content:"";position:absolute;inset:0;
+/* pointer-events:none matters here, not just tidiness: an absolutely
+   positioned pseudo-element paints ABOVE normal in-flow content regardless
+   of DOM order, so this decorative glow was silently sitting in front of
+   the real tile content for hit-testing purposes even though the gradient
+   looks like it sits behind it. That is exactly why only this tile's info
+   icon failed to open on tap - it was the only tile carrying one of these. */
+.stat.now:before{content:"";position:absolute;inset:0;pointer-events:none;
   background:radial-gradient(160px 80px at 0% 0%,var(--glow),transparent 70%)}
 .stat .k{font-size:13.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)}
 .stat .v{font-size:34px;font-variant-numeric:tabular-nums;margin-top:5px;
@@ -2521,8 +2536,8 @@ def _tile_label(label, tip):
     on a phone with no mouse, so there was no visible sign this text did
     anything at all — the small circled i is that sign, on every input."""
     return (f'<span class="chip bare" tabindex="0" data-tip="{_esc(tip)}">'
-            f'{_esc(label)}<span class="infoicon" aria-hidden="true">'
-            f'ⓘ</span></span>')
+            f'{_esc(label)}<span class="infoicon" aria-hidden="true">i'
+            f'</span></span>')
 
 
 HOT_FLAGS = ("knife", "noq", "stale")
@@ -2581,8 +2596,6 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
              f'&middot; {_esc(feed_label)}</p>')
 
     vix = f"{regime['vix']:.2f}" if regime["vix"] is not None else "unread"
-    stv = (f"{regime['stretch']*100:+.2f}%" if regime["stretch"] is not None
-           else "unread")
     tail_js = ""
     if repo:
         wf = regime.get("workflow_file", "screen.yml")
@@ -2635,33 +2648,28 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                  f'{_tile_label("Last run", last_run_tip)}</div>'
                  f'<div class="v"><span id="built" data-utc="{_esc(built)}">'
                  f'{_esc(built[11:16])} UTC</span></div></div>')
-    STAT_TIPS = {
-        "VIX": (f"CBOE Volatility Index. The condor overlay below needs "
-                f"this at {CONDOR_VIX_MIN:.0f} or above — under it, low "
-                f"volatility means the premium isn't worth the risk."),
-        "SPX vs 20-MA": ("The S&P 500's distance from its own 20-day "
-                         "average — how stretched the broad market is, not "
-                         "this screen's own tickers. The condor overlay "
-                         f"wants it between {CONDOR_STRETCH[0]*100:+.0f}% "
-                         f"and {CONDOR_STRETCH[1]*100:+.0f}%."),
-        "Candidates": ("How many names cleared Gates 1 and 2 today. Gate 3 "
-                       "news is still yours to check per name below."),
-    }
-    for k, v in (("VIX", vix), ("SPX vs 20-MA", stv),
-                 ("Candidates", str(len(rows)))):
-        H.append(f'<div class="stat"><div class="k">'
-                 f'{_tile_label(k, STAT_TIPS[k])}</div>'
-                 f'<div class="v">{_esc(v)}</div></div>')
+    # VIX explained on its own terms — what it is, not what this screen
+    # does with it. SPX vs 20-MA and the raw candidate count were cut: the
+    # first rarely changed anyone's read of the table, and the second is
+    # more useful right where the table itself is introduced, below.
+    vix_tip = ("CBOE Volatility Index — the market's own pricing of how "
+               "much the S&P 500 is expected to move over the next 30 "
+               "days. Higher means more fear priced in; lower means "
+               "calmer conditions.")
+    H.append(f'<div class="stat"><div class="k">'
+             f'{_tile_label("VIX", vix_tip)}</div>'
+             f'<div class="v">{_esc(vix)}</div></div>')
     # GO/NO-GO is the one number on this row that a glance should be able to
     # answer; everything else here rewards reading, this one rewards not
     # having to.
-    condor_tip = ("The optional call-overlay sold against a put spread "
-                  "already on the book — a separate structure, not a "
-                  f"screened candidate. GO needs VIX ≥{CONDOR_VIX_MIN:.0f}, "
-                  f"SPX stretch {CONDOR_STRETCH[0]*100:+.0f}% to "
-                  f"{CONDOR_STRETCH[1]*100:+.0f}% vs its 20-MA, and no "
-                  "binary macro event in the window — confirmed by you, "
-                  "not this page.")
+    condor_tip = ("An iron condor overlay: a call spread sold on top of "
+                  "an existing put spread position, for extra premium. It "
+                  "only turns on when conditions line up — "
+                  f"VIX at {CONDOR_VIX_MIN:.0f} or above, the S&P 500 "
+                  f"within {CONDOR_STRETCH[0]*100:+.0f}% to "
+                  f"{CONDOR_STRETCH[1]*100:+.0f}% of its own 20-day "
+                  "average, and no major scheduled macro event nearby — "
+                  "that last part checked by a person, not this page.")
     H.append(f'<div class="stat"><div class="k">'
              f'{_tile_label("Condor", condor_tip)}</div>'
              f'<div class="v"><span class="pill {"go" if go else "nogo"}">'
@@ -2735,7 +2743,8 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         '</details>')
 
     # ------------------------------------------------ table
-    H.append('<h2>Candidates — gates 1–2 passed</h2>')
+    H.append(f'<h2>Candidates — gates 1–2 passed '
+             f'<span class="hcnt">{len(rows)}</span></h2>')
     if not rows:
         H.append('<div class="drop">Nothing passed. Cash is a valid outcome.</div>')
     else:
@@ -2744,9 +2753,10 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         # text. Said once, plainly, above the table, rather than left to be
         # discovered by accident or not at all.
         H.append('<p class="sub" style="margin:-4px 0 16px">'
-                 '<span class="infoicon" style="margin-left:0;font-size:1em" '
-                 'aria-hidden="true">ⓘ</span> Anything marked like that can '
-                 'be tapped (or hovered on desktop) for what it means.</p>')
+                 '<span class="infoicon" style="margin-left:0;vertical-align:'
+                 '-5px" aria-hidden="true">i</span> Anything marked like '
+                 'that can be tapped (or hovered on desktop) for what it '
+                 'means.</p>')
         tgt_exp = regime.get("target_expiry")
         if tgt_exp:
             # DTE was a column that printed the same number on almost every
@@ -2828,7 +2838,7 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                     f'tabindex="0" '
                     f'data-tip="{_esc(tips[i] if i < len(tips) else f)}">'
                     f'{_esc(_flag_label(f))}'
-                    f'<span class="infoicon" aria-hidden="true">ⓘ</span>'
+                    f'<span class="infoicon" aria-hidden="true">i</span>'
                     f'</span>' for i, f in enumerate(flags))
                 ivhv = f"{r['ivhv']:.2f}" if r["ivhv"] else "n/a"
                 hv = f"{r['hv']*100:.1f}%" if r["hv"] else "n/a"
@@ -3506,7 +3516,7 @@ Producer Price Index for October 2026
     chk("blow-off explanation forbids a delta step-up", "Never step" in ex[0])
     chk("T+1 is no longer a flag", "T+1" not in str(explain_notes({"notes": "T+2"})))
     ex = explain_notes({"notes": "T+2"})
-    chk("T+2 named as the earliest allowed entry", "Earliest entry" in ex[0])
+    chk("T+2 named as the earliest allowed entry", "earliest entry" in ex[0])
     chk("postearn drop bucket exists", "postearn" in dropped)
     ed = today + timedelta(days=20)
     b, _, _, _, _ = gate2_earnings([("nasdaq", today)], today, ed)
@@ -3885,7 +3895,7 @@ Producer Price Index for October 2026
     chk("chips are reachable by keyboard too", 'tabindex="0"' in html)
     chk("every flag chip carries a visible info icon, not just a help "
         "cursor a touchscreen can't show",
-        html.count('<span class="infoicon" aria-hidden="true">ⓘ</span>')
+        html.count('<span class="infoicon" aria-hidden="true">i</span>')
         >= sum(len([x for x in r["notes"].split(",") if x]) for r in rows))
     chk("the table states plainly, once, that tapped things explain "
         "themselves — not left to be found by accident",
@@ -4034,22 +4044,39 @@ Producer Price Index for October 2026
     tile_html = render_html(rows, dropped, conflicts, news,
                             dict(regime, built_utc="2026-08-24T13:32:00Z"),
                             today)
-    for label in ("Last run", "VIX", "SPX vs 20-MA", "Candidates", "Condor"):
+    for label in ("Last run", "VIX", "Condor"):
         chk(f'"{label}" tile has a tooltip, not just a bare label',
             re.search(rf'data-tip="[^"]*">{re.escape(label)}'
                       rf'<span class="infoicon"', tile_html) is not None,
             f"missing near {label!r}")
+    chk("SPX vs 20-MA and the raw Candidates count were cut - not useful "
+        "as standalone tiles",
+        'class="k">SPX' not in tile_html
+        and re.search(r'class="k">\s*<span class="chip bare"[^>]*>'
+                      r'Candidates', tile_html) is None)
     chk("the tile's info icon is visible without needing a mouse to hover",
-        tile_html.count('<span class="infoicon" aria-hidden="true">ⓘ</span>')
-        >= 5)
-    chk("the Condor tip states its own actual thresholds",
-        f"VIX ≥{CONDOR_VIX_MIN:.0f}" in html
+        tile_html.count('<span class="infoicon" aria-hidden="true">i</span>')
+        >= 3)
+    vix_tip_match = re.search(r'data-tip="([^"]*)">VIX<span class="infoicon"',
+                              html)
+    chk("the VIX tip explains VIX on its own terms, not via the condor gate",
+        vix_tip_match is not None
+        and "market" in vix_tip_match.group(1).lower()
+        and "condor" not in vix_tip_match.group(1).lower())
+    chk("the Condor tip explains what it is generically, and what "
+        "activates it",
+        "iron condor overlay" in html
+        and f"VIX at {CONDOR_VIX_MIN:.0f} or above" in html
         and f"{CONDOR_STRETCH[0]*100:+.0f}%" in html
         and f"{CONDOR_STRETCH[1]*100:+.0f}%" in html)
-    chk("the Condor tip says it's confirmed by a human, not the page",
-        "confirmed by you, not this page" in html)
+    chk("the Condor tip still notes the macro check is manual, phrased "
+        "generically rather than addressing the reader directly",
+        "checked by a person, not this page" in html)
     chk("tile labels use the same tooltip machinery as the table chips",
-        html.count('class="chip bare" tabindex="0" data-tip="') >= 5)
+        html.count('class="chip bare" tabindex="0" data-tip="') >= 3)
+    chk("the candidate count moved to the table heading instead",
+        re.search(r'<h2>Candidates — gates 1–2 passed <span class="hcnt">'
+                  rf'{len(rows)}</span></h2>', html) is not None)
 
     print("THE PAGE IDENTIFIES ITSELF")
     chk("the version badge replaces the old 'X's rules' wording",
