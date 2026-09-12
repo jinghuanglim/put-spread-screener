@@ -323,7 +323,7 @@ dl.legend.icons dt{font-family:inherit;font-size:22px;line-height:1.5}
 </style></head><body><div class="wrap">
 <div class="brandrow">
 <h1>Put credit spread screen</h1>
-<span class="by">v1.1</span>
+<span class="by">v1.2</span>
 </div>
 <p class="sub" style="margin:2px 0 10px">Rules created by JH — not financial advice.</p>
 <p class="sub">Market date 2026-09-12 (US/Eastern) &middot; <span id="ustime"></span> &middot; prices are live (yfinance, ~15–20 min delayed)</p>
@@ -333,7 +333,7 @@ dl.legend.icons dt{font-family:inherit;font-size:22px;line-height:1.5}
 <div class="bar" id="bar"><div></div></div>
 <div class="fresh" id="fresh"></div>
 <div class="grid">
-<div class="stat now"><div class="k"><span class="chip bare" tabindex="0" data-tip="When this page was last generated. Everything below is only as fresh as this timestamp.">Last run</span></div><div class="v"><span id="built" data-utc="2026-09-12T14:07:20Z">14:07 UTC</span></div></div>
+<div class="stat now"><div class="k"><span class="chip bare" tabindex="0" data-tip="When this page was last generated. Everything below is only as fresh as this timestamp.">Last run</span></div><div class="v"><span id="built" data-utc="2026-09-12T14:18:17Z">14:18 UTC</span></div></div>
 <div class="stat"><div class="k"><span class="chip bare" tabindex="0" data-tip="CBOE Volatility Index. The condor overlay below needs this at 20 or above — under it, low volatility means the premium isn't worth the risk.">VIX</span></div><div class="v">15.84</div></div>
 <div class="stat"><div class="k"><span class="chip bare" tabindex="0" data-tip="The S&amp;P 500's distance from its own 20-day average — how stretched the broad market is, not this screen's own tickers. The condor overlay wants it between -2% and +3%.">SPX vs 20-MA</span></div><div class="v">-0.37%</div></div>
 <div class="stat"><div class="k"><span class="chip bare" tabindex="0" data-tip="How many names cleared Gates 1 and 2 today. Gate 3 news is still yours to check per name below.">Candidates</span></div><div class="v">9</div></div>
@@ -461,6 +461,12 @@ function initRun(cfg){
       fresh=document.getElementById('fresh'),bar=document.getElementById('bar');
   var timer=null,cool=null,idler=null,waiting=0,mine=false,began=0,watching=false;
   var here=parseInt(cfg.runNumber||'0',10);
+  // A named constant, not an inline literal split across source lines -
+  // JS has no implicit adjacent-string concatenation the way Python does,
+  // and a wrapped literal here once shipped as two bare strings with
+  // nothing joining them: a silent syntax error that killed this entire
+  // script, button included, for however many runs it took to notice.
+  var WATCH_MSG='Someone else already clicked Run ⏳ Hang tight a few minutes, then refresh';
 
   function say(h){stat.innerHTML=h;}
   function stop(){if(timer){clearInterval(timer);timer=null;}}
@@ -474,9 +480,7 @@ function initRun(cfg){
     // by the 409 below. Showing an elapsed count timed from THIS click
     // would understate a run that has actually been going for minutes;
     // saying so plainly is more honest than a wrong number.
-    say(began?Math.round((Date.now()-began)/1000)+'s'
-        :(watching?'Beat you to it! ⏳ Hang tight a few minutes, '
-                   'then refresh':''));
+    say(began?Math.round((Date.now()-began)/1000)+'s':(watching?WATCH_MSG:''));
   }
   function idle(){
     if(go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
@@ -693,5 +697,5 @@ function initRun(cfg){
   window.addEventListener('resize',function(){
     pinned=null;tipEl.classList.remove('show');});
 }
-</script><script>initRun({runNumber:"60",builtUtc:"2026-09-12T14:07:20Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
+</script><script>initRun({runNumber:"61",builtUtc:"2026-09-12T14:18:17Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
 </div></body></html>
