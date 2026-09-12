@@ -323,8 +323,9 @@ dl.legend.icons dt{font-family:inherit;font-size:22px;line-height:1.5}
 </style></head><body><div class="wrap">
 <div class="brandrow">
 <h1>Put credit spread screen</h1>
-<span class="by">JH’s rules</span>
+<span class="by">v1.1</span>
 </div>
+<p class="sub" style="margin:2px 0 10px">Rules created by JH — not financial advice.</p>
 <p class="sub">Market date 2026-09-12 (US/Eastern) &middot; <span id="ustime"></span> &middot; prices are live (yfinance, ~15–20 min delayed)</p>
 <div class="runbar">
 <button class="btn" id="go">Run screen</button>
@@ -332,11 +333,11 @@ dl.legend.icons dt{font-family:inherit;font-size:22px;line-height:1.5}
 <div class="bar" id="bar"><div></div></div>
 <div class="fresh" id="fresh"></div>
 <div class="grid">
-<div class="stat now"><div class="k">Last run</div><div class="v"><span id="built" data-utc="2026-09-12T13:58:25Z">13:58 UTC</span></div></div>
-<div class="stat"><div class="k">VIX</div><div class="v">15.84</div></div>
-<div class="stat"><div class="k">SPX vs 20-MA</div><div class="v">-0.37%</div></div>
-<div class="stat"><div class="k">Candidates</div><div class="v">9</div></div>
-<div class="stat"><div class="k">Condor</div><div class="v"><span class="pill nogo">NO-GO</span></div></div>
+<div class="stat now"><div class="k"><span class="chip bare" tabindex="0" data-tip="When this page was last generated. Everything below is only as fresh as this timestamp.">Last run</span></div><div class="v"><span id="built" data-utc="2026-09-12T14:07:20Z">14:07 UTC</span></div></div>
+<div class="stat"><div class="k"><span class="chip bare" tabindex="0" data-tip="CBOE Volatility Index. The condor overlay below needs this at 20 or above — under it, low volatility means the premium isn't worth the risk.">VIX</span></div><div class="v">15.84</div></div>
+<div class="stat"><div class="k"><span class="chip bare" tabindex="0" data-tip="The S&amp;P 500's distance from its own 20-day average — how stretched the broad market is, not this screen's own tickers. The condor overlay wants it between -2% and +3%.">SPX vs 20-MA</span></div><div class="v">-0.37%</div></div>
+<div class="stat"><div class="k"><span class="chip bare" tabindex="0" data-tip="How many names cleared Gates 1 and 2 today. Gate 3 news is still yours to check per name below.">Candidates</span></div><div class="v">9</div></div>
+<div class="stat"><div class="k"><span class="chip bare" tabindex="0" data-tip="The optional call-overlay sold against a put spread already on the book — a separate structure, not a screened candidate. GO needs VIX ≥20, SPX stretch -2% to +3% vs its 20-MA, and no binary macro event in the window — confirmed by you, not this page.">Condor</span></div><div class="v"><span class="pill nogo">NO-GO</span></div></div>
 </div>
 <div class="banner alarm"><b class="t">Macro in the expiry window &middot; 2026-10-02</b><ul class="macro"><li><b>NFP</b> &middot; Fri 02 Oct &middot; <b>expiry day</b></li></ul>NFP prints at 8:30am on the day these settle — hours before, with every position moving on the same number.</div>
 <h2>What the screen does</h2>
@@ -474,7 +475,8 @@ function initRun(cfg){
     // would understate a run that has actually been going for minutes;
     // saying so plainly is more honest than a wrong number.
     say(began?Math.round((Date.now()-began)/1000)+'s'
-        :(watching?'Already running — watching for it to finish':''));
+        :(watching?'Beat you to it! ⏳ Hang tight a few minutes, '
+                   'then refresh':''));
   }
   function idle(){
     if(go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
@@ -691,5 +693,5 @@ function initRun(cfg){
   window.addEventListener('resize',function(){
     pinned=null;tipEl.classList.remove('show');});
 }
-</script><script>initRun({runNumber:"59",builtUtc:"2026-09-12T13:58:25Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
+</script><script>initRun({runNumber:"60",builtUtc:"2026-09-12T14:07:20Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
 </div></body></html>
