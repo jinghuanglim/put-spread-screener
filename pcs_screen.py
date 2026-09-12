@@ -22,21 +22,22 @@ from datetime import datetime, date, timedelta
 # job the run number does for a single run but for the code across all of
 # them. Independent of the workflow doc's own 2-1-N numbering, which tracks
 # strategy/rule changes, not this file's.
-SCREEN_VERSION = "1.4"
+SCREEN_VERSION = "1.6"
 # ---------------------------------------------------------------- config
 UNIVERSE = ["AAPL","AMD","AMZN","ANET","AVGO","CRM","CRWD","DELL","GOOGL",
             "JNJ","JPM","META","MSFT","NFLX","NVDA","PANW","PLTR","TSLA",
             "TSM","V"]
 CLUSTERS = {
-    # ANET stays unclustered despite tracking the semis at 0.62/0.48/0.46 over
-    # 60/120/250 sessions (measured 23 Aug 2026) — recorded in CROSS_CLUSTER
-    # below, where the cap structure cannot see it but a reader can.
+    # ANET filed under semis, not its own networking label: it tracked the
+    # group at 0.62/0.48/0.46 over 60/120/250 sessions (measured 23 Aug
+    # 2026), well above its own 0.57 correlation to SPY — closer to a semi
+    # than to a name on its own.
     #
     # NFLX stays unclustered on measured evidence: its best match is Mega-cap
     # platform at 0.22 / 0.18 / 0.15 over 60 / 120 / 250 sessions, barely above
     # its correlation to the market itself. Genuinely idiosyncratic, so a
     # cluster would be a label rather than a fact.
-    "Semis & hardware":     ["NVDA","AMD","AVGO","TSM","DELL"],
+    "Semis & hardware":     ["NVDA","AMD","AVGO","TSM","DELL","ANET"],
     "Security":             ["CRWD","PANW"],
     "Mega-cap platform":    ["AAPL","MSFT","GOOGL","AMZN","META"],
     "Software":             ["CRM"],
@@ -65,15 +66,12 @@ CLUSTER_COLOR = {
 # them. A cluster line is a statement about the names inside it; it says nothing
 # about two names in different clusters that happen to move together, and the
 # per-name cap will not catch that either. Measured, dated, and stated as a
-# number so it can be re-measured rather than believed.
-CROSS_CLUSTER = [
-    (("ANET",), ("NVDA", "AMD", "AVGO", "TSM"), 0.62,
-     "ANET is deliberately unclustered but tracked the semis at "
-     "0.62 / 0.48 / 0.46 over the last 60 / 120 / 250 sessions (measured "
-     "23 Aug 2026) \u2014 above its own 0.57 correlation to SPY at 60 sessions. "
-     "Holding it alongside a semi is closer to two of the same bet than "
-     "the cluster lines suggest."),
-]
+# number so it can be re-measured rather than believed. Empty for now \u2014 ANET,
+# the one name this ever fired for, moved into Semis & hardware directly
+# instead once its correlation there was this clear; kept as a mechanism for
+# whichever name is next to sit between two clusters without belonging in
+# either.
+CROSS_CLUSTER = []
 
 
 def cross_cluster_hits(tickers):
@@ -2070,10 +2068,6 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);
 .banner.alarm{background:var(--alarmbg);border-color:var(--alarm);color:var(--ink)}
 .banner b.t{display:block;margin-bottom:2px}
 .banner b{display:inline}
-.banner ul.macro{margin:8px 0 10px;padding:0;list-style:none}
-.banner ul.macro li{padding:6px 0;border-bottom:1px solid rgba(128,128,128,.22);
-  font-variant-numeric:tabular-nums}
-.banner ul.macro li:last-child{border-bottom:none}
 .link{display:flex;align-items:center;gap:12px;margin:12px 0 8px}
 .link .chip{display:inline-flex;align-items:center;gap:7px;font-weight:600;
   font-size:16px;white-space:nowrap;flex:none}
@@ -2100,19 +2094,20 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);
   .scroll{overflow:visible}
 }
 table{border-collapse:collapse;width:100%;font-size:18px}
-th,td{padding:11px 13px;text-align:right;white-space:nowrap;
+th,td{padding:14px 13px;text-align:right;white-space:nowrap;
   border-bottom:1px solid var(--line)}
-/* The data is the point of this page; the header row is just a label for
-   it and stays small on purpose (it's load-bearing for the sticky "tr.grp
-   top:41px" math below — grow it and the group label stops lining up under
-   it). Everything a viewer actually reads gets to be as big as it wants. */
+/* The data is the point of this page, so it gets to be as big as it
+   wants — but the header row grew too, and it's load-bearing for the
+   sticky "tr.grp top:48px" math below: change this font-size or padding
+   and that offset needs to move with it, or the group label stops
+   lining up under the header. */
 td{padding:22px 18px;font-size:23px}
-th{font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);
-  font-weight:600;position:sticky;top:0;z-index:5;background:var(--panel);
+th{font-size:16px;text-transform:uppercase;letter-spacing:.04em;color:var(--dim);
+  font-weight:700;position:sticky;top:0;z-index:5;background:var(--panel);
   border-bottom:1px solid var(--line);box-shadow:0 1px 0 var(--line)}
 /* The cluster label sticks under the header, so a long list never leaves you
    wondering which group the row you are looking at belongs to. */
-tr.grp td{position:sticky;top:41px;z-index:4}
+tr.grp td{position:sticky;top:48px;z-index:4}
 th:first-child,td:first-child{text-align:left}
 td.num{font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:23px}
 td.tgt{color:var(--accent);font-weight:700}
@@ -2130,7 +2125,7 @@ tr.grp td{background:var(--chip);font-size:14px;text-transform:uppercase;
 tr.grp td .cnt{color:var(--dim);font-weight:400;margin-left:8px;
   text-transform:none;letter-spacing:0}
 tr:last-child td{border-bottom:none}
-.tk{font-weight:800}
+.tk{font-weight:400}
 .spotln{display:block;font-size:15px;color:var(--dim);font-family:var(--mono);
   font-weight:400;margin-top:3px}
 .tklogo{width:36px;height:36px;vertical-align:middle;margin-right:13px;
@@ -2396,10 +2391,29 @@ function initRun(cfg){
   // "is it open right now" without making anyone do the UTC-to-ET math
   // themselves. Intl carries the IANA rules already, so no tz data ships.
   var usClock=document.getElementById('ustime');
+  var mktState=document.getElementById('mktstate');
   if(usClock){
     var fmt=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',
-      hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
-    var tick=function(){usClock.textContent=fmt.format(new Date())+' ET';};
+      hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,
+      weekday:'short'});
+    // Regular session only, no holiday calendar - a real holiday shows as a
+    // false "open" here, which is why this is a glance-level indicator next
+    // to the clock it is computed from, not a claim this page verifies
+    // against anything. The clock itself is exact; this is a plain reading
+    // of it against 9:30-16:00 ET on a weekday.
+    var tick=function(){
+      var now=new Date();
+      var parts={};
+      fmt.formatToParts(now).forEach(function(p){parts[p.type]=p.value;});
+      usClock.textContent=parts.hour+':'+parts.minute+':'+parts.second+' ET';
+      if(mktState){
+        var mins=(+parts.hour)*60+(+parts.minute);
+        var isWeekday=['Sat','Sun'].indexOf(parts.weekday)===-1;
+        var isOpen=isWeekday&&mins>=570&&mins<960;   // 9:30-16:00 ET
+        mktState.textContent=isOpen?'Market open':'Market closed';
+        mktState.className='pill '+(isOpen?'go':'nogo');
+      }
+    };
     tick();setInterval(tick,1000);
   }
 
@@ -2590,7 +2604,8 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     # A ticking clock needs JS, so it only appears on a page that ships JS at
     # all (see "a page with no repo configured ships no behaviour" below) -
     # a frozen clock reading the build time forever would be worse than none.
-    clock = ' &middot; <span id="ustime"></span>' if repo else ''
+    clock = (' &middot; <span id="ustime"></span> '
+             '<span id="mktstate" class="pill"></span>') if repo else ''
     H.append(f'<p class="sub">Market date '
              f'{_esc(regime.get("us_date","?"))} (US/Eastern){clock} '
              f'&middot; {_esc(feed_label)}</p>')
@@ -2680,32 +2695,41 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     near = regime.get("macro_near_expiry") or []
     exp_s = regime.get("macro_expiry")
     if exp_s and near:
-        # One banner, not two. The old pair both derived from this same list
-        # and neither said what was in it: "two or more events" is the count
-        # without the events, which is the half you cannot act on.
+        # Was a title plus a bulleted list plus two paragraphs of prose for
+        # what is, most nights, one or two dates. A chip per event carries
+        # the same date/offset at a glance; the two things worth full
+        # sentences (the same-day settlement risk, the density rule) move
+        # behind a tap on the chip that actually triggers them, and a one-
+        # line note when the density rule fires \u2014 reusing the exact chip
+        # and tooltip machinery already built for flags, rather than a
+        # bespoke banner layout nobody would recognise as related.
         ed = datetime.strptime(exp_s, "%Y-%m-%d").date()
         onday = [l for d, l in near if d == ed]
-        items = []
+        chips = []
         for d, lbl in sorted(near):
             off = (d - ed).days
-            when = ("<b>expiry day</b>" if off == 0 else
+            when = ("expiry day" if off == 0 else
                     f"{abs(off)} day{'' if abs(off) == 1 else 's'} "
                     f"{'before' if off < 0 else 'after'} expiry")
-            items.append(f'<li><b>{_esc(lbl)}</b> &middot; '
-                         f'{d.strftime("%a %d %b")} &middot; {when}</li>')
-        why = []
-        if onday:
-            why.append(f'{_esc(", ".join(onday))} prints at 8:30am on the day '
-                       f'these settle \u2014 hours before, with every position '
-                       f'moving on the same number.')
+            tip = f"{lbl} on {d.strftime('%a %d %b')}, {when}."
+            if off == 0:
+                tip += (f" {lbl} prints at 8:30am on the day these settle "
+                        f"\u2014 hours before, with every position moving on "
+                        f"the same number.")
+            chips.append(
+                f'<span class="chip{" hot" if off == 0 else ""}" '
+                f'tabindex="0" data-tip="{_esc(tip)}">{_esc(lbl)} \u00b7 '
+                f'{d.strftime("%a %d %b")} \u00b7 {when}'
+                f'<span class="infoicon" aria-hidden="true">i</span></span>')
+        density = ""
         if len(near) >= 2:
-            why.append(f'{len(near)} events inside {MACRO_WINDOW_DAYS} days of '
-                       f'expiry, so the macro-density rule applies: '
-                       f'<b>halve the tranche</b>.')
+            density = (f'<p class="sub" style="margin:10px 0 0">'
+                       f'{len(near)} events inside {MACRO_WINDOW_DAYS} days '
+                       f'of expiry \u2014 halve the tranche.</p>')
         H.append(f'<div class="banner {"alarm" if onday else "warn"}">'
-                 f'<b class="t">Macro in the expiry window &middot; {_esc(exp_s)}</b>'
-                 f'<ul class="macro">{"".join(items)}</ul>'
-                 f'{" ".join(why)}</div>')
+                 f'<b class="t">Macro near expiry &middot; {_esc(exp_s)}</b>'
+                 f'<div class="chips" style="margin-top:10px">'
+                 f'{"".join(chips)}</div>{density}</div>')
     if not regime.get("macro_bls_ok"):
         H.append('<div class="banner alarm"><b class="t">Macro calendar incomplete</b>'
                  'CPI/NFP dates are missing. A clear macro line is NOT a '
@@ -4021,16 +4045,23 @@ Producer Price Index for October 2026
         mh.count('class="banner') == mh.count('><b class="t">'),
         f"{mh.count('class=' + chr(34) + 'banner')} banners")
     chk("it is ONE banner, not two",
-        mh.count("Macro in the expiry window") == 1
+        mh.count("Macro near expiry") == 1
         and "Macro density</b>" not in mh)
     chk("expiry-day events make it the loud colour",
-        'banner alarm"><b class="t">Macro in the expiry window' in mh)
+        'banner alarm"><b class="t">Macro near expiry' in mh)
+    chk("each event is a tappable chip, not a bulleted list item",
+        "<ul" not in mh.split("Macro near expiry")[1].split("</div>")[0]
+        and mh.count('<span class="chip') >= 2)
+    chk("the same-day settlement risk moved behind a tap, not a "
+        "standing paragraph",
+        "prints at 8:30am" not in mh.split('class="chips"')[0]
+        and "prints at 8:30am" in mh)
 
     lone = dict(regime, macro_expiry="2026-09-18",
                 macro_near_expiry=[(date(2026, 9, 16), "FOMC")])
     lh = render_html(rows, dropped, conflicts, news, lone, today)
     chk("a single event off the expiry day is the quieter colour",
-        'banner warn"><b class="t">Macro in the expiry window' in lh)
+        'banner warn"><b class="t">Macro near expiry' in lh)
     chk("and does not claim density", "events inside" not in lh)
     chk("it still names the event and its distance",
         "FOMC" in lh and "2 days before expiry" in lh)
@@ -4038,7 +4069,7 @@ Producer Price Index for October 2026
     clear = dict(regime, macro_expiry="2026-10-30", macro_near_expiry=[])
     ch2 = render_html(rows, dropped, conflicts, news, clear, today)
     chk("nothing in the window means no banner at all",
-        "Macro in the expiry window" not in ch2)
+        "Macro near expiry" not in ch2)
 
     print("STAT TILES EXPLAIN THEMSELVES")
     tile_html = render_html(rows, dropped, conflicts, news,
@@ -4077,6 +4108,24 @@ Producer Price Index for October 2026
     chk("the candidate count moved to the table heading instead",
         re.search(r'<h2>Candidates — gates 1–2 passed <span class="hcnt">'
                   rf'{len(rows)}</span></h2>', html) is not None)
+
+    print("MARKET OPEN/CLOSED INDICATOR")
+    mkt_html = render_html(rows, dropped, conflicts, news,
+                           dict(regime, repo="me/repo"), today)
+    chk("the indicator sits beside the live clock, not off on its own",
+        'id="ustime">' in mkt_html
+        and mkt_html.index('id="ustime"') < mkt_html.index('id="mktstate"')
+        and mkt_html.index('id="mktstate"') - mkt_html.index('id="ustime"')
+        < 80)
+    chk("it reads the actual clock instead of a second, driftable clock",
+        "mins=(+parts.hour)*60+(+parts.minute)" in mkt_html)
+    chk("open is 9:30-16:00 ET on a weekday, stated as minutes not magic",
+        "mins>=570&&mins<960" in mkt_html
+        and "['Sat','Sun'].indexOf(parts.weekday)===-1" in mkt_html)
+    chk("it reuses the same GO/NO-GO pill language as the condor tile",
+        "className='pill '+(isOpen?'go':'nogo')" in mkt_html)
+    chk("no indicator at all when the page ships no JS to keep it honest",
+        'id="mktstate"' not in html)
 
     print("THE PAGE IDENTIFIES ITSELF")
     chk("the version badge replaces the old 'X's rules' wording",
@@ -4132,37 +4181,21 @@ Producer Price Index for October 2026
         all("pctW" not in r for r in rows))
 
     print("ANET CLUSTERING")
-    chk("ANET is deliberately unclustered", cluster_of("ANET") == "Unclustered")
-    chk("Semis & hardware holds the five chip/hardware names",
-        CLUSTERS["Semis & hardware"] == ["NVDA", "AMD", "AVGO", "TSM", "DELL"])
+    chk("ANET is filed under Semis & hardware, not held out on its own",
+        cluster_of("ANET") == "Semis & hardware")
+    chk("Semis & hardware holds all six chip/hardware/networking names",
+        CLUSTERS["Semis & hardware"] ==
+        ["NVDA", "AMD", "AVGO", "TSM", "DELL", "ANET"])
     chk("every cluster has a cap",
         all(c in CLUSTER_MAX for c in CLUSTERS))
     chk("every cluster is in the display order",
         all(c in CLUSTER_ORDER for c in CLUSTERS))
-    print("  cross-cluster correlation is not lost")
-    chk("the ANET/semis link is recorded",
-        cross_cluster_notes(["ANET", "NVDA"]) != [])
-    chk("it fires only when both sides are on the screen",
-        cross_cluster_notes(["ANET"]) == []
-        and cross_cluster_notes(["NVDA", "TSM"]) == [])
-    chk("the note carries the measured numbers, not an adjective",
-        "0.62" in cross_cluster_notes(["ANET", "AVGO"])[0])
-    chk("it is dated so it can be re-measured",
-        "2026" in cross_cluster_notes(["ANET", "AVGO"])[0])
-    both = render_html(
-        rows, dropped, conflicts, news,
-        dict(regime, repo="me/repo"), today) if any(
-            r["t"] in ("NVDA", "AMD", "AVGO", "TSM") for r in rows) and any(
-            r["t"] == "ANET" for r in rows) else None
-    if both is not None:
-        chk("and the page warns when both are listed",
-            "Two groups, one bet" in both)
-        chk("the warning carries a visual link, not just prose",
-            '<div class="link">' in both and 'class="wire"' in both
-            and "0.62 corr" in both)
-        chk("the link's two ends are colour-coded like the cluster dots",
-            f'style="background:{CLUSTER_COLOR["Unclustered"]}"' in both
-            and f'style="background:{CLUSTER_COLOR["Semis & hardware"]}"' in both)
+    print("  the cross-cluster mechanism is dormant, not deleted")
+    chk("no entries fire now that ANET has a real cluster",
+        cross_cluster_notes(["ANET", "NVDA", "AMD", "AVGO", "TSM"]) == [])
+    chk("the machinery still exists for whichever name is next",
+        cross_cluster_hits(["ANET", "NVDA"]) == []
+        and callable(_cross_cluster_node))
     chk("NFLX stays unclustered - its best match was noise",
         cluster_of("NFLX") == "Unclustered")
     chk("no name lands in two clusters",
@@ -4280,7 +4313,7 @@ Producer Price Index for October 2026
     chk("it sits above the rows it covers", "z-index:5" in html)
     chk("the scroll container stops trapping it once the table fits",
         "@media (min-width:870px){\n  .scroll{overflow:visible}" in html)
-    chk("the cluster label sticks under it too", "top:41px" in html)
+    chk("the cluster label sticks under it too", "top:48px" in html)
     chk("the header is opaque, not see-through",
         "background:var(--panel);\n  border-bottom" in html)
     chk("mobile has no sideways-scroll box left over to trap the sticky "
