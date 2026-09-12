@@ -2090,23 +2090,25 @@ a{color:var(--amber)}
   clip-path:polygon(0 var(--a),100% var(--b),100% calc(100% - var(--b)),0 calc(100% - var(--a)));
   transition:clip-path 1s cubic-bezier(.2,.7,.2,1)}
 .pipe.clean .shape{background:linear-gradient(90deg,rgba(68,223,169,.10),rgba(68,223,169,.14))}
-.pipe .cap{position:relative;text-align:center;font-family:var(--mono);line-height:1.35}
-.pipe .cap .d{font-size:19px;font-weight:600;color:var(--veto)}
+.pipe .cap{position:relative;display:flex;align-items:baseline;gap:8px;
+  font-family:var(--mono);white-space:nowrap}
+.pipe .cap .d{font-size:18px;font-weight:600;color:var(--veto)}
 .pipe.clean .cap .d{color:var(--clear)}
-.pipe .cap .g{font-size:11.5px;letter-spacing:.11em;text-transform:uppercase;
+.pipe .cap .g{font-size:11px;letter-spacing:.1em;text-transform:uppercase;
   color:var(--dim);display:inline-flex;align-items:center}
 .roster{flex-basis:100%;margin-top:18px;padding-top:16px;border-top:1px solid var(--line);
   display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .roster .lbl{font-family:var(--mono);font-size:11.5px;letter-spacing:.2em;
   text-transform:uppercase;color:#5E6C7E}
 .roster .set{display:flex;flex-wrap:wrap;gap:7px}
-.roster .pic{width:26px;height:26px;border-radius:7px;background:#fff;padding:3px;
-  object-fit:contain;opacity:.42;filter:grayscale(1);cursor:help;
-  transition:opacity .16s ease,filter .16s ease,transform .16s ease}
-.roster .pic:hover,.roster span:focus-visible .pic{opacity:1;filter:none;transform:translateY(-2px)}
-.roster .picx{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;
-  justify-content:center;font-size:11px;font-weight:700;color:#0B0F16;background:var(--faint);
-  opacity:.42;cursor:help;transition:opacity .16s ease,transform .16s ease}
+.roster .pic{width:36px;height:36px;border-radius:8px;background:#fff;padding:4px;
+  object-fit:contain;opacity:.7;cursor:help;
+  transition:opacity .16s ease,transform .16s ease,box-shadow .16s ease}
+.roster .pic:hover,.roster span:focus-visible .pic{opacity:1;transform:translateY(-2px);
+  box-shadow:0 6px 16px rgba(0,0,0,.35)}
+.roster .picx{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
+  justify-content:center;font-size:13px;font-weight:700;color:#0B0F16;background:var(--faint);
+  opacity:.7;cursor:help;transition:opacity .16s ease,transform .16s ease}
 .roster .picx:hover,.roster span:focus-visible .picx{opacity:1;transform:translateY(-2px)}
 
 /* ---- survivors ---- */
@@ -2120,8 +2122,7 @@ a{color:var(--amber)}
   padding:20px 20px 18px;display:flex;flex-direction:column;gap:18px;position:relative;
   overflow:hidden;transition:border-color .16s ease,transform .16s ease,box-shadow .16s ease}
 .card:after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c)}
-.card:hover{border-color:var(--line2);transform:translateY(-3px);
-  box-shadow:0 16px 40px rgba(0,0,0,.35),inset 3px 0 22px -14px var(--c)}
+.card:hover{border-color:var(--line2)}
 .chead{display:flex;align-items:flex-start;gap:12px}
 .chead .sp{flex:1;min-width:0}
 .tk{font-size:26px;font-weight:800;letter-spacing:-.015em;line-height:1.05}
@@ -2200,9 +2201,13 @@ a{color:var(--amber)}
 /* ---- gate 3 reader ---- */
 #nv[hidden]{display:none}
 #nv{position:fixed;inset:0;z-index:120;background:rgba(4,7,12,.78);
-  display:flex;align-items:flex-end;justify-content:center;padding:0}
-.nvbox{background:var(--panel);border:1px solid var(--line2);border-radius:18px 18px 0 0;
-  width:100%;max-width:760px;max-height:88vh;display:flex;flex-direction:column}
+  display:flex;align-items:center;justify-content:center;padding:24px}
+.nvbox{background:var(--panel);border:1px solid var(--line2);border-radius:18px;
+  width:100%;max-width:760px;max-height:82vh;display:flex;flex-direction:column}
+@media (max-width:600px){
+  #nv{align-items:flex-end;padding:0}
+  .nvbox{border-radius:18px 18px 0 0;max-height:88vh}
+}
 .nvhead{display:flex;align-items:center;gap:14px;padding:18px 20px;
   border-bottom:1px solid var(--line)}
 .nvhead b{font-size:21px;font-weight:800;flex:1}
@@ -2677,60 +2682,94 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                    f'builtUtc:{_js(str(regime.get("built_utc") or ""))},'
                    f'dispatch:{_js(dispatch)},'
                    f'actions:{_js(actions_url)}}});</script>')
-    H.append(f'<p class="who">Gates 1\u20133 of {_esc(who) if who else "one person"}\u2019s '
-             f'workflow, run on demand. Market data only \u2014 this knows '
-             f'nothing about your account, and never will. Not financial '
-             f'advice.</p>')
+    subject = f"{_esc(who)}’s" if who else "one person’s"
+    H.append(f'<p class="who">This is {subject} personal screening '
+             f'workflow, running wide open for anyone who wants to peek. '
+             f'It might suit how you trade. It might not. Either way: no '
+             f'promises, no advice — just one person’s rules, '
+             f'turned into code.</p>')
     H.append('</div>')
 
     # ------------------------------------------------ instrument strip
-    # Freshness, the volatility regime and the condor verdict: three facts
-    # about the session rather than about any one name, so they sit together
-    # above everything that IS about a name.
+    # Market date and Last run first, side by side, in matching date
+    # format — they are two different clocks (US/Eastern for the
+    # trading day, UTC for the page build) and the only way to compare them
+    # at a glance is to make everything else about them read the same.
+    us_raw = regime.get("us_date")
+    us_d_disp = us_raw
+    if isinstance(us_raw, str):
+        try:
+            us_d_disp = datetime.strptime(us_raw, "%Y-%m-%d").date()
+        except ValueError:
+            us_d_disp = None
+    us_pretty = us_d_disp.strftime("%a %d %b") if us_d_disp else _esc(str(us_raw or "?"))
     feed_label = {
-        "live": "prices are live (yfinance, ~15\u201320 min delayed)",
-        "prev close": "prices are yesterday\u2019s close (yfinance)",
-    }.get(feed, f"prices: {feed} (yfinance)")
+        "live": "Prices are live (yfinance, ~15–20 min delayed)",
+        "prev close": "Prices are yesterday’s close (yfinance)",
+    }.get(feed, f"Prices: {feed} (yfinance)")
     clock = ('<span class="live"><i class="led" id="mktled"></i>'
              '<span id="ustime"></span> <span id="mktstate"></span></span>'
              ) if repo else ''
     H.append('<div class="strip">')
+    market_date_tip = ("The US trading day this screen read data for — "
+                       "in US/Eastern time. Nothing about the gates; just "
+                       "which session everything below is dated to.")
     H.append(f'<div class="inst"><span class="k">'
-             f'{_tip("The US trading day the gates were run against. Not " "necessarily the day you are reading this.", "Market date")}'
-             f'</span><span class="v">{_esc(regime.get("us_date","?"))}</span>'
-             f'<span class="s">{clock}</span></div>')
+             f'{_tip(market_date_tip, "Market date")}'
+             f'</span><span class="v">{us_pretty}</span>'
+             f'<span class="s">US/Eastern{" &middot; " if clock else ""}{clock}</span></div>')
+    if built:
+        # The run number rides along to the script that polls for a newer
+        # build; the displayed time alone already tells two runs apart,
+        # because the button will not start a second inside the cooldown.
+        built_d = None
+        try:
+            built_d = datetime.strptime(built[:10], "%Y-%m-%d").date()
+        except ValueError:
+            pass
+        built_pretty = built_d.strftime("%a %d %b") if built_d else built[:10]
+        last_run_tip = ("When this page was last generated, in UTC. "
+                        "Everything on it — spot prices, VIX, the "
+                        "gates, the cards below — is only as current "
+                        "as this moment. A run from hours ago may not "
+                        "reflect where the market is right now.")
+        H.append(f'<div class="inst"><span class="k">'
+                 f'{_tip(last_run_tip, "Last run")}</span>'
+                 f'<span class="v"><span id="built" data-utc="{_esc(built)}">'
+                 f'{_esc(built_pretty)}, {_esc(built[11:16])} UTC</span></span>'
+                 f'<span class="s">{_esc(feed_label)}</span></div>')
     vix = f"{regime['vix']:.2f}" if regime["vix"] is not None else "unread"
-    vix_tip = ("CBOE Volatility Index \u2014 the market's own pricing of how "
-               "much the S&P 500 is expected to move over the next 30 "
-               "days. Higher means more fear priced in; lower means "
-               "calmer conditions.")
+    vix_val = regime["vix"]
+    if vix_val is None:
+        vix_read = "not read this run"
+    elif vix_val < 12:
+        vix_read = "very calm — under 12"
+    elif vix_val < 20:
+        vix_read = "normal range — 12 to 20"
+    elif vix_val < 30:
+        vix_read = "elevated — 20 to 30"
+    else:
+        vix_read = "high fear — 30 and up"
+    vix_tip = ("CBOE Volatility Index — the market's own pricing of how "
+               "much the S&P 500 is expected to move over the next 30 days. "
+               "Roughly: under 12 is very calm, 12–20 is a normal "
+               "market, 20–30 is elevated and jumpy, 30 and up is real "
+               f"fear. Right now: {vix_read}.")
     H.append(f'<div class="inst"><span class="k">{_tip(vix_tip, "VIX")}</span>'
              f'<span class="v">{_esc(vix)}</span>'
-             f'<span class="s">{_esc(feed_label)}</span></div>')
+             f'<span class="s">{_esc(vix_read.capitalize())}</span></div>')
     condor_tip = ("An iron condor overlay: a call spread sold on top of "
                   "an existing put spread position, for extra premium. It "
-                  "only turns on when conditions line up \u2014 "
+                  "only turns on when conditions line up — "
                   f"VIX at {CONDOR_VIX_MIN:.0f} or above, the S&P 500 "
                   f"within {CONDOR_STRETCH[0]*100:+.0f}% to "
                   f"{CONDOR_STRETCH[1]*100:+.0f}% of its own 20-day "
-                  "average, and no major scheduled macro event nearby \u2014 "
+                  "average, and no major scheduled macro event nearby — "
                   "that last part checked by a person, not this page.")
     H.append(f'<div class="inst"><span class="k">{_tip(condor_tip, "Condor overlay")}'
              f'</span><span class="v"><span class="pill {"go" if go else "nogo"}">'
              f'{"GO" if go else "NO-GO"}</span></span>'
              f'<span class="s">{_esc(why)}</span></div>')
-    if built:
-        # Freshness is the first thing anyone needs from a page like this.
-        # The run number rides along to the script that polls for a newer
-        # build; the displayed time alone already tells two runs apart,
-        # because the button will not start a second inside the cooldown.
-        last_run_tip = ("When this page was last generated. Everything "
-                        "below is only as fresh as this timestamp.")
-        H.append(f'<div class="inst"><span class="k">'
-                 f'{_tip(last_run_tip, "Last run")}</span>'
-                 f'<span class="v"><span id="built" data-utc="{_esc(built)}">'
-                 f'{_esc(built[11:16])} UTC</span></span>'
-                 f'<span class="s">Nothing here is newer than this</span></div>')
     H.append('</div>')
 
     # ------------------------------------------------ the board: what day,
@@ -2769,9 +2808,20 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         if isinstance(us_d, str):
             us_d = datetime.strptime(us_d, "%Y-%m-%d").date()
         span = (ed - us_d).days if us_d else 0
+        # The alarm text below is scoped to the near-expiry window on
+        # purpose (that is the workflow's own rule), but the timeline is a
+        # calendar, not an alarm - a name like CPI landing two weeks out is
+        # exactly the kind of thing someone wants to see coming, even though
+        # it never gets close enough to trip the halve-the-tranche warning.
+        all_events = regime.get("macro_events") or near
         if span > 0:
-            nodes = [(us_d, "Today", "now", "")]
-            for d, lbl in sorted(near):
+            # An event landing exactly on expiry day is not a coincidence
+            # that happens to collide with the Expiry anchor - "on expiry
+            # day" IS the same position as Expiry, always, by definition.
+            # So it is folded onto that node rather than nudged elsewhere,
+            # which used to draw NFP a step before expiry instead of on it.
+            mid, onday = [], []
+            for d, lbl in sorted(all_events):
                 if us_d < d <= ed:
                     off = (d - ed).days
                     when = ("expiry day" if off == 0 else
@@ -2780,30 +2830,40 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                     tip = f"{lbl} on {d.strftime('%a %d %b')}, {when}."
                     if off == 0:
                         tip += (f" {lbl} prints at 8:30am on the day these "
-                                f"settle \u2014 hours before, with every "
+                                f"settle — hours before, with every "
                                 f"position moving on the same number.")
-                    nodes.append((d, lbl, "hit" if off == 0 else "", tip))
-            nodes.append((ed, "Expiry", "end", f"These settle on "
-                          f"{ed.strftime('%a %d %b')}."))
+                        onday.append((lbl, tip))
+                    else:
+                        mid.append((d, lbl, "", tip, ""))
+            exp_tip = f"These settle on {ed.strftime('%a %d %b')}."
+            if onday:
+                exp_tip += " " + " ".join(t for _, t in onday)
+            exp_tags = "".join(f'<span class="tag">{_esc(l)}</span>'
+                               for l, _ in onday)
+            nodes = ([(us_d, "Today", "now", "", "")] + mid
+                     + [(ed, "Expiry", "end" + (" hit" if onday else ""),
+                         exp_tip, exp_tags)])
             H.append('<div class="rail"><div class="track"></div>'
                      '<div class="fill" id="railfill"></div>')
             seen = set()
-            for d, lbl, cls, tip in nodes:
+            for d, lbl, cls, tip, pretags in nodes:
                 pos = max(0.0, min(100.0, (d - us_d).days / span * 100))
-                # Two events on the same day would print on top of each
-                # other; the second nudges along rather than disappearing.
-                # Bounded, because at 100% the nudge has nowhere left to go
-                # and an unbounded loop there never returns.
-                for _ in range(6):
-                    if round(pos) not in seen:
-                        break
-                    pos = pos + 6 if pos <= 94 else pos - 6
+                # Two events between today and expiry landing on the same
+                # day (never Today or Expiry themselves - those are fixed
+                # anchors) would print on top of each other; the second
+                # nudges along rather than disappearing. Bounded, because
+                # at 100% the nudge has nowhere left to go and an unbounded
+                # loop there never returns.
+                if cls not in ("now", "end", "end hit"):
+                    for _ in range(6):
+                        if round(pos) not in seen:
+                            break
+                        pos = pos + 6 if pos <= 94 else pos - 6
                 seen.add(round(pos))
-                tag = (f'<span class="tag">{_esc(lbl)}</span>'
-                       if cls == "hit" else "")
-                body = (f'{tag}<div class="dot"></div>'
-                        f'<div class="lbl">{_esc(lbl) if cls != "hit" else ""}'
-                        f'{"<br>" if cls != "hit" else ""}'
+                lbl_html = "" if pretags else _esc(lbl)
+                br = "" if pretags else "<br>"
+                body = (f'{pretags}<div class="dot"></div>'
+                        f'<div class="lbl">{lbl_html}{br}'
                         f'{d.strftime("%d %b")}</div>')
                 if tip:
                     H.append(f'<div class="node {cls}" style="left:{pos:.1f}%" '
@@ -2812,6 +2872,7 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                     H.append(f'<div class="node {cls}" style="left:{pos:.1f}%">'
                              f'{body}</div>')
             H.append('</div>')
+            onday = [l for d, l in near if d == ed]
             onday = [l for d, l in near if d == ed]
             dense = (f"{len(near)} events inside {MACRO_WINDOW_DAYS} days "
                      f"of expiry — halve the tranche." if len(near) >= 2
@@ -2850,10 +2911,8 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     n_data = len(dropped.get("data") or [])
     pct_out = (n_uni - len(rows)) / n_uni * 100 if n_uni else 0
     H.append(f'<div class="sec"><h2>How {n_uni} became {len(rows)}</h2>'
-             f'<span class="c">{pct_out:.0f}% filtered out</span>'
-             f'<p>Gates are vetoes, not scores \u2014 one failure is the whole '
-             f'answer, and the gates below it never run. What got filtered '
-             f'out matters as much as what came through.</p></div>')
+             f'<span class="c">{pct_out:.0f}% cut</span>'
+             f'<p>One strike and you’re out — each gate is a hard no, not a point score, and a name that fails early never even sees the gates after it. Nothing here is a rejection, either: most of what gets cut just needs a better day.</p></div>')
     H.append('<div class="flow">')
     H.append(f'<div class="stn"><span class="n">{n_uni}</span>'
              f'<span class="k">Names in</span>'
@@ -2867,22 +2926,28 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
          "No results due on or before expiry: a date inside the window risks "
          "the overnight gap this structure cannot survive. Two sources are "
          "cross-checked; a disagreement is flagged, never guessed at."),
-        (n_width + n_data, "Width \u00b7 data",
-         "Strikes must sit at least $5 apart, which rules out anything "
-         "trading under roughly $100. A name whose feed returned nothing "
-         "is dropped here too rather than shown as a pass."),
+        (n_width + n_data, "Housekeeping",
+         "Not really a gate — two unrelated checks bundled here to "
+         "save space. Width: strikes must sit at least $5 apart, which "
+         "rules out anything trading under roughly $100. Data: a name "
+         "whose feed returned nothing usable is dropped here too, rather "
+         "than shown as a pass it never actually got."),
     ]
     # The pipe narrows in proportion to what each gate actually took, so the
     # picture cannot disagree with the counts printed on it.
     left = n_uni
+    # Capped at 38%: past that the band left for the count and its label
+    # (one line, but a real one) gets thinner than the line itself, and the
+    # number starts printing outside the shape meant to hold it.
+    TAPER_MAX = 38
     for killed, label, tip in gates:
-        a = (1 - left / n_uni) * 50 if n_uni else 0
+        a = min(TAPER_MAX, (1 - left / n_uni) * 50) if n_uni else 0
         left = max(0, left - killed)
-        b = (1 - left / n_uni) * 50 if n_uni else 0
+        b = min(TAPER_MAX, (1 - left / n_uni) * 50) if n_uni else 0
         H.append(f'<div class="pipe{" clean" if not killed else ""}">'
                  f'<div class="shape" style="--a:{a:.0f}%;--b:{b:.0f}%"></div>'
-                 f'<div class="cap"><div class="d">\u2212{killed}</div>'
-                 f'<div class="g">{_tip(tip, label)}</div></div></div>')
+                 f'<div class="cap"><span class="d">−{killed}</span>'
+                 f'<span class="g">{_tip(tip, label)}</span></div></div>')
     H.append('</div>')
     H.append(f'<div class="stn out"><span class="n">{len(rows)}</span>'
              f'<span class="k">Through</span>'
@@ -2899,16 +2964,20 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     # ------------------------------------------------ survivors
     hot_live = any(f in HOT_FLAGS
                    for r in rows for f in r["notes"].split(",") if f)
-    red_line = (' <b>Red flags need settling before acting</b> \u2014 a card '
-                'carrying one may not mean what it appears to.'
+    red_line = (' And a card wearing a red flag gets a second look before '
+                'you touch it \u2014 it may not mean what it looks like at '
+                'a glance.'
                 if hot_live else '')
     H.append(f'<div class="sec"><h2>Survivors</h2>'
              f'<span class="c">{len(rows)} name{"" if len(rows) == 1 else "s"}</span>'
-             f'<p>Grouped by what moves together. Holding several from one '
-             f'group is closer to one larger position than to several '
-             f'independent ones \u2014 how much of any of it to hold is '
-             f'position sizing, and this page does not do it.{red_line}'
-             f'</p></div>')
+             f'<p>Each cluster below is one bet wearing several tickers, not '
+             f'several independent ones \u2014 they tend to fall together, '
+             f'so holding three from one group is closer to one bigger '
+             f'position than three small ones. How much of any of it to '
+             f'hold, if any, is entirely on you; this page only screens, it '
+             f'does not size.{red_line} And clearing every gate is not a '
+             f'summons to trade \u2014 most days the smart move is to do '
+             f'nothing.</p></div>')
     if not rows:
         H.append('<div class="empty"><b>Nothing passed.</b> Cash is a valid '
                  'outcome \u2014 most days, the honest answer is to do '
@@ -3007,17 +3076,14 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     H.append('<p class="sig">')
     if bits:
         H.append("<b>" + _esc(" ".join(bits)) + "</b><br>")
-    H.append('Gate 1 tests the trend, Gate 2 the earnings calendar. Gate 3 '
-             '\u2014 the headlines behind each name \u2014 is <b>Not '
-             'automated</b>: reading it is yours. This page does not price '
-             'anything, size a position, or know what you already hold. '
-             'Bid/ask is context, not a gate, and most days the honest '
-             'answer is to do nothing.<br>')
-    if who:
-        H.append(f'{_esc(who)}\u2019s rules \u2014 not a standard, not a '
-                 f'service, and not financial advice.')
-    else:
-        H.append('Not financial advice.')
+    # Everything else this paragraph used to restate - what the gates check,
+    # that pricing and sizing aren't covered, that Gate 3 is manual - is
+    # already said once, where it is actually needed: in the flow above and
+    # on each card's own tooltips. Saying it a second time down here just
+    # made the page feel longer without saying anything new. What is left
+    # is the one thing that belongs only at the very end: the disclaimer.
+    H.append('This page does not price anything, size a position, or know '
+             'what you already hold. Not financial advice.')
     H.append('</p>')
 
     if tail_js:
@@ -3920,7 +3986,7 @@ Producer Price Index for October 2026
         html.count("IBKR") <= 1 and "needs IBKR" not in html,
         f"{html.count('IBKR')} mentions")
     chk("it still says sizing is not covered",
-        "does not do it" in html or "position sizing" in html)
+        "it does not size" in html or "does not size a position" in html)
     chk("Gate 3 is declared not automated",
         "Gate 3 is not automated" in html and "Gate 3 is yours" in html)
     chk("headlines are behind the icon, not dumped on the page",
@@ -4065,7 +4131,7 @@ Producer Price Index for October 2026
                if len(by_c_test.get(c, [])) > 1 and c != "Unclustered"]
     if multi_t:
         chk("groups holding more than one name are called out by correlation",
-            "moves together" in html)
+            "one bet wearing several tickers" in html)
         chk("and the names in them are listed",
             all(r["t"] in html for c in multi_t for r in by_c_test[c]))
     chk("the terminal report KEEPS the caps, it is JH's own view",
@@ -4077,7 +4143,8 @@ Producer Price Index for October 2026
 
     print("THE MACRO BANNER NAMES WHAT IT IS WARNING ABOUT")
     mreg = dict(regime, macro_expiry="2026-09-11", macro_near_expiry=[
-        (date(2026, 9, 10), "PPI"), (date(2026, 9, 11), "CPI")])
+        (date(2026, 9, 10), "PPI"), (date(2026, 9, 11), "CPI")],
+        macro_events=[(date(2026, 9, 10), "PPI"), (date(2026, 9, 11), "CPI")])
     mh = render_html(rows, dropped, conflicts, news, mreg, today)
     chk("each event is named", "PPI" in mh and "CPI" in mh)
     chk("each carries its own date", "Thu 10 Sep" in mh and "Fri 11 Sep" in mh)
@@ -4089,7 +4156,7 @@ Producer Price Index for October 2026
     # The calendar is a countdown with dates standing on it, so the offsets
     # are read off the line rather than held in the reader's head.
     chk("the events stand on a dated line, not in a list",
-        'class="rail"' in mh and mh.count('class="node') >= 4
+        'class="rail"' in mh and mh.count('class="node') >= 3
         and "<ul" not in mh)
     chk("today and expiry anchor both ends",
         'class="node now"' in mh and "end" in mh)
@@ -4189,7 +4256,7 @@ Producer Price Index for October 2026
                                  {**regime, "author": None}, today)
     chk("no author set still names an author generically rather than "
         "going blank",
-        "one person’s workflow" in no_author_html)
+        "one person’s personal screening" in no_author_html)
     stamped = render_html(rows, dropped, conflicts, news,
                           dict(regime, repo="me/repo", run_id="999",
                                run_number="14",
@@ -4202,7 +4269,7 @@ Producer Price Index for October 2026
         "script is last")
     chk("freshness is an instrument, not a footnote",
         'class="inst"' in stamped and "Last run" in stamped
-        and "Nothing here is newer than this" in stamped)
+        and "only as current as this moment" in stamped)
     chk("it is labelled by what it means, not how it was made",
         "&middot; built " not in stamped)
     chk("the raw UTC stamp is kept for the browser to localise",
@@ -4406,12 +4473,12 @@ Producer Price Index for October 2026
     chk("every give-up offers the Actions link", "check Actions" in stamped)
     chk("Gate 1 explains the 20-day average", "previous 20 trading days" in html)
     chk("Gate 2 explains why earnings matter", "overnight gap" in html)
-    chk("Gate 3 is declared not automated", "Not automated" in html)
+    chk("Gate 3 is declared not automated", "not automated" in html.lower())
     chk("the limits are stated as plainly as the gates",
         "does not price anything" in html)
     chk("it says doing nothing is normal", "do nothing" in html)
     chk("red flags are called out when any are shown",
-        ("settling before acting" in html)
+        ("gets a second look before you touch it" in html)
         == any(f in {c for r in rows for c in r["notes"].split(",")}
                for f in HOT_FLAGS))
 
