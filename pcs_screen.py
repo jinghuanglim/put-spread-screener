@@ -2101,15 +2101,22 @@ a{color:var(--amber)}
 .roster .lbl{font-family:var(--mono);font-size:11.5px;letter-spacing:.2em;
   text-transform:uppercase;color:#5E6C7E}
 .roster .set{display:flex;flex-wrap:wrap;gap:7px}
-.roster .pic{width:36px;height:36px;border-radius:8px;background:#fff;padding:4px;
-  object-fit:contain;opacity:.7;cursor:help;
+/* pic/picx are unscoped on purpose - the bench reuses the exact same mark
+   as THE LIST, not a lookalike. Scoped only under .roster, that logo image
+   dropped into a bench chip picked up no size or background at all and
+   rendered at its raw native pixel size - the "huge logos" bug. */
+.pic{width:36px;height:36px;border-radius:8px;background:#fff;padding:4px;
+  object-fit:contain;opacity:.7;cursor:help;flex:none;
   transition:opacity .16s ease,transform .16s ease,box-shadow .16s ease}
-.roster .pic:hover,.roster span:focus-visible .pic{opacity:1;transform:translateY(-2px);
+.picx{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
+  justify-content:center;font-size:13px;font-weight:700;color:#0B0F16;
+  background:var(--faint);opacity:.7;cursor:help;flex:none;
+  transition:opacity .16s ease,transform .16s ease}
+.roster span:hover .pic,.roster span:focus-visible .pic,
+.dead:hover .pic,.dead:focus-visible .pic{opacity:1;transform:translateY(-2px);
   box-shadow:0 6px 16px rgba(0,0,0,.35)}
-.roster .picx{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
-  justify-content:center;font-size:13px;font-weight:700;color:#0B0F16;background:var(--faint);
-  opacity:.7;cursor:help;transition:opacity .16s ease,transform .16s ease}
-.roster .picx:hover,.roster span:focus-visible .picx{opacity:1;transform:translateY(-2px)}
+.roster span:hover .picx,.roster span:focus-visible .picx,
+.dead:hover .picx,.dead:focus-visible .picx{opacity:1;transform:translateY(-2px)}
 
 /* ---- survivors ---- */
 .clus{display:flex;align-items:center;gap:12px;margin:30px 0 14px}
@@ -2189,7 +2196,6 @@ a{color:var(--amber)}
   border-radius:9px;padding:9px 14px;background:var(--panel2);display:inline-flex;
   align-items:center;gap:8px;transition:color .16s,border-color .16s,transform .16s}
 .dead:hover{color:var(--ink);border-color:var(--line2);transform:translateY(-2px)}
-.dead:hover .pic,.dead:hover .picx{opacity:1}
 .dead .arrow{color:var(--veto);font-size:12px;opacity:.7}
 .benchk{font-family:var(--mono);font-size:11.5px;letter-spacing:.15em;text-transform:uppercase;
   color:var(--faint);margin-bottom:9px}
@@ -2934,8 +2940,6 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     n_uni = len(UNIVERSE)
     n_trend = len(dropped.get("trend") or [])
     n_earn = len(dropped.get("earnings") or []) + len(dropped.get("postearn") or [])
-    n_width = len(dropped.get("width") or [])
-    n_data = len(dropped.get("data") or [])
     pct_out = (n_uni - len(rows)) / n_uni * 100 if n_uni else 0
     H.append(f'<div class="sec"><h2>How {n_uni} became {len(rows)}</h2>'
              f'<span class="c">{pct_out:.0f}% cut</span>'
@@ -2945,20 +2949,20 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
              f'<span class="k">Names in</span>'
              f'<span class="s">Liquid large caps</span></div>')
     H.append('<div class="pipes">')
+    # Just the two named gates - width and data-availability are real
+    # reasons a name drops (see the bench below), but they are
+    # bookkeeping, not a third numbered gate, and drawing one here only
+    # invited the question "what is this" on a stat that reads -0 on
+    # nearly every run. A name lost to either still counts against the
+    # final total; it just doesn't get its own bar to answer for.
     gates = [
-        (n_trend, "Gate 1 \u00b7 trend",
+        (n_trend, "Gate 1 · trend",
          "Price must sit above the average of the previous 20 trading days "
-         "(completed days only) \u2014 however good the premium looks."),
-        (n_earn, "Gate 2 \u00b7 earnings",
+         "(completed days only) — however good the premium looks."),
+        (n_earn, "Gate 2 · earnings",
          "No results due on or before expiry: a date inside the window risks "
          "the overnight gap this structure cannot survive. Two sources are "
          "cross-checked; a disagreement is flagged, never guessed at."),
-        (n_width + n_data, "Housekeeping",
-         "Not really a gate — two unrelated checks bundled here to "
-         "save space. Width: strikes must sit at least $5 apart, which "
-         "rules out anything trading under roughly $100. Data: a name "
-         "whose feed returned nothing usable is dropped here too, rather "
-         "than shown as a pass it never actually got."),
     ]
     # The pipe narrows in proportion to what each gate actually took, so the
     # picture cannot disagree with the counts printed on it.
