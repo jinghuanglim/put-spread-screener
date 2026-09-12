@@ -1,7 +1,7 @@
 # put-spread-screener
 
-Put-credit-spread screen, gates 1–3 of workflow 2-1-5. Market-data half only —
-no broker account, nothing about your positions or exposure.
+Put-credit-spread screen, gates 1–3 of workflow 2-1-12. Market-data half
+only — no broker account, nothing about your positions or exposure.
 
 Runs **only when you press the button**. There is no schedule.
 
@@ -156,6 +156,6 @@ need IBKR and are **not** here. Nothing in this repo knows your account exists.
 The page says so on every render.
 
 Gate 3 is printed, never applied — headlines are for a human to veto on.
-The 11%W credit floor is checked by hand at the ticket, not here.
+The 12%W credit floor is checked by hand at the ticket, not here.
 
 Not financial advice.

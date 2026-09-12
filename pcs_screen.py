@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
 Put Credit Spread screener — Part 1 (market-data half, no IBKR required).
-Replicates workflow 2-1-5 Steps 0b/2/3/4 using free data:
+Replicates workflow 2-1-12 Gates 1-3 using free data:
   Gate 1 TREND     close > 20-day SMA (prior 20 completed bars)
   Gate 2 EARNINGS  aggregator dates, conflicts listed not resolved
   Gate 3 NEWS      headlines printed for human veto
   Width pre-filter 5% of spot, hard min $5
   Context         IV at anchor-delta strike, HV30, IV/HV
-NOT in this half (needs IBKR): caps block, Step 6b expiry week, logs.
+20-name universe, no index slots. NOT in this half (needs IBKR): caps block,
+Step 6b expiry week, logs.
 Usage:
   python pcs_screen.py                 # live, yfinance
   python pcs_screen.py --selftest      # offline, synthetic data, verifies math
@@ -16,32 +17,30 @@ Usage:
 import argparse, math, sys, json
 from datetime import datetime, date, timedelta
 # ---------------------------------------------------------------- config
-UNIVERSE = ["AAPL","AMD","AMZN","ANET","AVGO","CRWD","GOOGL","JNJ","JPM","LLY",
-            "META","MSFT","NFLX","NVDA","PANW","PLTR","TSLA","TSM","V",
-            "QQQ","SPY","IWM"]
+UNIVERSE = ["AAPL","AMD","AMZN","ANET","AVGO","CRM","CRWD","DELL","GOOGL",
+            "JNJ","JPM","META","MSFT","NFLX","NVDA","PANW","PLTR","TSLA",
+            "TSM","V"]
 CLUSTERS = {
-    # ANET is networking hardware, not silicon, and keeping the labels literal
-    # was JH's call (23 Aug 2026) — so it gets its own cluster rather than
-    # being filed under Semis. The correlation that argued for Semis is real
-    # and did not go away: it is recorded in CROSS_CLUSTER below, where the
-    # cap structure cannot see it but a reader can.
+    # ANET stays unclustered despite tracking the semis at 0.62/0.48/0.46 over
+    # 60/120/250 sessions (measured 23 Aug 2026) — recorded in CROSS_CLUSTER
+    # below, where the cap structure cannot see it but a reader can.
     #
     # NFLX stays unclustered on measured evidence: its best match is Mega-cap
     # platform at 0.22 / 0.18 / 0.15 over 60 / 120 / 250 sessions, barely above
     # its correlation to the market itself. Genuinely idiosyncratic, so a
     # cluster would be a label rather than a fact.
-    "Semis":                ["NVDA","AMD","AVGO","TSM"],
-    "Networking":           ["ANET"],
+    "Semis & hardware":     ["NVDA","AMD","AVGO","TSM","DELL"],
     "Security":             ["CRWD","PANW"],
     "Mega-cap platform":    ["AAPL","MSFT","GOOGL","AMZN","META"],
+    "Software":             ["CRM"],
     "High-beta":            ["PLTR","TSLA"],
-    "Defensive/financial":  ["JNJ","LLY","V","JPM"],
-    "Index":                ["SPY","QQQ","IWM"],
+    "Healthcare":           ["JNJ"],
+    "Financial":            ["V","JPM"],
 }
-CLUSTER_MAX = {"Semis":2,"Networking":1,"Security":1,"Mega-cap platform":3,
-               "High-beta":1,"Defensive/financial":3,"Index":1}
-CLUSTER_ORDER = ["Semis","Networking","Security","Mega-cap platform",
-                 "High-beta","Defensive/financial","Index","Unclustered"]
+CLUSTER_MAX = {"Semis & hardware":2,"Security":1,"Mega-cap platform":3,
+               "Software":1,"High-beta":1,"Healthcare":1,"Financial":2}
+CLUSTER_ORDER = ["Semis & hardware","Security","Mega-cap platform","Software",
+                 "High-beta","Healthcare","Financial","Unclustered"]
 
 # A colour per cluster, used only as a small dot beside the group header —
 # never as the only signal (the name is still printed in full), just a
@@ -49,9 +48,9 @@ CLUSTER_ORDER = ["Semis","Networking","Security","Mega-cap platform",
 # to sit clear of the accent/alarm/warn colours used elsewhere for status,
 # so a cluster dot is never mistaken for a verdict.
 CLUSTER_COLOR = {
-    "Semis": "#3b82f6", "Networking": "#8b5cf6", "Security": "#ec4899",
-    "Mega-cap platform": "#06b6d4", "High-beta": "#f97316",
-    "Defensive/financial": "#14b8a6", "Index": "#94a3b8",
+    "Semis & hardware": "#3b82f6", "Security": "#ec4899",
+    "Mega-cap platform": "#06b6d4", "Software": "#8b5cf6",
+    "High-beta": "#f97316", "Healthcare": "#14b8a6", "Financial": "#eab308",
     "Unclustered": "#a8a29e",
 }
 
@@ -77,21 +76,20 @@ def cross_cluster_notes(tickers):
             if shown & set(a) and shown & set(b)]
 DELTA_ANCHOR = {"NVDA":0.20, "TSM":0.20}          # everything else 0.15
 DEFAULT_DELTA = 0.15
-# Fallback delta, used ONLY if live worst-case credit fails the 11% floor at
+# Fallback delta, used ONLY if live worst-case credit fails the 12% floor at
 # 0.15-0.16. None = no fallback exists. "SKIP" = never step up, skip the name.
 FALLBACK = {
     "TSM": 0.18, "AAPL": 0.18, "AMZN": 0.18, "GOOGL": 0.18, "JPM": 0.18,
     "V": 0.20,
     "JNJ": "SKIP", "MSFT": "SKIP",
-    "CRWD": None, "LLY": None, "META": None,
-    "SPY": None, "QQQ": None, "IWM": None,
+    "CRWD": None, "META": None, "CRM": None, "DELL": None,
 }
-DELTA_HARD_CAP = 0.20     # workflow 2-1-5: "Hard cap 0.20\u0394". Absolute.
+DELTA_HARD_CAP = 0.20     # workflow 2-1-12: "Hard cap 0.20\u0394". Absolute.
 BLOWOFF_STRETCH = 0.15        # never tilt delta on a blow-off
-DTE_MIN, DTE_MAX, DTE_BIAS = 14, 21, (18, 21)
+DTE_MIN, DTE_MAX, DTE_BIAS = 18, 21, (18, 21)   # 18-21 hard range, prefer 18
 WIDTH_PCT   = 0.05
 WIDTH_MIN   = 5.0
-CREDIT_FLOOR = 0.11        # reference only; JH prices at ticket
+CREDIT_FLOOR = 0.12        # reference only; JH prices at ticket
 RISK_FREE   = 0.042
 PROV_TREND_MARGIN = 0.02   # <2% above SMA20 -> flag prov
 # ---------------------------------------------------------------- macro calendar
@@ -500,14 +498,14 @@ def hv30(closes):
     return math.sqrt(var) * math.sqrt(252)
 ALIASES = {
     "AAPL": ["apple"], "AMD": ["amd", "advanced micro"], "AMZN": ["amazon"],
-    "ANET": ["arista"], "AVGO": ["broadcom"], "CRWD": ["crowdstrike"],
+    "ANET": ["arista"], "AVGO": ["broadcom"], "CRM": ["salesforce"],
+    "CRWD": ["crowdstrike"], "DELL": ["dell technologies"],
     "GOOGL": ["google", "alphabet"], "JNJ": ["johnson & johnson", "johnson and johnson", "j&j"],
-    "JPM": ["jpmorgan", "jp morgan", "chase"], "LLY": ["eli lilly", "lilly"],
+    "JPM": ["jpmorgan", "jp morgan", "chase"],
     "META": ["meta platforms", "meta ", "facebook"], "MSFT": ["microsoft"],
     "NFLX": ["netflix"], "NVDA": ["nvidia"], "PANW": ["palo alto"],
     "PLTR": ["palantir"], "TSLA": ["tesla"], "TSM": ["tsmc", "taiwan semi"],
-    "V": ["visa"], "QQQ": ["nasdaq 100", "qqq"], "SPY": ["s&p 500", "spy"],
-    "IWM": ["russell 2000", "iwm"],
+    "V": ["visa"],
 }
 def news_is_direct(ticker, title, related):
     """True if the item is about THIS name, not merely its sector.
@@ -589,15 +587,13 @@ def us_market_date():
     from datetime import timezone
     d = datetime.now(timezone.utc) - timedelta(hours=4)
     return d.date(), "ET~(no tzdata: pip install tzdata)"
-ETF_SLOTS = {"SPY", "QQQ", "IWM"}     # macro gate, never an earnings gate
 LISTING = {
-    "JNJ": "NYSE", "JPM": "NYSE", "V": "NYSE", "LLY": "NYSE",
-    "TSM": "NYSE", "ANET": "NYSE",
-    "SPY": "NYSEArca", "IWM": "NYSEArca",
+    "JNJ": "NYSE", "JPM": "NYSE", "V": "NYSE",
+    "TSM": "NYSE", "ANET": "NYSE", "CRM": "NYSE", "DELL": "NYSE",
     "AAPL": "Nasdaq", "AMD": "Nasdaq", "AMZN": "Nasdaq", "AVGO": "Nasdaq",
     "CRWD": "Nasdaq", "GOOGL": "Nasdaq", "META": "Nasdaq", "MSFT": "Nasdaq",
     "NFLX": "Nasdaq", "NVDA": "Nasdaq", "PANW": "Nasdaq", "PLTR": "Nasdaq",
-    "TSLA": "Nasdaq", "QQQ": "Nasdaq",
+    "TSLA": "Nasdaq",
 }
 class NasdaqEarnings:
     """Nasdaq's own earnings calendar. No API key.
@@ -772,22 +768,20 @@ def cluster_of(t):
     return "Unclustered"
 def anchor_delta(t):
     return DELTA_ANCHOR.get(t, DEFAULT_DELTA)
-def round_width(spot, ticker=None):
+def round_width(spot):
     """Return (raw 5% width, width snapped to listed increment).
     The $5 minimum is tested on the RAW figure. Snapping first would round
     a $4.2 target up to $5 and smuggle the name past its own pre-filter.
     """
     raw = spot * WIDTH_PCT
-    if ticker in ETF_SLOTS:
-        inc = 5.0           # SPY/QQQ/IWM list $1-$5 strikes at any price
-    elif spot < 100:
+    if spot < 100:
         inc = 2.5
     elif spot < 500:
         inc = 5.0
     elif spot < 1000:
         inc = 10.0
     else:
-        inc = 20.0          # LLY at ~$1255 does not list $5 strikes
+        inc = 20.0
     return raw, max(round(raw / inc) * inc, inc)
 # ---------------------------------------------------------------- providers
 BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -977,7 +971,7 @@ class FakeProvider:
         self.base["AMD"]  = 500.0
         self.base["CRWD"] = 400.0
         self.base["PANW"] = 380.0
-        self.downtrend = {"TSLA", "AVGO", "IWM"}   # should fail Gate 1
+        self.downtrend = {"TSLA", "AVGO"}          # should fail Gate 1
         self.earns_soon = {"CRWD", "PANW"}         # should fail Gate 2
         self.conflict   = {"AMD"}                  # two sources disagree
     def bars(self, t, days=90):
@@ -1175,7 +1169,6 @@ def run(provider, today, do_news=True, tickers=None,
     single_src = []
     nq_cover = {}          # ticker -> did nasdaq return a date
     nq_clear = {}          # ticker -> did nasdaq affirmatively clear the window
-    macro_slots = []
     macro = (macro_src if macro_src is not None
              else MacroCalendar(us_today, days=DTE_MAX + 21))
     macro.load()
@@ -1193,56 +1186,37 @@ def run(provider, today, do_news=True, tickers=None,
             dropped["trend"].append(t); continue
         spot = g1["spot"]
         regime["spot_srcs"].add(g1["spot_src"])
-        width_raw, width = round_width(spot, t)
+        width_raw, width = round_width(spot)
         if width_raw < WIDTH_MIN:
             dropped["width"].append(f"{t}(5%W=${width_raw:.2f})"); continue
         exp, dte = pick_expiry(provider.expiries(t), us_today)
         if exp is None:
             dropped["data"].append(f"{t}(no expiry {DTE_MIN}-{DTE_MAX}d)"); continue
         expd = datetime.strptime(exp, "%Y-%m-%d").date()
-        past_earn = None
-        if t in ETF_SLOTS:
-            # ETFs have no earnings. Querying them 404s, and the empty result
-            # then reads as "no source found" — a false alarm on every run.
-            hits = macro.near(expd)
-            if not macro.bls_ok:
-                # Same rule as the VIX/condor gate: a condition that cannot be
-                # verified has not been met. Never print "clear" off a broken
-                # calendar.
-                macro_slots.append((t, hits, "UNVERIFIED"))
-                dropped["earnings"].append(f"{t}[macro UNVERIFIED - CPI/NFP unread]")
-                continue
-            macro_slots.append((t, hits, "ok"))
-            conflict, nsrc = False, None
-            if hits:
-                dropped["earnings"].append(
-                    f"{t}[macro: {', '.join(l for _, l in hits)}]")
-                continue
-        else:
-            srcs = list(provider.earnings(t))
-            try:
-                nq = nasdaq.get(t)
-            except Exception as e:
-                nasdaq.errors.append(f"{t} {type(e).__name__}")
-                nq = []
-            nq_cover[t] = bool(nq)
-            srcs += nq
-            srcs += finnhub.get(t)
-            past = [d for _, d in srcs if d and d < us_today]
-            past_earn = max(past) if past else None
-            clear = []
-            try:
-                if not nq and nasdaq.covers(us_today, expd):
-                    clear.append("nasdaq")
-            except Exception:
-                pass
-            nq_clear[t] = bool(clear)
-            blocked, conflict, nxt, detail, nsrc = gate2_earnings(
-                srcs, us_today, expd, clear_votes=clear)
-            if conflict:
-                conflicts.append(f"{t}: {detail}")
-            if nsrc < 2:
-                single_src.append(f"{t}({nsrc} source)")
+        srcs = list(provider.earnings(t))
+        try:
+            nq = nasdaq.get(t)
+        except Exception as e:
+            nasdaq.errors.append(f"{t} {type(e).__name__}")
+            nq = []
+        nq_cover[t] = bool(nq)
+        srcs += nq
+        srcs += finnhub.get(t)
+        past = [d for _, d in srcs if d and d < us_today]
+        past_earn = max(past) if past else None
+        clear = []
+        try:
+            if not nq and nasdaq.covers(us_today, expd):
+                clear.append("nasdaq")
+        except Exception:
+            pass
+        nq_clear[t] = bool(clear)
+        blocked, conflict, nxt, detail, nsrc = gate2_earnings(
+            srcs, us_today, expd, clear_votes=clear)
+        if conflict:
+            conflicts.append(f"{t}: {detail}")
+        if nsrc < 2:
+            single_src.append(f"{t}({nsrc} source)")
         if blocked:
             dropped["earnings"].append(f"{t}({nxt})"); continue
         if past_earn is not None and (us_today - past_earn).days <= 1:
@@ -1261,7 +1235,7 @@ def run(provider, today, do_news=True, tickers=None,
         # the number that decides every trade - what you actually get paid -
         # was missing. Worst case by construction: sell the short at the BID,
         # buy the long at the ASK. That is the side of the spread you land on
-        # when nothing goes your way, and it is the figure the 11%W floor is
+        # when nothing goes your way, and it is the figure the 12%W floor is
         # defined against. Anything friendlier would flatter the row.
         long_k = leg["strike"] - width
         cands = [c for c in chain if c["strike"] < leg["strike"]]
@@ -1333,7 +1307,6 @@ def run(provider, today, do_news=True, tickers=None,
     regime["nq_clear"] = nq_clear
     regime["nq_span"] = nasdaq.span() if hasattr(nasdaq, "span") else (None, None)
     regime["nq_symbols"] = len(nasdaq.map)
-    regime["macro_slots"] = macro_slots
     regime["macro_events"] = macro.events
     regime["macro_errors"] = macro.errors
     regime["macro_bls_ok"] = macro.bls_ok
@@ -1403,11 +1376,11 @@ def explain_notes(r, verbose=False):
             out.append(f"Earnings {d}d ago \u2014 that jump inflates HV, so "
                        f"the IV flag above may just be the earnings gap.")
         elif n == "nofb":
-            out.append("No fallback \u2014 if 11% fails at 0.15\u0394, skip. "
-                       "Never step closer to the money.")
+            out.append(f"No fallback \u2014 if {CREDIT_FLOOR*100:.0f}% fails at "
+                       f"0.15\u0394, skip. Never step closer to the money.")
         elif n.startswith("fb") and n != "nofb":
             out.append(f"Fallback {n[2:]}\u0394 \u2014 may step here only after "
-                       f"11% fails live. No further.")
+                       f"{CREDIT_FLOOR*100:.0f}% fails live. No further.")
         elif n.startswith("blowoff"):
             out.append(f"Blow-off run \u2014 {n[7:]} above 20-day avg. Vertical "
                        f"run, not trend. Never step \u0394 up.")
@@ -1480,8 +1453,10 @@ FLAG_LEGEND = [
     ("inv",   "IV below HV — paid less than the stock actually moved"),
     ("gapNd", "reported N days ago; the gap inflates HV, so `inv` may be an artifact"),
     ("unclus","no cluster cap applies — only per-name and total bind"),
-    ("nofb",  "no fallback: if 11%W fails at 0.15\u0394, skip. Never step closer"),
-    ("fbN",   "may step to N\u0394 only after 11%W fails live. No further"),
+    ("nofb",  f"no fallback: if {CREDIT_FLOOR*100:.0f}%W fails at 0.15\u0394, "
+              "skip. Never step closer"),
+    ("fbN",   f"may step to N\u0394 only after {CREDIT_FLOOR*100:.0f}%W fails "
+              "live. No further"),
     ("capN",  "nearest strike to N\u0394 breached the 0.20 hard cap — stepped out, less credit"),
     ("blowoffN", "N% above SMA20 — vertical run, not trend. Never step \u0394 up"),
     ("T+2",   "reported 2 days ago — the earliest entry you allow"),
@@ -1572,7 +1547,7 @@ def report(rows, dropped, conflicts, news_out, regime, today, verbose=False):
     L.append("")
     rule()
     L.append(f"CANDIDATES \u2014 Gates 1-2 passed. Gate 3 is yours, headlines "
-             f"below. 11%W floor yours at ticket.")
+             f"below. {CREDIT_FLOOR*100:.0f}%W floor yours at ticket.")
     rule()
     if rows:
         d_h, ad_h = "\u0394", "act\u0394"
@@ -1698,17 +1673,6 @@ def report(rows, dropped, conflicts, news_out, regime, today, verbose=False):
     if regime.get("single_src"):
         L.append("  !! ONE SOURCE ONLY (agreement proves nothing): "
                  + ", ".join(regime["single_src"]))
-    ms = regime.get("macro_slots") or []
-    if ms:
-        parts = []
-        for t, hits, stt in ms:
-            if stt == "UNVERIFIED":
-                parts.append(f"{t}[UNVERIFIED]")
-            elif hits:
-                parts.append(f"{t}[{', '.join(l for _, l in hits)}]")
-            else:
-                parts.append(f"{t}[clear]")
-        L.append(f"  macro gate (ETFs)  {', '.join(parts)}")
     L.append("  None is IR. Confirm at source anything that binds.")
 
     if conflicts:
@@ -1721,12 +1685,12 @@ def report(rows, dropped, conflicts, news_out, regime, today, verbose=False):
     # ---------------------------------------------------------- FOOTER
     if rows:
         L.append("")
-        L.append("IV needed for 11%W (21 DTE, 5%-of-spot width) \u2014 reference, "
+        L.append("IV needed for 12%W (18 DTE, 5%-of-spot width) \u2014 reference, "
                  "never pass/fail:")
-        L.append("  0.15\u0394 47.1%  0.16\u0394 41.2%  0.17\u0394 36.4%  "
-                 "0.18\u0394 32.5%  0.20\u0394 26.6%")
-        L.append("  Ignores bid/ask drag, so optimistic by construction \u00b7 "
-                 "calibrated to 21 DTE \u00b7 not a gate.")
+        L.append("  0.15\u0394 60.3%  0.16\u0394 52.5%  0.17\u0394 46.2%  "
+                 "0.18\u0394 40.9%  0.20\u0394 33.1%")
+        L.append("  Flat 0.90 haircut, understates real bid/ask drag \u00b7 "
+                 "calibrated to 18 DTE \u00b7 not a gate.")
     L.append("")
     L.append("\u0394 target short-leg delta \u00b7 act\u0394 delta of the strike "
              "actually picked \u00b7 Short sold \u00b7 Long bought")
@@ -2594,8 +2558,9 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
             ("Long", "", "strike bought, one width below"),
             ("Width", "", "distance between the two strikes"),
             ("Target", "Target credit",
-             "11% of the width — the least this spread may be sold for. "
-             "Aim at or above it when you price the ticket in IBKR."),
+             f"{CREDIT_FLOOR*100:.0f}% of the width — the least this spread "
+             "may be sold for. Aim at or above it when you price the ticket "
+             "in IBKR."),
             ("IV", "", "implied volatility: the move being priced in"),
             ("HV", "", "realised volatility: the move actually delivered"),
             ("IV/HV", "", "under 1.00 means it is priced for less than it moved"),
@@ -2747,8 +2712,8 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                  f'it live. This page does not quote options; it tells you '
                  f'the number to beat.</dd>')
         H.append(f'<dt>\U0001f4c5</dt><dd>All expiries '
-                 f'{_esc(rows[0]["expiry"])}. The 11%W floor above is yours '
-                 f'to enforce at the ticket.</dd>')
+                 f'{_esc(rows[0]["expiry"])}. The {CREDIT_FLOOR*100:.0f}%W '
+                 f'floor above is yours to enforce at the ticket.</dd>')
         H.append('</dl></div>')
 
         multi = [c for c in CLUSTER_ORDER
@@ -2842,9 +2807,10 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         '</div>')
     if who:
         H.append(f'<p class="sig">Built and maintained by <b>{_esc(who)}</b>. '
-                 f'The universe, the gates, the delta anchors and the 11% floor '
-                 f'are {_esc(who)}\u2019s own rules \u2014 not a standard, not '
-                 f'a service, and not financial advice.</p>')
+                 f'The universe, the gates, the delta anchors and the '
+                 f'{CREDIT_FLOOR*100:.0f}% floor are {_esc(who)}\u2019s own '
+                 f'rules \u2014 not a standard, not a service, and not '
+                 f'financial advice.</p>')
     else:
         H.append('<p class="sig">Not financial advice.</p>')
     if tail_js:
@@ -2961,7 +2927,7 @@ def selftest():
         earn_src=NullEarnings(), macro_src=StubMacro(FIXTURE_MACRO))
     chk("NFLX killed by width", any("NFLX" in x for x in dropped["width"]))
     chk("downtrend names killed by Gate 1",
-        {"TSLA","AVGO","IWM"} <= set(dropped["trend"]),
+        {"TSLA","AVGO"} <= set(dropped["trend"]),
         f"got {dropped['trend']}")
     chk("earnings names killed by Gate 2",
         all(any(k in x for x in dropped["earnings"]) for k in ("CRWD","PANW")),
@@ -2970,6 +2936,26 @@ def selftest():
     chk("some rows survive", len(rows) > 0, f"n={len(rows)}")
     chk("NVDA/TSM anchor 0.20 when present",
         all(r["delta"] == 0.20 for r in rows if r["t"] in ("NVDA","TSM")))
+    print("NEW NAMES (CRM, DELL, added 2-1-12)")
+    chk("both are in the universe", {"CRM","DELL"} <= set(UNIVERSE))
+    chk("CRM sits alone in Software, capped at 1",
+        cluster_of("CRM") == "Software" and CLUSTER_MAX["Software"] == 1)
+    chk("DELL joins Semis & hardware, capped at 2",
+        cluster_of("DELL") == "Semis & hardware"
+        and CLUSTER_MAX["Semis & hardware"] == 2)
+    chk("neither carries a fallback delta",
+        FALLBACK.get("CRM") is None and FALLBACK.get("DELL") is None
+        and "CRM" in FALLBACK and "DELL" in FALLBACK)
+    chk("both are listed on NYSE",
+        LISTING.get("CRM") == "NYSE" and LISTING.get("DELL") == "NYSE")
+    chk("both have a news alias for Gate 3 matching",
+        "salesforce" in ALIASES.get("CRM", [])
+        and "dell technologies" in ALIASES.get("DELL", []))
+    chk("both default to the 0.15 anchor (no NVDA/TSM override)",
+        anchor_delta("CRM") == 0.15 and anchor_delta("DELL") == 0.15)
+    chk("a surviving CRM/DELL row never carries a fbN step-up flag",
+        all(not any(n.startswith("fb") for n in r["notes"].split(","))
+            for r in rows if r["t"] in ("CRM","DELL")))
     # Absolute tolerance is the wrong contract: on a coarse strike grid the
     # nearest listed delta can legitimately sit far from the anchor. Assert
     # the picker chooses the CLOSEST available strike instead.
@@ -3077,31 +3063,17 @@ def selftest():
     chk("every universe name has a listing tagged",
         all(t in LISTING for t in UNIVERSE),
         f"missing: {[t for t in UNIVERSE if t not in LISTING]}")
-    chk("six NYSE names identified",
+    chk("seven NYSE names identified",
         sorted(t for t in UNIVERSE if LISTING.get(t) == "NYSE") ==
-        ["ANET", "JNJ", "JPM", "LLY", "TSM", "V"])
-    print("STRIKE INCREMENTS & ETF EXEMPTION")
-    chk("LLY-scale spot snaps to $20 grid", round_width(1255.40)[1] == 60.0,
+        ["ANET", "CRM", "DELL", "JNJ", "JPM", "TSM", "V"])
+    print("STRIKE INCREMENTS")
+    chk("high-scale spot snaps to $20 grid", round_width(1255.40)[1] == 60.0,
         f"= {round_width(1255.40)[1]}")
     chk("MSFT-scale spot keeps $5 grid", round_width(483.24)[1] == 25.0,
         f"= {round_width(483.24)[1]}")
     chk("TSM-scale spot keeps $5 grid", round_width(418.95)[1] == 20.0)
-    chk("SPY uses the $5 ETF grid, not the price tier",
-        round_width(765.72, "SPY")[1] == 40.0, f"= {round_width(765.72,'SPY')[1]}")
-    chk("QQQ 5% of 713 -> 35 on ETF grid (not 40 on the $10 tier)",
-        round_width(713.44, "QQQ")[1] == 35.0,
-        f"= {round_width(713.44,'QQQ')[1]} vs untagged {round_width(713.44)[1]}")
-    chk("a $713 STOCK still uses the $10 tier",
+    chk("a $713 stock uses the $10 tier",
         round_width(713.44)[1] == 40.0)
-    chk("ETF slots defined", ETF_SLOTS == {"SPY", "QQQ", "IWM"})
-    chk("no ETF appears in earnings conflicts",
-        not any(c.split(":")[0] in ETF_SLOTS for c in conflicts),
-        f"conflicts={[c.split(':')[0] for c in conflicts]}")
-    chk("ETFs routed to macro gate",
-        {x[0] for x in regime.get("macro_slots", [])} <= ETF_SLOTS
-        and len(regime.get("macro_slots", [])) > 0)
-    chk("ETFs excluded from single-source noise",
-        not any(x.split("(")[0] in ETF_SLOTS for x in regime.get("single_src", [])))
     print("NOTE EXPLANATIONS")
     chk("every flag on every row produces an explanation",
         all(len(explain_notes(r)) == len([c for c in r["notes"].split(",") if c])
@@ -3187,9 +3159,6 @@ Producer Price Index for October 2026
         "FOMC" not in [l for _, l in real.near(date(2026,9,11))])
     chk("Sep 18 expiry DOES pick up FOMC Sep 16",
         [l for _, l in real.near(date(2026,9,18))] == ["FOMC"])
-    chk("broken calendar marks ETFs UNVERIFIED, never clear",
-        all(x[2] == "UNVERIFIED" for x in regime.get("macro_slots", []))
-        or regime.get("macro_bls_ok"))
     chk("a NUL-byte 200 parses to zero dates",
         parse_bls_annual("\x00" * 762) == [])
     chk("BLS User-Agent carries a contact address",
@@ -3235,7 +3204,7 @@ Producer Price Index for October 2026
         any("zero parseable dates" in e for e in m1.errors), f"{m1.errors[:2]}")
     chk("CPI still lands even though NFP failed",
         (date(2026, 9, 11), "CPI") in m1.events)
-    chk("bls_ok False keeps ETFs UNVERIFIED, never clear", m1.bls_ok is False)
+    chk("a 200-with-no-dates page keeps bls_ok False", m1.bls_ok is False)
 
     SEP = [(date(2026, 9, 4), "NFP"), (date(2026, 9, 10), "PPI")]
     m2 = _fake_load(good_cpi, "\x00" * 762, SEP)
@@ -3264,8 +3233,9 @@ Producer Price Index for October 2026
     chk("V carries a 0.20 fallback", FALLBACK["V"] == 0.20)
     chk("JNJ and MSFT are SKIP, never step up",
         FALLBACK["JNJ"] == "SKIP" and FALLBACK["MSFT"] == "SKIP")
-    chk("index slots have no fallback ever",
-        all(FALLBACK[t] is None for t in ("SPY", "QQQ", "IWM")))
+    chk("no-fallback names carry an explicit None, not a missing key",
+        all(FALLBACK.get(t) is None and t in FALLBACK
+            for t in ("CRWD", "META", "CRM", "DELL")))
     chk("blow-off threshold is 15%", BLOWOFF_STRETCH == 0.15)
     ex = explain_notes({"notes": "blowoff22%", "sma_margin": 0.22})
     chk("blow-off explanation forbids a delta step-up", "Never step" in ex[0])
@@ -3684,7 +3654,7 @@ Producer Price Index for October 2026
         all(r.get("target") is not None and
             abs(r["target"] - (r.get("act_width") or r["width"]) * CREDIT_FLOOR)
             < 1e-9 for r in rows))
-    for wdt, want in ((10, 1.10), (20, 2.20), (60, 6.60), (25, 2.75)):
+    for wdt, want in ((10, 1.20), (20, 2.40), (60, 7.20), (25, 3.00)):
         chk(f"a ${wdt} width targets ${want:.2f}",
             abs(wdt * CREDIT_FLOOR - want) < 1e-9)
     chk("no delayed-quote estimate is shown any more",
@@ -3695,13 +3665,9 @@ Producer Price Index for October 2026
         all("pctW" not in r for r in rows))
 
     print("ANET CLUSTERING")
-    chk("ANET has its own cluster", cluster_of("ANET") == "Networking")
-    chk("it is capped at one", CLUSTER_MAX["Networking"] == 1)
-    chk("it is not inside Semis", "ANET" not in CLUSTERS["Semis"])
-    chk("Semis is back to the four chip names",
-        CLUSTERS["Semis"] == ["NVDA", "AMD", "AVGO", "TSM"])
-    chk("the new cluster is in the display order",
-        "Networking" in CLUSTER_ORDER)
+    chk("ANET is deliberately unclustered", cluster_of("ANET") == "Unclustered")
+    chk("Semis & hardware holds the five chip/hardware names",
+        CLUSTERS["Semis & hardware"] == ["NVDA", "AMD", "AVGO", "TSM", "DELL"])
     chk("every cluster has a cap",
         all(c in CLUSTER_MAX for c in CLUSTERS))
     chk("every cluster is in the display order",
@@ -3731,7 +3697,8 @@ Producer Price Index for October 2026
         len({t for v in CLUSTERS.values() for t in v}))
     chk("every clustered name is in the universe",
         all(t in UNIVERSE for v in CLUSTERS.values() for t in v))
-    chk("the Semis cap did not silently move", CLUSTER_MAX["Semis"] == 2)
+    chk("the Semis & hardware cap did not silently move",
+        CLUSTER_MAX["Semis & hardware"] == 2)
 
     print("NO GITHUB API, SO NO RATE LIMIT TO SHARE")
     chk("the page never calls api.github.com",
@@ -3935,7 +3902,7 @@ def main():
                     help="suppress the text report (for scheduled runs)")
     ap.add_argument("--tickers", nargs="+", default=None,
                     help="names to screen; commas and/or spaces both fine. "
-                         "Omit to run the full universe (19 names + 3 indices).")
+                         "Omit to run the full universe (20 names).")
     a = ap.parse_args()
     if a.selftest:
         return selftest()
