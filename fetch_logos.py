@@ -63,7 +63,8 @@ OUT = "logos.json"
 WIKI_TITLE = {
     "AAPL": "Apple Inc.", "AMD": "Advanced Micro Devices",
     "AMZN": "Amazon (company)", "ANET": "Arista Networks",
-    "AVGO": "Broadcom Inc.", "CRWD": "CrowdStrike",
+    "AVGO": "Broadcom Inc.", "CRM": "Salesforce",
+    "CRWD": "CrowdStrike", "DELL": "Dell Technologies",
     "GOOGL": "Alphabet Inc.", "JNJ": "Johnson & Johnson",
     "JPM": "JPMorgan Chase", "LLY": "Eli Lilly and Company",
     "META": "Meta Platforms", "MSFT": "Microsoft",
