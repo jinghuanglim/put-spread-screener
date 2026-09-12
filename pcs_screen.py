@@ -60,20 +60,35 @@ CLUSTER_COLOR = {
 # per-name cap will not catch that either. Measured, dated, and stated as a
 # number so it can be re-measured rather than believed.
 CROSS_CLUSTER = [
-    (("ANET",), ("NVDA", "AMD", "AVGO", "TSM"),
-     "ANET has its own cluster but tracked the semis at 0.62 / 0.48 / 0.46 "
-     "over the last 60 / 120 / 250 sessions (measured 23 Aug 2026) \u2014 "
-     "above its own 0.57 correlation to SPY at 60 sessions. Holding it "
-     "alongside a semi is closer to two of the same bet than the cluster "
-     "lines suggest."),
+    (("ANET",), ("NVDA", "AMD", "AVGO", "TSM"), 0.62,
+     "ANET is deliberately unclustered but tracked the semis at "
+     "0.62 / 0.48 / 0.46 over the last 60 / 120 / 250 sessions (measured "
+     "23 Aug 2026) \u2014 above its own 0.57 correlation to SPY at 60 sessions. "
+     "Holding it alongside a semi is closer to two of the same bet than "
+     "the cluster lines suggest."),
 ]
+
+
+def cross_cluster_hits(tickers):
+    """(a, b, corr, note) entries whose both sides are present in this screen."""
+    shown = set(tickers)
+    return [(a, b, corr, note) for a, b, corr, note in CROSS_CLUSTER
+            if shown & set(a) and shown & set(b)]
 
 
 def cross_cluster_notes(tickers):
     """Notes whose both sides are present in this screen."""
-    shown = set(tickers)
-    return [note for a, b, note in CROSS_CLUSTER
-            if shown & set(a) and shown & set(b)]
+    return [note for _, _, _, note in cross_cluster_hits(tickers)]
+
+
+def _cross_cluster_node(tickers):
+    """(label, colour) for one side of a cross-cluster link, for the page's
+    small visual \u2014 the ticker itself when that side has no real cluster,
+    the cluster name when it does."""
+    c = cluster_of(tickers[0])
+    if c == "Unclustered":
+        return ", ".join(tickers), CLUSTER_COLOR["Unclustered"]
+    return c, CLUSTER_COLOR.get(c, "#a8a29e")
 DELTA_ANCHOR = {"NVDA":0.20, "TSM":0.20}          # everything else 0.15
 DEFAULT_DELTA = 0.15
 # Fallback delta, used ONLY if live worst-case credit fails the 12% floor at
@@ -1967,6 +1982,15 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim)
 .banner ul.macro li{padding:5px 0;border-bottom:1px solid rgba(128,128,128,.22);
   font-variant-numeric:tabular-nums}
 .banner ul.macro li:last-child{border-bottom:none}
+.link{display:flex;align-items:center;gap:10px;margin:10px 0 6px}
+.link .chip{display:inline-flex;align-items:center;gap:6px;font-weight:600;
+  font-size:14px;white-space:nowrap;flex:none}
+.link .wire{flex:1;position:relative;height:1px;min-width:24px;
+  background:repeating-linear-gradient(to right,var(--warn) 0 6px,
+  transparent 6px 11px)}
+.link .corr{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  background:var(--warnbg);padding:0 7px;font-weight:700;font-size:12.5px;
+  color:var(--warn);white-space:nowrap;font-variant-numeric:tabular-nums}
 
 /* overflow-x:auto silently makes this a scroll container on BOTH axes, and a
    sticky <th> sticks to its nearest scrolling ancestor - so the header was
@@ -2729,9 +2753,18 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                      f'ones. Passing the gates says nothing about how much of '
                      f'any of it to hold \u2014 that is position sizing, and '
                      f'this page does not do it.</p></div>')
-        for note in cross_cluster_notes([r["t"] for r in rows]):
+        for a, b, corr, note in cross_cluster_hits([r["t"] for r in rows]):
+            a_label, a_dot = _cross_cluster_node(a)
+            b_label, b_dot = _cross_cluster_node(b)
             H.append(f'<div class="banner warn"><b class="t">Two groups, one bet</b>'
-                     f'{_esc(note)}</div>')
+                     f'<div class="link">'
+                     f'<span class="chip"><span class="dot" '
+                     f'style="background:{a_dot}"></span>{_esc(a_label)}</span>'
+                     f'<span class="wire"><span class="corr">{corr:.2f} corr'
+                     f'</span></span>'
+                     f'<span class="chip"><span class="dot" '
+                     f'style="background:{b_dot}"></span>{_esc(b_label)}</span>'
+                     f'</div>{_esc(note)}</div>')
 
 
     # ------------------------------------------------ gate 3, behind the rows
@@ -3691,6 +3724,12 @@ Producer Price Index for October 2026
     if both is not None:
         chk("and the page warns when both are listed",
             "Two groups, one bet" in both)
+        chk("the warning carries a visual link, not just prose",
+            '<div class="link">' in both and 'class="wire"' in both
+            and "0.62 corr" in both)
+        chk("the link's two ends are colour-coded like the cluster dots",
+            f'style="background:{CLUSTER_COLOR["Unclustered"]}"' in both
+            and f'style="background:{CLUSTER_COLOR["Semis & hardware"]}"' in both)
     chk("NFLX stays unclustered - its best match was noise",
         cluster_of("NFLX") == "Unclustered")
     chk("no name lands in two clusters",
