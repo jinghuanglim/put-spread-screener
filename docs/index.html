@@ -350,11 +350,18 @@ a{color:var(--amber)}
 <h1>JH’s <em>Screen Room</em></h1>
 <span class="ver">v1.6</span>
 </div>
+<div class="launch"><div class="launchwrap">
+<button class="btn" id="go"><span class="bolt" aria-hidden="true">⚡</span>Run screen</button>
+<span class="halo" aria-hidden="true"></span></div>
+<div class="bar" id="bar"><div></div></div>
+<div class="runstat" id="stat"></div>
+<div class="fresh" id="fresh"></div>
+</div>
 <p class="who">This is JH’s personal screening workflow, running wide open for anyone who wants to peek. It might suit how you trade. It might not. Either way: no promises, no advice — just one person’s rules, turned into code.</p>
 </div>
 <div class="strip">
-<div class="inst"><span class="k"><span tabindex="0" data-tip="The US trading day this screen read data for — in US/Eastern time. Nothing about the gates; just which session everything below is dated to.">Market date<i class="ii" aria-hidden="true">i</i></span></span><span class="v">Sat 12 Sep</span><span class="s">US/Eastern</span></div>
-<div class="inst"><span class="k"><span tabindex="0" data-tip="When this page was last generated, in Singapore time. Everything on it — spot prices, VIX, the gates, the cards below — is only as current as this moment. A run from hours ago may not reflect where the market is right now.">Last run<i class="ii" aria-hidden="true">i</i></span></span><span class="v"><span id="built" data-utc="2026-09-12T17:04:51Z">Sun 13 Sep, 01:04 SGT</span></span><span class="s">Singapore time · Prices are live (yfinance, ~15–20 min delayed)</span></div>
+<div class="inst"><span class="k"><span tabindex="0" data-tip="The US trading day this screen read data for — in US/Eastern time. Nothing about the gates; just which session everything below is dated to.">Market date<i class="ii" aria-hidden="true">i</i></span></span><span class="v">Sat 12 Sep, <span class="live"><i class="led" id="mktled"></i><span id="ustime"></span> <span id="mktstate"></span></span></span><span class="s">US/Eastern</span></div>
+<div class="inst"><span class="k"><span tabindex="0" data-tip="When this page was last generated, in Singapore time. Everything on it — spot prices, VIX, the gates, the cards below — is only as current as this moment. A run from hours ago may not reflect where the market is right now.">Last run<i class="ii" aria-hidden="true">i</i></span></span><span class="v"><span id="built" data-utc="2026-09-12T17:05:58Z">Sun 13 Sep, 01:05 SGT</span></span><span class="s">Singapore time · Prices are live (yfinance, ~15–20 min delayed)</span></div>
 <div class="inst"><span class="k"><span tabindex="0" data-tip="CBOE Volatility Index — the market's own pricing of how much the S&amp;P 500 is expected to move over the next 30 days. Roughly: under 12 is very calm, 12–20 is a normal market, 20–30 is elevated and jumpy, 30 and up is real fear. Right now: normal range — 12 to 20.">VIX<i class="ii" aria-hidden="true">i</i></span></span><span class="v">15.84</span><span class="s">Normal range — 12 to 20</span></div>
 <div class="inst"><span class="k"><span tabindex="0" data-tip="An iron condor overlay: a call spread sold on top of an existing put spread position, for extra premium. It only turns on when conditions line up — VIX at 20 or above, the S&amp;P 500 within -2% to +3% of its own 20-day average, and no major scheduled macro event nearby — that last part checked by a person, not this page.">Condor overlay<i class="ii" aria-hidden="true">i</i></span></span><span class="v"><span class="pill nogo">NO-GO</span></span><span class="s">VIX 15.84 &lt; 20</span></div>
 </div>
@@ -440,4 +447,289 @@ a{color:var(--amber)}
 <p class="sig">
 This page does not price anything, size a position, or know what you already hold. Not financial advice.
 </p>
+<script>
+function initRun(cfg){
+  // No GitHub API. Unauthenticated it allows 60 requests an hour PER IP, and
+  // behind an office NAT that quota belongs to the whole building - so the
+  // status line died with "rate limit reached" through no fault of the person
+  // reading it. Everything here is answerable from a small file this run
+  // writes beside the page, served by Pages, with no quota at all.
+  var VER=(location.pathname.replace(/[^/]*$/,''))+'version.json';
+  var COOLDOWN=120000;      // keep in step with worker/worker.js
+  var stat=document.getElementById('stat'),go=document.getElementById('go'),
+      fresh=document.getElementById('fresh'),bar=document.getElementById('bar');
+  var timer=null,cool=null,idler=null,waiting=0,mine=false,began=0,watching=false;
+  var here=parseInt(cfg.runNumber||'0',10);
+  // A named constant, not an inline literal split across source lines -
+  // JS has no implicit adjacent-string concatenation the way Python does,
+  // and a wrapped literal here once shipped as two bare strings with
+  // nothing joining them: a silent syntax error that killed this entire
+  // script, button included, for however many runs it took to notice.
+  var WATCH_MSG='Someone else already clicked Run ⏳ Hang tight a few minutes, then refresh';
+
+  function say(h){stat.innerHTML=h;}
+  function stop(){if(timer){clearInterval(timer);timer=null;}}
+  function show(on){if(bar)bar.style.display=on?'block':'none';}
+  function busy(){
+    if(go.tagName==='BUTTON'){go.disabled=true;
+      go.innerHTML='<span class="dot"></span>Running';}
+    show(true);
+    // began is 0 whenever this browser did not start the run it is
+    // watching - a page refreshed mid-run, or someone else's press caught
+    // by the 409 below. Showing an elapsed count timed from THIS click
+    // would understate a run that has actually been going for minutes;
+    // saying so plainly is more honest than a wrong number.
+    say(began?Math.round((Date.now()-began)/1000)+'s':(watching?WATCH_MSG:''));
+  }
+  function idle(){
+    if(go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
+    show(false);watching=false;
+  }
+  function giveUp(msg){
+    idle();stop();mine=false;began=0;waiting=0;watching=false;
+    say(msg+' — <a href="'+cfg.actions+'" target="_blank" '+
+        'rel="noopener">check Actions</a>');
+  }
+  function cooldown(){
+    if(!cfg.builtUtc)return false;
+    var left=COOLDOWN-(Date.now()-new Date(cfg.builtUtc).getTime());
+    if(left<=0){if(cool){clearInterval(cool);cool=null;}
+      if(go.tagName==='BUTTON'&&!waiting)idle();return false;}
+    if(go.tagName==='BUTTON'&&!waiting){
+      go.disabled=true;go.textContent='Ready in '+Math.ceil(left/1000)+'s';
+    }
+    if(!cool)cool=setInterval(cooldown,1000);
+    return true;
+  }
+
+  function offer(n){
+    idle();say('');
+    fresh.innerHTML='Run #'+n+' is ready. '+
+      '<a href="#" id="doreload"><b>Reload</b></a>';
+    fresh.className='fresh show';
+    document.getElementById('doreload').onclick=function(e){
+      e.preventDefault();location.reload();};
+  }
+  function read(){return fetch(VER+'?t='+Date.now(),{cache:'no-store'})
+    .then(function(r){return r.ok?r.json():Promise.reject(0);});}
+
+  function check(){
+    if(Date.now()-waiting>300000){
+      giveUp('Still not published after 5 minutes');return;}
+    read().then(function(v){
+        var live=parseInt(v.run||'0',10);
+        // A failed run writes this file too, so the page can say so in
+        // seconds instead of waiting out a five-minute timeout and shrugging.
+        if(v.state==='failed'&&live>=here){
+          giveUp('Run #'+live+' failed');return;
+        }
+        if(live>here){
+          stop();
+          if(mine){location.reload();}else{offer(live);}
+          return;
+        }
+        busy();
+      })
+      .catch(function(){busy();});   // a 404 or a blip is not a failure
+  }
+
+  // Someone else may press the button while this page sits open. One 45-byte
+  // read a minute notices - and only while the tab is actually being looked
+  // at, because polling a page nobody is reading is just noise.
+  function idleWatch(){
+    if(document.hidden||waiting)return;
+    read().then(function(v){
+      var live=parseInt(v.run||'0',10);
+      if(v.state==='failed')return;
+      if(live>here)offer(live);
+    }).catch(function(){});
+  }
+
+  if(go.tagName==='BUTTON'){
+    go.addEventListener('click',function(){
+      mine=true;began=Date.now();waiting=Date.now();busy();
+      fetch(cfg.dispatch,{method:'POST'})
+        .then(function(r){
+          if(r.status===409){
+            // Someone just ran it, or is running it now - most often this
+            // same browser, a page refresh having thrown away the fact that
+            // its own click was already in flight. Watch rather than refuse:
+            // the result is on its way either way, and a silent switch to
+            // polling here is what used to look like the press had done
+            // nothing, or worse, done something wrong.
+            mine=false;began=0;waiting=Date.now();watching=true;stop();
+            busy();timer=setInterval(check,5000);check();return;}
+          if(!r.ok)throw r.status;
+          stop();timer=setInterval(check,5000);setTimeout(check,4000);})
+        .catch(function(){
+          mine=false;began=0;waiting=0;idle();
+          say('Could not start it — <a href="'+cfg.actions+
+              '" target="_blank" rel="noopener">run it from Actions</a>');});
+    });
+  }
+
+  // The market date above answers "which trading day". This answers
+  // "is it open right now" without making anyone do the UTC-to-ET math
+  // themselves. Intl carries the IANA rules already, so no tz data ships.
+  var usClock=document.getElementById('ustime');
+  var mktState=document.getElementById('mktstate');
+  if(usClock){
+    var fmt=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',
+      hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,
+      weekday:'short'});
+    // Regular session only, no holiday calendar - a real holiday shows as a
+    // false "open" here, which is why this is a glance-level indicator next
+    // to the clock it is computed from, not a claim this page verifies
+    // against anything. The clock itself is exact; this is a plain reading
+    // of it against 9:30-16:00 ET on a weekday.
+    var tick=function(){
+      var now=new Date();
+      var parts={};
+      fmt.formatToParts(now).forEach(function(p){parts[p.type]=p.value;});
+      // Minutes, not seconds - Last run reads the same way (SGT, no
+      // seconds), and the two are meant to read as one comparable pair.
+      usClock.textContent=parts.hour+':'+parts.minute+' ET';
+      if(mktState){
+        var mins=(+parts.hour)*60+(+parts.minute);
+        var isWeekday=['Sat','Sun'].indexOf(parts.weekday)===-1;
+        var isOpen=isWeekday&&mins>=570&&mins<960;   // 9:30-16:00 ET
+        mktState.textContent=isOpen?'Market open':'Market closed';
+        // The LED beside the clock carries the state; the pill styling it
+        // used to wear belonged to the GO/NO-GO tile, and two different
+        // things wearing one badge read as one thing.
+        var led=document.getElementById('mktled');
+        if(led)led.className='led'+(isOpen?' on':'');
+      }
+    };
+    tick();setInterval(tick,1000);
+  }
+
+  // Headlines open over the row you tapped, so Gate 3 never costs you your
+  // place in the table.
+  var nv=document.getElementById('nv');
+  if(nv){
+    var nvt=document.getElementById('nvt'),
+        nvb=nv.querySelector('.nvbody'),opener=null;
+    // Hiding the body's scrollbar to lock background scroll makes the page
+    // a few pixels wider, so everything shifts sideways for an instant - the
+    // "little screen moving" jump. Padding the body by exactly the vanished
+    // scrollbar's width keeps the layout still.
+    function lockScroll(){
+      var sw=window.innerWidth-document.documentElement.clientWidth;
+      document.body.style.overflow='hidden';
+      if(sw>0)document.body.style.paddingRight=sw+'px';
+    }
+    function unlockScroll(){
+      document.body.style.overflow='';document.body.style.paddingRight='';
+    }
+    function closeNews(){
+      nv.hidden=true;unlockScroll();
+      if(opener)opener.focus();opener=null;
+    }
+    function openNews(t,btn){
+      var list=(window.__news||{})[t]||[];
+      nvt.textContent=t;
+      if(!list.length){
+        nvb.innerHTML='<p class="nvi">No headlines came back for this name. '+
+          'That is a failed read, not a clean bill of health — check it '+
+          'by hand before acting.</p>';
+      }else{
+        nvb.innerHTML=list.map(function(o){
+          var body=o.u?('<a href="'+o.u+'" target="_blank" rel="noopener '+
+            'nofollow">'+o.t+'</a>'):o.t;
+          return '<p class="nvi'+(o.x?'':' sec')+'"><span class="m">'+
+            (o.x?'●':'○')+' '+o.d+'</span>'+body+'</p>';
+        }).join('');
+      }
+      opener=btn||null;nv.hidden=false;lockScroll();
+      var x=document.getElementById('nvx');if(x)x.focus();
+    }
+    document.addEventListener('click',function(e){
+      var btn=e.target.closest?e.target.closest('.nb'):null;
+      if(btn){openNews(btn.getAttribute('data-news'),btn);return;}
+      if(e.target===nv||(e.target.id==='nvx'))closeNews();
+    });
+    document.addEventListener('keydown',function(e){
+      if(e.key==='Escape'&&!nv.hidden)closeNews();
+    });
+  }
+
+  var b=document.getElementById('built');
+  if(b&&b.dataset.utc){
+    try{
+      var d=new Date(b.dataset.utc);
+      if(!isNaN(d)){
+        // Fixed to Singapore time regardless of the viewer's own browser
+        // timezone, same reasoning as the ET clock above: two reference
+        // clocks that always read the same way are what make Market date
+        // and Last run comparable at a glance, not a floating "your local
+        // time" that changes the pairing depending on who is looking.
+        var bfmt=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Singapore',
+          weekday:'short',day:'2-digit',month:'short',
+          hour:'2-digit',minute:'2-digit',hour12:false});
+        var bp={};
+        bfmt.formatToParts(d).forEach(function(p){bp[p.type]=p.value;});
+        b.textContent=bp.weekday+' '+bp.day+' '+bp.month+', '
+          +bp.hour+':'+bp.minute+' SGT';
+        b.title=b.dataset.utc;
+      }
+    }catch(e){}
+  }
+  // The run number already lives on the Last run tile - repeating it
+  // here too just made two labels for one fact. This line is left
+  // blank until there is something to actually report (running,
+  // ready-in countdown, a failure) rather than restating the tile.
+  cooldown();
+  if(cfg.runNumber){
+    idler=setInterval(idleWatch,60000);
+    document.addEventListener('visibilitychange',function(){
+      if(!document.hidden)idleWatch();});
+  }
+
+  // One floating tooltip, shown on hover with no delay. The native title
+  // attribute waits about a second, cannot be styled, and wrapped badly at the
+  // edge of the table. Tap still works for touch, where there is no hover.
+  var tipEl=document.createElement('div');
+  tipEl.id='tip';document.body.appendChild(tipEl);
+  var pinned=null;
+  function place(c){
+    var r=c.getBoundingClientRect();
+    tipEl.style.left='0px';tipEl.style.top='0px';
+    var w=tipEl.offsetWidth,h=tipEl.offsetHeight;
+    var x=Math.min(Math.max(8,r.left+r.width/2-w/2),window.innerWidth-w-8);
+    var y=r.bottom+8;
+    if(y+h>window.innerHeight-8)y=Math.max(8,r.top-h-8);
+    tipEl.style.left=x+'px';tipEl.style.top=y+'px';
+  }
+  function showTip(c){
+    var t=c.getAttribute('data-tip');if(!t)return;
+    tipEl.innerHTML=t;tipEl.classList.add('show');place(c);
+  }
+  function hideTip(){if(!pinned){tipEl.classList.remove('show');}}
+  document.addEventListener('mouseover',function(e){
+    var c=e.target.closest?e.target.closest('[data-tip]'):null;
+    if(c&&!pinned)showTip(c);
+  });
+  document.addEventListener('mouseout',function(e){
+    var c=e.target.closest?e.target.closest('[data-tip]'):null;
+    if(c)hideTip();
+  });
+  document.addEventListener('focusin',function(e){
+    var c=e.target.closest?e.target.closest('[data-tip]'):null;
+    if(c)showTip(c);
+  });
+  document.addEventListener('focusout',function(){pinned=null;hideTip();});
+  document.addEventListener('click',function(e){
+    var c=e.target.closest?e.target.closest('[data-tip]'):null;
+    if(!c){pinned=null;tipEl.classList.remove('show');return;}
+    if(pinned===c){pinned=null;tipEl.classList.remove('show');}
+    else{pinned=null;showTip(c);pinned=c;}
+  });
+  window.addEventListener('scroll',function(){
+    if(pinned)place(pinned);else tipEl.classList.remove('show');
+  },{passive:true});
+  window.addEventListener('resize',function(){
+    pinned=null;tipEl.classList.remove('show');});
+}
+</script><script>initRun({runNumber:"68",builtUtc:"2026-09-12T17:05:58Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
 </div></body></html>
