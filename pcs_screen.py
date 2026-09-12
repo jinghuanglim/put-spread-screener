@@ -2923,7 +2923,7 @@ def selftest():
                      (date(2026, 9, 16), "FOMC")]
     p = FakeProvider(today)
     rows, dropped, conflicts, news, regime = run(
-        p, today, do_news=True,
+        p, today, do_news=True, us_today_override=today,
         earn_src=NullEarnings(), macro_src=StubMacro(FIXTURE_MACRO))
     chk("NFLX killed by width", any("NFLX" in x for x in dropped["width"]))
     chk("downtrend names killed by Gate 1",
@@ -3333,6 +3333,7 @@ Producer Price Index for October 2026
     _u.urlopen = _trip
     try:
         r2, d2, c2, n2, g2r = run(FakeProvider(today), today, do_news=True,
+                                  us_today_override=today,
                                   earn_src=NullEarnings(),
                                   macro_src=StubMacro(FIXTURE_MACRO))
         netfail = None
