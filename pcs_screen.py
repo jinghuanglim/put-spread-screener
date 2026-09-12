@@ -2252,10 +2252,10 @@ function initRun(cfg){
   // reading it. Everything here is answerable from a small file this run
   // writes beside the page, served by Pages, with no quota at all.
   var VER=(location.pathname.replace(/[^/]*$/,''))+'version.json';
-  var COOLDOWN=180000;      // keep in step with worker/worker.js
+  var COOLDOWN=120000;      // keep in step with worker/worker.js
   var stat=document.getElementById('stat'),go=document.getElementById('go'),
       fresh=document.getElementById('fresh'),bar=document.getElementById('bar');
-  var timer=null,cool=null,idler=null,waiting=0,mine=false,began=0;
+  var timer=null,cool=null,idler=null,waiting=0,mine=false,began=0,watching=false;
   var here=parseInt(cfg.runNumber||'0',10);
 
   function say(h){stat.innerHTML=h;}
@@ -2265,14 +2265,20 @@ function initRun(cfg){
     if(go.tagName==='BUTTON'){go.disabled=true;
       go.innerHTML='<span class="dot"></span>Running';}
     show(true);
-    say(began?Math.round((Date.now()-began)/1000)+'s':'');
+    // began is 0 whenever this browser did not start the run it is
+    // watching - a page refreshed mid-run, or someone else's press caught
+    // by the 409 below. Showing an elapsed count timed from THIS click
+    // would understate a run that has actually been going for minutes;
+    // saying so plainly is more honest than a wrong number.
+    say(began?Math.round((Date.now()-began)/1000)+'s'
+        :(watching?'Already running \u2014 watching for it to finish':''));
   }
   function idle(){
     if(go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
-    show(false);
+    show(false);watching=false;
   }
   function giveUp(msg){
-    idle();stop();mine=false;began=0;waiting=0;
+    idle();stop();mine=false;began=0;waiting=0;watching=false;
     say(msg+' \u2014 <a href="'+cfg.actions+'" target="_blank" '+
         'rel="noopener">check Actions</a>');
   }
@@ -2337,10 +2343,14 @@ function initRun(cfg){
       fetch(cfg.dispatch,{method:'POST'})
         .then(function(r){
           if(r.status===409){
-            // Someone just ran it, or is running it now. Watch rather than
-            // refuse - the result is on its way either way.
-            mine=false;waiting=Date.now();stop();
-            timer=setInterval(check,5000);check();return;}
+            // Someone just ran it, or is running it now - most often this
+            // same browser, a page refresh having thrown away the fact that
+            // its own click was already in flight. Watch rather than refuse:
+            // the result is on its way either way, and a silent switch to
+            // polling here is what used to look like the press had done
+            // nothing, or worse, done something wrong.
+            mine=false;began=0;waiting=Date.now();watching=true;stop();
+            busy();timer=setInterval(check,5000);check();return;}
           if(!r.ok)throw r.status;
           stop();timer=setInterval(check,5000);setTimeout(check,4000);})
         .catch(function(){
@@ -4046,10 +4056,14 @@ Producer Price Index for October 2026
     chk("everyone else is offered the choice", "is ready." in stamped)
     chk("a failed dispatch releases the claim", "mine=false" in stamped)
     chk("a 409 watches instead of refusing",
-        "r.status===409" in stamped and "mine=false;waiting=" in stamped)
+        "r.status===409" in stamped and "mine=false;began=0;waiting=" in stamped)
+    chk("a 409 says what happened instead of going quiet",
+        "Already running — watching for it to finish" in stamped
+        and "watching=true" in stamped)
 
     print("COOLDOWN SAVES SHARED RESOURCES")
-    chk("a cooldown exists", "COOLDOWN=180000" in stamped)
+    chk("a cooldown exists, matching the worker's own window",
+        "COOLDOWN=120000" in stamped)
     chk("it counts down rather than sitting dead",
         "Math.ceil(left/1000)" in stamped)
     chk("it is driven off the page's own last-run stamp, needing no API",
