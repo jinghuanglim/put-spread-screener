@@ -16,6 +16,13 @@ Usage:
 """
 import argparse, math, sys, json
 from datetime import datetime, date, timedelta
+# Bump on every change to this file that reaches the published page - the
+# gates, the universe, the visual design, all of it. It is the one thing a
+# viewer can point to and say "this is the build I'm looking at", the same
+# job the run number does for a single run but for the code across all of
+# them. Independent of the workflow doc's own 2-1-N numbering, which tracks
+# strategy/rule changes, not this file's.
+SCREEN_VERSION = "1.1"
 # ---------------------------------------------------------------- config
 UNIVERSE = ["AAPL","AMD","AMZN","ANET","AVGO","CRM","CRWD","DELL","GOOGL",
             "JNJ","JPM","META","MSFT","NFLX","NVDA","PANW","PLTR","TSLA",
@@ -2271,7 +2278,8 @@ function initRun(cfg){
     // would understate a run that has actually been going for minutes;
     // saying so plainly is more honest than a wrong number.
     say(began?Math.round((Date.now()-began)/1000)+'s'
-        :(watching?'Already running \u2014 watching for it to finish':''));
+        :(watching?'Beat you to it! \u23f3 Hang tight a few minutes, '
+                   'then refresh':''));
   }
   function idle(){
     if(go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
@@ -2496,6 +2504,15 @@ def _esc(x):
             .replace(">", "&gt;").replace('"', "&quot;"))
 
 
+def _tile_label(label, tip):
+    """A stat-tile label that explains itself. Reuses the chip tooltip
+    machinery already wired up for flags and the Strikes/IV-HV cells —
+    `.chip.bare` keeps it looking like plain text, `data-tip` is what the
+    JS below actually listens for."""
+    return (f'<span class="chip bare" tabindex="0" data-tip="{_esc(tip)}">'
+            f'{_esc(label)}</span>')
+
+
 HOT_FLAGS = ("knife", "noq", "stale")
 
 
@@ -2518,9 +2535,11 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     who = regime.get("author") or ""
     H.append('<div class="brandrow">')
     H.append('<h1>Put credit spread screen</h1>')
-    if who:
-        H.append(f'<span class="by">{_esc(who)}\u2019s rules</span>')
+    H.append(f'<span class="by">v{_esc(SCREEN_VERSION)}</span>')
     H.append('</div>')
+    H.append(f'<p class="sub" style="margin:2px 0 10px">Rules created by '
+             f'{_esc(who) if who else "its author"} \u2014 not financial '
+             f'advice.</p>')
     # A date alone cannot answer "did my run land?" — two screens on the same
     # day look identical. The run number and build time make the page
     # self-identifying, so the question is settled by looking at it rather than
@@ -2598,17 +2617,41 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         # already tells two runs apart. The number still travels to the
         # script that polls for a fresher build; it just has no reason to
         # also print itself on the page.
-        H.append(f'<div class="stat now"><div class="k">Last run</div>'
+        last_run_tip = ("When this page was last generated. Everything "
+                        "below is only as fresh as this timestamp.")
+        H.append(f'<div class="stat now"><div class="k">'
+                 f'{_tile_label("Last run", last_run_tip)}</div>'
                  f'<div class="v"><span id="built" data-utc="{_esc(built)}">'
                  f'{_esc(built[11:16])} UTC</span></div></div>')
+    STAT_TIPS = {
+        "VIX": (f"CBOE Volatility Index. The condor overlay below needs "
+                f"this at {CONDOR_VIX_MIN:.0f} or above — under it, low "
+                f"volatility means the premium isn't worth the risk."),
+        "SPX vs 20-MA": ("The S&P 500's distance from its own 20-day "
+                         "average — how stretched the broad market is, not "
+                         "this screen's own tickers. The condor overlay "
+                         f"wants it between {CONDOR_STRETCH[0]*100:+.0f}% "
+                         f"and {CONDOR_STRETCH[1]*100:+.0f}%."),
+        "Candidates": ("How many names cleared Gates 1 and 2 today. Gate 3 "
+                       "news is still yours to check per name below."),
+    }
     for k, v in (("VIX", vix), ("SPX vs 20-MA", stv),
                  ("Candidates", str(len(rows)))):
-        H.append(f'<div class="stat"><div class="k">{k}</div>'
+        H.append(f'<div class="stat"><div class="k">'
+                 f'{_tile_label(k, STAT_TIPS[k])}</div>'
                  f'<div class="v">{_esc(v)}</div></div>')
     # GO/NO-GO is the one number on this row that a glance should be able to
     # answer; everything else here rewards reading, this one rewards not
     # having to.
-    H.append(f'<div class="stat"><div class="k">Condor</div>'
+    condor_tip = ("The optional call-overlay sold against a put spread "
+                  "already on the book — a separate structure, not a "
+                  f"screened candidate. GO needs VIX ≥{CONDOR_VIX_MIN:.0f}, "
+                  f"SPX stretch {CONDOR_STRETCH[0]*100:+.0f}% to "
+                  f"{CONDOR_STRETCH[1]*100:+.0f}% vs its 20-MA, and no "
+                  "binary macro event in the window — confirmed by you, "
+                  "not this page.")
+    H.append(f'<div class="stat"><div class="k">'
+             f'{_tile_label("Condor", condor_tip)}</div>'
              f'<div class="v"><span class="pill {"go" if go else "nogo"}">'
              f'{"GO" if go else "NO-GO"}</span></div></div>')
     H.append('</div>')
@@ -3927,7 +3970,35 @@ Producer Price Index for October 2026
     chk("nothing in the window means no banner at all",
         "Macro in the expiry window" not in ch2)
 
+    print("STAT TILES EXPLAIN THEMSELVES")
+    tile_html = render_html(rows, dropped, conflicts, news,
+                            dict(regime, built_utc="2026-08-24T13:32:00Z"),
+                            today)
+    for label in ("Last run", "VIX", "SPX vs 20-MA", "Candidates", "Condor"):
+        chk(f'"{label}" tile has a tooltip, not just a bare label',
+            re.search(rf'data-tip="[^"]*">{re.escape(label)}</span>',
+                      tile_html) is not None,
+            f"missing near {label!r}")
+    chk("the Condor tip states its own actual thresholds",
+        f"VIX ≥{CONDOR_VIX_MIN:.0f}" in html
+        and f"{CONDOR_STRETCH[0]*100:+.0f}%" in html
+        and f"{CONDOR_STRETCH[1]*100:+.0f}%" in html)
+    chk("the Condor tip says it's confirmed by a human, not the page",
+        "confirmed by you, not this page" in html)
+    chk("tile labels use the same tooltip machinery as the table chips",
+        html.count('class="chip bare" tabindex="0" data-tip="') >= 5)
+
     print("THE PAGE IDENTIFIES ITSELF")
+    chk("the version badge replaces the old 'X's rules' wording",
+        f'v{SCREEN_VERSION}' in html and "’s rules</span>" not in html)
+    chk("attribution and the disclaimer are stated once, plainly, up top",
+        "not financial advice" in html.lower()
+        and html.index("brandrow") < html.index("not financial advice"))
+    no_author_html = render_html(rows, dropped, conflicts, news,
+                                 {**regime, "author": None}, today)
+    chk("no author set still names an author generically rather than "
+        "going blank",
+        "Rules created by its author" in no_author_html)
     stamped = render_html(rows, dropped, conflicts, news,
                           dict(regime, repo="me/repo", run_id="999",
                                run_number="14",
@@ -4057,8 +4128,10 @@ Producer Price Index for October 2026
     chk("a failed dispatch releases the claim", "mine=false" in stamped)
     chk("a 409 watches instead of refusing",
         "r.status===409" in stamped and "mine=false;began=0;waiting=" in stamped)
-    chk("a 409 says what happened instead of going quiet",
-        "Already running — watching for it to finish" in stamped
+    chk("a 409 says what happened instead of going quiet, and what to do",
+        "Beat you to it" in stamped
+        and "Hang tight a few minutes" in stamped
+        and "then refresh" in stamped
         and "watching=true" in stamped)
 
     print("COOLDOWN SAVES SHARED RESOURCES")
