@@ -22,7 +22,7 @@ from datetime import datetime, date, timedelta
 # job the run number does for a single run but for the code across all of
 # them. Independent of the workflow doc's own 2-1-N numbering, which tracks
 # strategy/rule changes, not this file's.
-SCREEN_VERSION = "1.2"
+SCREEN_VERSION = "1.3"
 # ---------------------------------------------------------------- config
 UNIVERSE = ["AAPL","AMD","AMZN","ANET","AVGO","CRM","CRWD","DELL","GOOGL",
             "JNJ","JPM","META","MSFT","NFLX","NVDA","PANW","PLTR","TSLA",
@@ -1991,6 +1991,11 @@ body{margin:0;color:var(--ink);
 }
 .chip.bare{background:none;border:none;padding:0;font-size:inherit;
   font-family:inherit;color:inherit}
+/* cursor:help is invisible on a touchscreen - this is the same signal
+   that works with a finger, a mouse, or a screen reader's own cursor. */
+.infoicon{display:inline-block;margin-left:5px;font-size:.72em;
+  color:var(--accent);vertical-align:.1em}
+.chip.hot .infoicon{color:var(--alarm)}
 .drift{color:var(--dim);font-size:.86em}
 .chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #tip{position:fixed;z-index:99;max-width:min(340px,calc(100vw - 24px));
@@ -2511,10 +2516,13 @@ def _esc(x):
 def _tile_label(label, tip):
     """A stat-tile label that explains itself. Reuses the chip tooltip
     machinery already wired up for flags and the Strikes/IV-HV cells —
-    `.chip.bare` keeps it looking like plain text, `data-tip` is what the
-    JS below actually listens for."""
+    `.chip.bare` keeps the label itself looking like plain text, `data-tip`
+    is what the JS below actually listens for. `cursor:help` meant nothing
+    on a phone with no mouse, so there was no visible sign this text did
+    anything at all — the small circled i is that sign, on every input."""
     return (f'<span class="chip bare" tabindex="0" data-tip="{_esc(tip)}">'
-            f'{_esc(label)}</span>')
+            f'{_esc(label)}<span class="infoicon" aria-hidden="true">'
+            f'ⓘ</span></span>')
 
 
 HOT_FLAGS = ("knife", "noq", "stale")
@@ -2731,6 +2739,14 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     if not rows:
         H.append('<div class="drop">Nothing passed. Cash is a valid outcome.</div>')
     else:
+        # cursor:help meant nothing to anyone reading this on a phone, so
+        # the flags and the Δ/Strikes/IV-HV cells below looked like inert
+        # text. Said once, plainly, above the table, rather than left to be
+        # discovered by accident or not at all.
+        H.append('<p class="sub" style="margin:-4px 0 16px">'
+                 '<span class="infoicon" style="margin-left:0;font-size:1em" '
+                 'aria-hidden="true">ⓘ</span> Anything marked like that can '
+                 'be tapped (or hovered on desktop) for what it means.</p>')
         tgt_exp = regime.get("target_expiry")
         if tgt_exp:
             # DTE was a column that printed the same number on almost every
@@ -2811,7 +2827,9 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                     f'<span class="chip{" hot" if f in HOT_FLAGS else ""}" '
                     f'tabindex="0" '
                     f'data-tip="{_esc(tips[i] if i < len(tips) else f)}">'
-                    f'{_esc(_flag_label(f))}</span>' for i, f in enumerate(flags))
+                    f'{_esc(_flag_label(f))}'
+                    f'<span class="infoicon" aria-hidden="true">ⓘ</span>'
+                    f'</span>' for i, f in enumerate(flags))
                 ivhv = f"{r['ivhv']:.2f}" if r["ivhv"] else "n/a"
                 hv = f"{r['hv']*100:.1f}%" if r["hv"] else "n/a"
                 tg = (f"{r['target']:.2f}"
@@ -3865,6 +3883,13 @@ Producer Price Index for October 2026
     chk("no bottom-of-page legend remains", "<dl class=\"legend\">" not in html
         or "Flags</h2>" not in html)
     chk("chips are reachable by keyboard too", 'tabindex="0"' in html)
+    chk("every flag chip carries a visible info icon, not just a help "
+        "cursor a touchscreen can't show",
+        html.count('<span class="infoicon" aria-hidden="true">ⓘ</span>')
+        >= sum(len([x for x in r["notes"].split(",") if x]) for r in rows))
+    chk("the table states plainly, once, that tapped things explain "
+        "themselves — not left to be found by accident",
+        "can be tapped (or hovered on desktop) for what it means" in html)
     nth = html.count("</th>")      # one per header, unambiguous
     chk("the table is 5 columns, with flags on their own row",
         nth == 5, f"{nth} headers")
@@ -4011,9 +4036,12 @@ Producer Price Index for October 2026
                             today)
     for label in ("Last run", "VIX", "SPX vs 20-MA", "Candidates", "Condor"):
         chk(f'"{label}" tile has a tooltip, not just a bare label',
-            re.search(rf'data-tip="[^"]*">{re.escape(label)}</span>',
-                      tile_html) is not None,
+            re.search(rf'data-tip="[^"]*">{re.escape(label)}'
+                      rf'<span class="infoicon"', tile_html) is not None,
             f"missing near {label!r}")
+    chk("the tile's info icon is visible without needing a mouse to hover",
+        tile_html.count('<span class="infoicon" aria-hidden="true">ⓘ</span>')
+        >= 5)
     chk("the Condor tip states its own actual thresholds",
         f"VIX ≥{CONDOR_VIX_MIN:.0f}" in html
         and f"{CONDOR_STRETCH[0]*100:+.0f}%" in html
