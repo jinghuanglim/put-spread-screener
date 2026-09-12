@@ -22,7 +22,7 @@ from datetime import datetime, date, timedelta
 # job the run number does for a single run but for the code across all of
 # them. Independent of the workflow doc's own 2-1-N numbering, which tracks
 # strategy/rule changes, not this file's.
-SCREEN_VERSION = "1.1"
+SCREEN_VERSION = "1.2"
 # ---------------------------------------------------------------- config
 UNIVERSE = ["AAPL","AMD","AMZN","ANET","AVGO","CRM","CRWD","DELL","GOOGL",
             "JNJ","JPM","META","MSFT","NFLX","NVDA","PANW","PLTR","TSLA",
@@ -2264,6 +2264,12 @@ function initRun(cfg){
       fresh=document.getElementById('fresh'),bar=document.getElementById('bar');
   var timer=null,cool=null,idler=null,waiting=0,mine=false,began=0,watching=false;
   var here=parseInt(cfg.runNumber||'0',10);
+  // A named constant, not an inline literal split across source lines -
+  // JS has no implicit adjacent-string concatenation the way Python does,
+  // and a wrapped literal here once shipped as two bare strings with
+  // nothing joining them: a silent syntax error that killed this entire
+  // script, button included, for however many runs it took to notice.
+  var WATCH_MSG='Someone else already clicked Run ⏳ Hang tight a few minutes, then refresh';
 
   function say(h){stat.innerHTML=h;}
   function stop(){if(timer){clearInterval(timer);timer=null;}}
@@ -2277,9 +2283,7 @@ function initRun(cfg){
     // by the 409 below. Showing an elapsed count timed from THIS click
     // would understate a run that has actually been going for minutes;
     // saying so plainly is more honest than a wrong number.
-    say(began?Math.round((Date.now()-began)/1000)+'s'
-        :(watching?'Beat you to it! \u23f3 Hang tight a few minutes, '
-                   'then refresh':''));
+    say(began?Math.round((Date.now()-began)/1000)+'s':(watching?WATCH_MSG:''));
   }
   function idle(){
     if(go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
@@ -3607,6 +3611,37 @@ Producer Price Index for October 2026
     chk("the outlier explains itself on hover",
         "Confirm which Friday" in mhtml)
 
+    print("EMBEDDED JS ACTUALLY PARSES")
+    # Every other check here is a Python string match against the page -
+    # useless against a real syntax error, since broken JS still contains
+    # whatever substring you went looking for. A stray line-wrapped string
+    # literal with the '+' left off once shipped exactly that: two bare
+    # string literals with nothing joining them, a silent syntax error that
+    # killed this entire script - button, tooltips, clock, all of it - for
+    # however many runs it took a person to notice by clicking the button
+    # and getting nothing. `node --check` parses without executing, so it
+    # costs nothing and catches this class of bug outright. Skips quietly
+    # where node is not installed (this repo's own CI does not have it)
+    # rather than failing a check the environment cannot run.
+    import subprocess, tempfile
+    try:
+        with tempfile.NamedTemporaryFile(
+                "w", suffix=".js", delete=False, encoding="utf-8") as fh:
+            fh.write(_RUN_JS)
+            jspath = fh.name
+        try:
+            p = subprocess.run(["node", "--check", jspath],
+                               capture_output=True, text=True, timeout=10)
+            chk("the embedded script is valid JavaScript, not just "
+                "text that happens to contain the right words",
+                p.returncode == 0, p.stderr[-300:] if p.returncode else "")
+        finally:
+            import os as _os2
+            _os2.unlink(jspath)
+    except FileNotFoundError:
+        print("  [SKIP] node not installed - cannot syntax-check the "
+              "embedded script here")
+
     print("HERMETIC FIXTURE (network tripwire)")
     import urllib.request as _u
     _real = _u.urlopen
@@ -4128,11 +4163,14 @@ Producer Price Index for October 2026
     chk("a failed dispatch releases the claim", "mine=false" in stamped)
     chk("a 409 watches instead of refusing",
         "r.status===409" in stamped and "mine=false;began=0;waiting=" in stamped)
-    chk("a 409 says what happened instead of going quiet, and what to do",
-        "Beat you to it" in stamped
-        and "Hang tight a few minutes" in stamped
-        and "then refresh" in stamped
+    chk("a 409 names another person, not a vague 'it', and what to do",
+        "Someone else already clicked Run" in stamped
+        and "Hang tight a few minutes, then refresh" in stamped
         and "watching=true" in stamped)
+    chk("the message is one unbroken JS string, not two literals a "
+        "missing '+' would turn into a silent syntax error",
+        "var WATCH_MSG='Someone else already clicked Run" in stamped
+        and "then refresh';" in stamped)
 
     print("COOLDOWN SAVES SHARED RESOURCES")
     chk("a cooldown exists, matching the worker's own window",
