@@ -2189,6 +2189,7 @@ a{color:var(--amber)}
   border-radius:9px;padding:9px 14px;background:var(--panel2);display:inline-flex;
   align-items:center;gap:8px;transition:color .16s,border-color .16s,transform .16s}
 .dead:hover{color:var(--ink);border-color:var(--line2);transform:translateY(-2px)}
+.dead:hover .pic,.dead:hover .picx{opacity:1}
 .dead .arrow{color:var(--veto);font-size:12px;opacity:.7}
 .benchk{font-family:var(--mono);font-size:11.5px;letter-spacing:.15em;text-transform:uppercase;
   color:var(--faint);margin-bottom:9px}
@@ -2413,7 +2414,9 @@ function initRun(cfg){
       var now=new Date();
       var parts={};
       fmt.formatToParts(now).forEach(function(p){parts[p.type]=p.value;});
-      usClock.textContent=parts.hour+':'+parts.minute+':'+parts.second+' ET';
+      // Minutes, not seconds - Last run reads the same way (SGT, no
+      // seconds), and the two are meant to read as one comparable pair.
+      usClock.textContent=parts.hour+':'+parts.minute+' ET';
       if(mktState){
         var mins=(+parts.hour)*60+(+parts.minute);
         var isWeekday=['Sat','Sun'].indexOf(parts.weekday)===-1;
@@ -2484,8 +2487,18 @@ function initRun(cfg){
     try{
       var d=new Date(b.dataset.utc);
       if(!isNaN(d)){
-        b.textContent=d.toLocaleString(undefined,
-          {hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
+        // Fixed to Singapore time regardless of the viewer's own browser
+        // timezone, same reasoning as the ET clock above: two reference
+        // clocks that always read the same way are what make Market date
+        // and Last run comparable at a glance, not a floating "your local
+        // time" that changes the pairing depending on who is looking.
+        var bfmt=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Singapore',
+          weekday:'short',day:'2-digit',month:'short',
+          hour:'2-digit',minute:'2-digit',hour12:false});
+        var bp={};
+        bfmt.formatToParts(d).forEach(function(p){bp[p.type]=p.value;});
+        b.textContent=bp.weekday+' '+bp.day+' '+bp.month+', '
+          +bp.hour+':'+bp.minute+' SGT';
         b.title=b.dataset.utc;
       }
     }catch(e){}
@@ -2623,21 +2636,23 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     that is context rather than a gate says so in its own tooltip.
     """
     go, why = condor_verdict(regime)
+    who = regime.get("author") or ""
+    page_name = f"{who}’s Screen Room" if who else "The Screen Room"
     H = ['<!doctype html><html lang="en"><head><meta charset="utf-8">',
          '<meta name="viewport" content="width=device-width,initial-scale=1">',
-         f'<title>Put spread screen {_esc(today)}</title>',
+         f'<title>{_esc(page_name)}</title>',
          f'<style>{HTML_CSS}</style></head><body><div class="wrap">']
 
     srcs = regime.get("spot_srcs") or set()
     feed = {frozenset(["live"]): "live", frozenset(["close"]): "prev close"}.get(
         frozenset(srcs), "mixed" if srcs else "n/a")
-    who = regime.get("author") or ""
     repo = regime.get("repo")
     built = regime.get("built_utc") or ""
 
     # ------------------------------------------------ masthead + launch pad
     H.append('<div class="mast"><div class="mtitle">')
-    H.append('<h1>Put credit spread <em>desk</em></h1>')
+    h1_lead = f"{_esc(who)}’s" if who else "The"
+    H.append(f'<h1>{h1_lead} <em>Screen Room</em></h1>')
     H.append(f'<span class="ver">v{_esc(SCREEN_VERSION)}</span>')
     H.append('</div>')
 
@@ -2691,10 +2706,11 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     H.append('</div>')
 
     # ------------------------------------------------ instrument strip
-    # Market date and Last run first, side by side, in matching date
-    # format — they are two different clocks (US/Eastern for the
-    # trading day, UTC for the page build) and the only way to compare them
-    # at a glance is to make everything else about them read the same.
+    # Market date and Last run first, side by side, in matching date and
+    # time format — they are two different clocks (US/Eastern for the
+    # trading session, Singapore time for when this page was built) and
+    # the tz name is written out large enough that no one has to guess
+    # which is which.
     us_raw = regime.get("us_date")
     us_d_disp = us_raw
     if isinstance(us_raw, str):
@@ -2716,28 +2732,39 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                        "which session everything below is dated to.")
     H.append(f'<div class="inst"><span class="k">'
              f'{_tip(market_date_tip, "Market date")}'
-             f'</span><span class="v">{us_pretty}</span>'
-             f'<span class="s">US/Eastern{" &middot; " if clock else ""}{clock}</span></div>')
+             f'</span><span class="v">{us_pretty}'
+             f'{", " + clock if clock else ""}</span>'
+             f'<span class="s">US/Eastern</span></div>')
     if built:
         # The run number rides along to the script that polls for a newer
         # build; the displayed time alone already tells two runs apart,
         # because the button will not start a second inside the cooldown.
+        #
+        # Shown in Singapore time rather than the viewer's own browser
+        # timezone or a bare UTC stamp: this is one person's page, read
+        # from one place, and a fixed reference clock next to Market
+        # date's fixed US/Eastern one is what makes the two comparable at
+        # a glance. The raw UTC instant still travels in data-utc for
+        # anyone who wants to convert it themselves.
         built_d = None
         try:
-            built_d = datetime.strptime(built[:10], "%Y-%m-%d").date()
+            built_d = datetime.strptime(built, "%Y-%m-%dT%H:%M:%SZ")
         except ValueError:
             pass
-        built_pretty = built_d.strftime("%a %d %b") if built_d else built[:10]
-        last_run_tip = ("When this page was last generated, in UTC. "
-                        "Everything on it — spot prices, VIX, the "
-                        "gates, the cards below — is only as current "
-                        "as this moment. A run from hours ago may not "
-                        "reflect where the market is right now.")
+        sgt = built_d + timedelta(hours=8) if built_d else None
+        built_pretty = (f"{sgt.strftime('%a %d %b')}, {sgt.strftime('%H:%M')} SGT"
+                        if sgt else built[:16].replace("T", ", "))
+        last_run_tip = ("When this page was last generated, in Singapore "
+                        "time. Everything on it — spot prices, VIX, "
+                        "the gates, the cards below — is only as "
+                        "current as this moment. A run from hours ago may "
+                        "not reflect where the market is right now.")
         H.append(f'<div class="inst"><span class="k">'
                  f'{_tip(last_run_tip, "Last run")}</span>'
                  f'<span class="v"><span id="built" data-utc="{_esc(built)}">'
-                 f'{_esc(built_pretty)}, {_esc(built[11:16])} UTC</span></span>'
-                 f'<span class="s">{_esc(feed_label)}</span></div>')
+                 f'{_esc(built_pretty)}</span></span>'
+                 f'<span class="s">Singapore time · {_esc(feed_label)}'
+                 f'</span></div>')
     vix = f"{regime['vix']:.2f}" if regime["vix"] is not None else "unread"
     vix_val = regime["vix"]
     if vix_val is None:
@@ -3035,7 +3062,8 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                 extra = nm[len(base):].strip("()")
                 full = f"{base} {tip}" + (f" ({extra})" if extra else "")
                 H.append(f'<span class="dead" tabindex="0" '
-                         f'data-tip="{_esc(full)}">{_esc(base)}'
+                         f'data-tip="{_esc(full)}">{_mark(base, "pic", "picx")}'
+                         f'{_esc(base)}'
                          f'<span class="arrow" aria-hidden="true">\u25bc</span>'
                          f'</span>')
             H.append('</div>')
@@ -4261,7 +4289,8 @@ Producer Price Index for October 2026
                           dict(regime, repo="me/repo", run_id="999",
                                run_number="14",
                                built_utc="2026-08-23T08:20:11Z"), today)
-    chk("run time is on the page", "08:20 UTC" in stamped)
+    chk("run time is on the page, converted to Singapore time",
+        "16:20 SGT" in stamped)
     chk("the run number is not printed twice over — once was enough",
         "run #" not in stamped)
     chk("the script runs after the markup it touches",
