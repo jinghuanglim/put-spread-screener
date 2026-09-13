@@ -446,6 +446,19 @@ BLS_WANTED = (
     ("Consumer Price Index", "CPI"),
     ("Producer Price Index", "PPI"),
 )
+# One line each, plain enough for someone who has never had to care what
+# these initials stand for - shown on hover next to every date on the rail,
+# not just assumed already known.
+MACRO_BLURB = {
+    "FOMC": "the Fed's rate decision — the single biggest scheduled "
+            "mover there is",
+    "NFP": "the monthly US jobs report — a surprise here moves rate "
+           "expectations, and rate expectations move everything",
+    "CPI": "the US inflation print — feeds straight into what the Fed "
+           "does next",
+    "PPI": "wholesale inflation — a quieter preview of what CPI often "
+           "shows next",
+}
 _MONTHS = ["January", "February", "March", "April", "May", "June", "July",
            "August", "September", "October", "November", "December"]
 def parse_bls_schedule(text, year):
@@ -1927,6 +1940,10 @@ body{margin:0;background:var(--void);color:var(--ink);font-family:var(--sans);
   background-attachment:fixed}
 .wrap{max-width:1180px;margin:0 auto;padding-inline:18px;padding-block:30px 70px}
 h1,h2,h3{margin:0;text-wrap:balance}
+/* Nothing on this page shouts by getting heavier - it stands out by being
+   bigger, coloured, spaced out or glowing instead. One flat weight, kept
+   even under <b>/<strong>, so emphasis is never just "the same word, fatter". */
+b,strong{font-weight:500}
 a{color:var(--amber)}
 .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.18em;
   text-transform:uppercase;color:var(--amber)}
@@ -1950,7 +1967,7 @@ a{color:var(--amber)}
 .mast{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px 36px;
   align-items:center;margin-bottom:26px}
 .mtitle{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px}
-.mast h1{font-size:clamp(30px,5vw,44px);font-weight:800;letter-spacing:-.03em;line-height:1}
+.mast h1{font-size:clamp(30px,5vw,44px);font-weight:500;letter-spacing:-.03em;line-height:1}
 .mast h1 em{font-style:normal;color:var(--amber)}
 .ver{font-family:var(--mono);font-size:13px;color:var(--faint);
   border:1px solid var(--line);border-radius:99px;padding:4px 11px}
@@ -1962,7 +1979,7 @@ a{color:var(--amber)}
   flex-direction:column;gap:11px;width:280px}
 .launchwrap{position:relative}
 .btn{position:relative;overflow:hidden;width:100%;cursor:pointer;border:0;
-  font-family:var(--sans);font-weight:800;font-size:21px;letter-spacing:-.01em;color:#1A1100;
+  font-family:var(--sans);font-weight:500;font-size:22px;letter-spacing:.01em;color:#1A1100;
   background:linear-gradient(135deg,#FFD166 0%,#FFB020 45%,#FF9410 100%);
   border-radius:15px;padding:18px 32px;display:flex;align-items:center;
   justify-content:center;gap:11px;text-decoration:none;
@@ -1997,6 +2014,7 @@ a{color:var(--amber)}
 @keyframes blink{50%{opacity:.25}}
 .fresh{font-family:var(--mono);font-size:13.5px;color:var(--clear)}
 .fresh a{color:var(--clear)}
+.runhint{margin:0;font-size:12.5px;color:var(--faint);text-align:center;line-height:1.4}
 
 /* ---- instrument strip ---- */
 .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
@@ -2007,18 +2025,17 @@ a{color:var(--amber)}
 .inst:last-child{border-right:0}
 .inst .k{font-family:var(--mono);font-size:11.5px;letter-spacing:.15em;
   text-transform:uppercase;color:var(--faint);display:inline-flex;align-items:center}
-.inst .v{font-family:var(--mono);font-size:23px;font-weight:600;letter-spacing:-.02em;
+.inst .v{font-family:var(--mono);font-size:24px;font-weight:500;letter-spacing:-.01em;
   font-variant-numeric:tabular-nums}
-.inst .s{font-size:13.5px;color:var(--dim);line-height:1.35}
-.live{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);
-  font-size:13.5px;color:var(--dim)}
-.led{width:7px;height:7px;border-radius:50%;background:var(--faint);
-  box-shadow:0 0 0 3px rgba(132,148,168,.14)}
-.led.on{background:var(--clear);box-shadow:0 0 0 3px rgba(68,223,169,.18)}
-.pill{display:inline-flex;font-family:var(--mono);font-size:17px;font-weight:600;
-  letter-spacing:.04em;padding:3px 11px;border-radius:7px}
+.inst .s{font-family:var(--mono);font-size:13px;color:var(--dim);line-height:1.35}
+.pill{display:inline-flex;font-family:var(--mono);font-size:17px;font-weight:500;
+  letter-spacing:.06em;padding:3px 11px;border-radius:7px}
 .pill.nogo{color:var(--veto);background:rgba(255,96,118,.12);border:1px solid rgba(255,96,118,.32)}
 .pill.go{color:var(--clear);background:rgba(68,223,169,.12);border:1px solid rgba(68,223,169,.32)}
+.mktpill{display:inline-flex;font-family:var(--mono);font-size:12.5px;font-weight:500;
+  letter-spacing:.05em;padding:2px 9px;border-radius:99px;vertical-align:1px}
+.mktpill.open{color:var(--clear);background:rgba(68,223,169,.14);border:1px solid rgba(68,223,169,.32)}
+.mktpill.closed{color:var(--veto);background:rgba(255,96,118,.12);border:1px solid rgba(255,96,118,.32)}
 
 /* ---- target board ---- */
 .board{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);
@@ -2027,7 +2044,7 @@ a{color:var(--amber)}
   background:linear-gradient(105deg,rgba(255,176,32,.11),transparent 55%)}
 .board>*{position:relative}
 .bhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 20px;margin-top:8px}
-.bhead .date{font-size:clamp(26px,4.4vw,36px);font-weight:800;letter-spacing:-.025em}
+.bhead .date{font-size:clamp(28px,4.6vw,38px);font-weight:500;letter-spacing:-.02em}
 .bhead .dte{font-family:var(--mono);font-size:15px;color:var(--amber)}
 .bnote{color:var(--dim);font-size:15px;margin:10px 0 0;max-width:64ch}
 .bnote b{color:var(--ink)}
@@ -2065,7 +2082,10 @@ a{color:var(--amber)}
 
 /* ---- section heads ---- */
 .sec{margin:44px 0 18px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
-.sec h2{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.sec h2{font-size:25px;font-weight:500;letter-spacing:-.01em;display:flex;
+  align-items:center;gap:11px}
+.sec h2:before{content:"";width:5px;height:22px;border-radius:3px;
+  background:linear-gradient(180deg,var(--amber),var(--amber-d));flex:none}
 .sec .c{font-family:var(--mono);font-size:13.5px;color:var(--amber);
   border:1px solid rgba(255,176,32,.3);background:rgba(255,176,32,.07);
   border-radius:99px;padding:3px 11px}
@@ -2075,26 +2095,29 @@ a{color:var(--amber)}
    narrows, not four boxes of equal weight pretending to score. ---- */
 .flow{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);
   padding:22px 24px 20px;display:flex;align-items:stretch;flex-wrap:wrap}
-.stn{flex:none;display:flex;flex-direction:column;justify-content:center;gap:3px;min-width:118px}
-.stn .n{font-family:var(--mono);font-size:44px;font-weight:600;line-height:1;letter-spacing:-.04em}
+.stn{flex:none;display:flex;flex-direction:column;justify-content:center;gap:4px;min-width:118px}
+.stn .n{font-family:var(--mono);font-size:50px;font-weight:500;line-height:1;letter-spacing:-.03em}
 .stn .k{font-family:var(--mono);font-size:11.5px;letter-spacing:.15em;
   text-transform:uppercase;color:var(--faint)}
-.stn .s{font-size:13.5px;color:var(--dim)}
-.stn.out .n{color:var(--clear)}
-.stn.out .k{color:var(--clear);opacity:.8}
+.stn .s{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--dim)}
+.stn.out .n{color:var(--clear);font-size:60px;
+  text-shadow:0 0 26px rgba(68,223,169,.55)}
+.stn.out .k{color:var(--clear);opacity:.9}
 .pipes{flex:1;min-width:250px;display:flex;align-items:center;padding:0 18px}
-.pipe{flex:1;position:relative;height:78px;display:flex;align-items:center;justify-content:center}
+.pipe{flex:1;position:relative;height:86px;display:flex;align-items:center;justify-content:center}
 .pipe .shape{position:absolute;inset:0;border-top:1px solid var(--line2);
   border-bottom:1px solid var(--line2);
   background:linear-gradient(90deg,rgba(255,96,118,.16),rgba(255,176,32,.13));
   clip-path:polygon(0 var(--a),100% var(--b),100% calc(100% - var(--b)),0 calc(100% - var(--a)));
   transition:clip-path 1s cubic-bezier(.2,.7,.2,1)}
 .pipe.clean .shape{background:linear-gradient(90deg,rgba(68,223,169,.10),rgba(68,223,169,.14))}
-.pipe .cap{position:relative;display:flex;align-items:baseline;gap:8px;
+.pipe .cap{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;
   font-family:var(--mono);white-space:nowrap}
-.pipe .cap .d{font-size:18px;font-weight:600;color:var(--veto)}
-.pipe.clean .cap .d{color:var(--clear)}
-.pipe .cap .g{font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+.pipe .cap .d{font-size:34px;font-weight:500;color:var(--veto);
+  text-shadow:0 0 16px rgba(255,96,118,.45)}
+.pipe.clean .cap .d{color:var(--clear);text-shadow:0 0 16px rgba(68,223,169,.4)}
+.pipe .cap .g{font-size:13.5px;letter-spacing:.08em;text-transform:uppercase;
   color:var(--dim);display:inline-flex;align-items:center}
 .roster{flex-basis:100%;margin-top:18px;padding-top:16px;border-top:1px solid var(--line);
   display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -2109,7 +2132,7 @@ a{color:var(--amber)}
   object-fit:contain;opacity:.7;cursor:help;flex:none;
   transition:opacity .16s ease,transform .16s ease,box-shadow .16s ease}
 .picx{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
-  justify-content:center;font-size:13px;font-weight:700;color:#0B0F16;
+  justify-content:center;font-size:14px;font-weight:500;color:#0B0F16;
   background:var(--faint);opacity:.7;cursor:help;flex:none;
   transition:opacity .16s ease,transform .16s ease}
 .roster span:hover .pic,.roster span:focus-visible .pic,
@@ -2121,7 +2144,7 @@ a{color:var(--amber)}
 /* ---- survivors ---- */
 .clus{display:flex;align-items:center;gap:12px;margin:30px 0 14px}
 .clus .dot{width:11px;height:11px;border-radius:50%;flex:none}
-.clus h3{font-size:15px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.clus h3{font-size:15px;font-weight:500;letter-spacing:.14em;text-transform:uppercase}
 .clus .n{font-family:var(--mono);font-size:13px;color:var(--faint)}
 .clus .ln{flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
@@ -2132,18 +2155,18 @@ a{color:var(--amber)}
 .card:hover{border-color:var(--line2)}
 .chead{display:flex;align-items:flex-start;gap:12px}
 .chead .sp{flex:1;min-width:0}
-.tk{font-size:26px;font-weight:800;letter-spacing:-.015em;line-height:1.05}
+.tk{font-size:27px;font-weight:500;letter-spacing:-.01em;line-height:1.05;color:var(--c)}
 .spotln{font-family:var(--mono);font-size:14px;color:var(--dim);margin-top:3px}
 .lg{width:34px;height:34px;border-radius:9px;background:#fff;padding:4px;
   object-fit:contain;flex:none;box-shadow:0 2px 8px rgba(0,0,0,.35)}
 .lgx{width:34px;height:34px;border-radius:9px;flex:none;display:flex;align-items:center;
-  justify-content:center;font-size:15px;font-weight:800;color:#0B0F16;background:var(--dim)}
+  justify-content:center;font-size:16px;font-weight:500;color:#0B0F16;background:var(--dim)}
 .nb{background:var(--raise);border:1px solid var(--line);color:var(--dim);border-radius:9px;
   padding:7px 11px;font-family:var(--mono);font-size:13.5px;cursor:pointer;
   display:flex;align-items:center;gap:6px;transition:color .15s,border-color .15s}
 .nb:hover{color:var(--ink);border-color:var(--amber-d)}
 .nb.hot{color:var(--veto);border-color:rgba(255,96,118,.4)}
-.nbc{color:var(--amber);font-weight:700}
+.nbc{color:var(--amber)}
 
 /* The 20 closes Gate 1 judged, against the mean it judged them by. The gate
    that let the name through was the one thing the old page never showed. */
@@ -2167,16 +2190,16 @@ a{color:var(--amber)}
 .st .k{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
   color:var(--faint);display:inline-flex;align-items:center;margin-bottom:4px}
 .st .v{font-family:var(--mono);font-size:26px;font-variant-numeric:tabular-nums;
-  letter-spacing:-.03em;display:block;line-height:1.15}
+  letter-spacing:-.02em;display:block;line-height:1.15}
 .st .sub{font-family:var(--mono);font-size:12px;color:var(--faint);display:block;margin-top:2px}
-.st.credit .v{color:var(--amber);font-weight:700}
+.st.credit .v{color:var(--amber)}
 .st .drift{color:var(--faint)}
 /* IV against HV in words. The ratio is context, never a gate, and "1.34"
    asked most readers to do a translation the page can just do for them. */
 .prem{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:11px 13px;
   border-radius:10px;background:var(--raise);border:1px solid var(--line);
   font-size:15px;color:var(--dim)}
-.prem .v{font-weight:700}
+.prem .v{font-size:16px}
 .prem.cheap{border-color:rgba(255,176,32,.3);background:rgba(255,176,32,.07)}
 .prem.cheap .v{color:var(--amber)}
 .prem.rich{border-color:rgba(68,223,169,.3);background:rgba(68,223,169,.07)}
@@ -2199,11 +2222,22 @@ a{color:var(--amber)}
 .dead .arrow{color:var(--veto);font-size:12px;opacity:.7}
 .benchk{font-family:var(--mono);font-size:11.5px;letter-spacing:.15em;text-transform:uppercase;
   color:var(--faint);margin-bottom:9px}
-.benchnote{margin:16px 0 0;color:var(--dim);font-size:15px;max-width:70ch}
-.benchnote b{color:var(--ink)}
 .empty{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);
   padding:26px;font-size:19px;color:var(--dim)}
 .empty b{color:var(--ink)}
+
+/* ---- data disagreements ---- */
+.disagree{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);
+  padding:6px 22px}
+.disrow{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
+  padding:14px 0;border-bottom:1px solid var(--line)}
+.disrow:last-child{border-bottom:0}
+.disrow .dist{font-family:var(--mono);font-size:16px;color:var(--ink)}
+.distag{font-family:var(--mono);font-size:12px;letter-spacing:.05em;
+  padding:2px 9px;border-radius:99px}
+.distag.up{color:var(--clear);background:rgba(68,223,169,.14)}
+.distag.down{color:var(--faint);background:rgba(255,255,255,.06)}
+.disdetail{color:var(--dim);font-size:14px;flex-basis:100%}
 
 /* ---- gate 3 reader ---- */
 #nv[hidden]{display:none}
@@ -2217,7 +2251,7 @@ a{color:var(--amber)}
 }
 .nvhead{display:flex;align-items:center;gap:14px;padding:18px 20px;
   border-bottom:1px solid var(--line)}
-.nvhead b{font-size:21px;font-weight:800;flex:1}
+.nvhead b{font-size:22px;font-weight:500;flex:1;letter-spacing:-.01em}
 .nvhead button{background:var(--raise);border:1px solid var(--line);color:var(--ink);
   border-radius:9px;width:38px;height:38px;font-size:21px;line-height:1;cursor:pointer}
 .nvbody{overflow:auto;padding:6px 20px 14px}
@@ -2248,6 +2282,7 @@ a{color:var(--amber)}
   .strip{grid-template-columns:1fr 1fr}
   .inst{border-bottom:1px solid var(--line)}
   .stn .n{font-size:34px}
+  .stn.out .n{font-size:40px}
   .cards{grid-template-columns:1fr}
   #nv .nvbox{max-height:92vh}
 }
@@ -2299,7 +2334,7 @@ function initRun(cfg){
   // and a wrapped literal here once shipped as two bare strings with
   // nothing joining them: a silent syntax error that killed this entire
   // script, button included, for however many runs it took to notice.
-  var WATCH_MSG='Someone else already clicked Run ⏳ Hang tight a few minutes, then refresh';
+  var WATCH_MSG='Someone else already clicked Run Screen ⏳ Hang tight a few minutes, then refresh';
 
   function say(h){stat.innerHTML=h;}
   function stop(){if(timer){clearInterval(timer);timer=null;}}
@@ -2316,8 +2351,8 @@ function initRun(cfg){
     say(began?Math.round((Date.now()-began)/1000)+'s':(watching?WATCH_MSG:''));
   }
   function idle(){
-    if(go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run screen';}
-    show(false);watching=false;
+    if(go.tagName==='BUTTON'){go.disabled=false;go.textContent='Run Screen';}
+    show(false);watching=false;say('');
   }
   function giveUp(msg){
     idle();stop();mine=false;began=0;waiting=0;watching=false;
@@ -2331,6 +2366,7 @@ function initRun(cfg){
       if(go.tagName==='BUTTON'&&!waiting)idle();return false;}
     if(go.tagName==='BUTTON'&&!waiting){
       go.disabled=true;go.textContent='Ready in '+Math.ceil(left/1000)+'s';
+      say('The screen is running — wait a few minutes and try again');
     }
     if(!cool)cool=setInterval(cooldown,1000);
     return true;
@@ -2420,19 +2456,18 @@ function initRun(cfg){
       var now=new Date();
       var parts={};
       fmt.formatToParts(now).forEach(function(p){parts[p.type]=p.value;});
-      // Minutes, not seconds - Last run reads the same way (SGT, no
-      // seconds), and the two are meant to read as one comparable pair.
-      usClock.textContent=parts.hour+':'+parts.minute+' ET';
+      // Seconds included - Last run reads the same way (SGT, with
+      // seconds), so the two clocks are exactly comparable at a glance.
+      usClock.textContent=parts.hour+':'+parts.minute+':'+parts.second+' ET';
       if(mktState){
         var mins=(+parts.hour)*60+(+parts.minute);
         var isWeekday=['Sat','Sun'].indexOf(parts.weekday)===-1;
         var isOpen=isWeekday&&mins>=570&&mins<960;   // 9:30-16:00 ET
         mktState.textContent=isOpen?'Market open':'Market closed';
-        // The LED beside the clock carries the state; the pill styling it
-        // used to wear belonged to the GO/NO-GO tile, and two different
-        // things wearing one badge read as one thing.
-        var led=document.getElementById('mktled');
-        if(led)led.className='led'+(isOpen?' on':'');
+        // Its own pill, not the GO/NO-GO one - the condor pill answers a
+        // different question, and reusing its badge would read as one
+        // thing when they are two.
+        mktState.className='mktpill'+(isOpen?' open':' closed');
       }
     };
     tick();setInterval(tick,1000);
@@ -2500,11 +2535,11 @@ function initRun(cfg){
         // time" that changes the pairing depending on who is looking.
         var bfmt=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Singapore',
           weekday:'short',day:'2-digit',month:'short',
-          hour:'2-digit',minute:'2-digit',hour12:false});
+          hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
         var bp={};
         bfmt.formatToParts(d).forEach(function(p){bp[p.type]=p.value;});
         b.textContent=bp.weekday+' '+bp.day+' '+bp.month+', '
-          +bp.hour+':'+bp.minute+' SGT';
+          +bp.hour+':'+bp.minute+':'+bp.second+' SGT';
         b.title=b.dataset.utc;
       }
     }catch(e){}
@@ -2581,6 +2616,33 @@ def _tip(text, label="", cls="", tag="span", extra=""):
     c = f' class="{cls}"' if cls else ""
     return (f'<{tag}{c} tabindex="0" data-tip="{_esc(text)}"{extra}>{label}'
             f'<i class="ii" aria-hidden="true">i</i></{tag}>')
+
+
+def _friendly_conflict(detail):
+    """gate2_earnings hands back a compact debug string built for the
+    terminal report - "yfinance:2026-09-27 / nasdaq:2026-10-21" - that
+    means nothing to someone who has never read that function. Turned into
+    a plain sentence for the page; the terminal keeps the compact form,
+    which is what it was built for."""
+    segs = [s.strip() for s in detail.split(" / ")]
+    parts = []
+    for seg in segs:
+        if ":clear through " in seg:
+            prov, until = seg.split(":clear through ", 1)
+            parts.append(f"{prov.capitalize()} finds nothing due through {until}")
+        elif seg.count(":") == 1:
+            prov, d = seg.split(":", 1)
+            try:
+                d = datetime.strptime(d, "%Y-%m-%d").date().strftime("%d %b %Y")
+            except ValueError:
+                return detail
+            parts.append(f"{prov.capitalize()} says {d}")
+        else:
+            return detail
+    if not parts:
+        return detail
+    return ("; ".join(parts)
+            + " — they don't agree, so confirm the date yourself.")
 
 
 def _mark(t, cls="lg", fb="lgx"):
@@ -2678,7 +2740,7 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
             # docs/, nothing else.
             H.append('<button class="btn" id="go">'
                      '<span class="bolt" aria-hidden="true">\u26a1</span>'
-                     'Run screen</button>')
+                     'Run Screen</button>')
         else:
             # No dispatch endpoint configured, so the button cannot POST
             # anywhere without a token - and a token in a page anyone can
@@ -2687,8 +2749,12 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
             H.append(f'<a class="btn" id="go" href="{_esc(actions_url)}" '
                      f'target="_blank" rel="noopener">'
                      f'<span class="bolt" aria-hidden="true">\u26a1</span>'
-                     f'Run screen \u2192</a>')
+                     f'Run Screen \u2192</a>')
         H.append('<span class="halo" aria-hidden="true"></span></div>')
+        if dispatch:
+            H.append('<p class="runhint">Anyone can tap this \u2014 it reruns '
+                     'for everyone watching. Just ran? Give it a couple of '
+                     'minutes.</p>')
         H.append('<div class="bar" id="bar"><div></div></div>')
         H.append('<div class="runstat" id="stat"></div>')
         H.append('<div class="fresh" id="fresh"></div>')
@@ -2705,10 +2771,8 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                    f'actions:{_js(actions_url)}}});</script>')
     subject = f"{_esc(who)}’s" if who else "one person’s"
     H.append(f'<p class="who">This is {subject} personal screening '
-             f'workflow, running wide open for anyone who wants to peek. '
-             f'It might suit how you trade. It might not. Either way: no '
-             f'promises, no advice — just one person’s rules, '
-             f'turned into code.</p>')
+             f'workflow, out in the open for anyone curious. No promises, '
+             f'no advice — just one person’s rules, turned into code.</p>')
     H.append('</div>')
 
     # ------------------------------------------------ instrument strip
@@ -2729,9 +2793,8 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         "live": "Prices are live (yfinance, ~15–20 min delayed)",
         "prev close": "Prices are yesterday’s close (yfinance)",
     }.get(feed, f"Prices: {feed} (yfinance)")
-    clock = ('<span class="live"><i class="led" id="mktled"></i>'
-             '<span id="ustime"></span> <span id="mktstate"></span></span>'
-             ) if repo else ''
+    clock = '<span id="ustime"></span>' if repo else ''
+    mkt_pill = '<span class="mktpill" id="mktstate"></span>' if repo else ''
     H.append('<div class="strip">')
     market_date_tip = ("The US trading day this screen read data for — "
                        "in US/Eastern time. Nothing about the gates; just "
@@ -2740,7 +2803,8 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
              f'{_tip(market_date_tip, "Market date")}'
              f'</span><span class="v">{us_pretty}'
              f'{", " + clock if clock else ""}</span>'
-             f'<span class="s">US/Eastern</span></div>')
+             f'<span class="s">US/Eastern'
+             f'{" · " + mkt_pill if mkt_pill else ""}</span></div>')
     if built:
         # The run number rides along to the script that polls for a newer
         # build; the displayed time alone already tells two runs apart,
@@ -2758,7 +2822,7 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         except ValueError:
             pass
         sgt = built_d + timedelta(hours=8) if built_d else None
-        built_pretty = (f"{sgt.strftime('%a %d %b')}, {sgt.strftime('%H:%M')} SGT"
+        built_pretty = (f"{sgt.strftime('%a %d %b')}, {sgt.strftime('%H:%M:%S')} SGT"
                         if sgt else built[:16].replace("T", ", "))
         last_run_tip = ("When this page was last generated, in Singapore "
                         "time. Everything on it — spot prices, VIX, "
@@ -2774,23 +2838,30 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     vix = f"{regime['vix']:.2f}" if regime["vix"] is not None else "unread"
     vix_val = regime["vix"]
     if vix_val is None:
-        vix_read = "not read this run"
+        vix_read, band = "not read this run", "faint"
     elif vix_val < 12:
-        vix_read = "very calm — under 12"
+        vix_read, band = "very calm — under 12", "faint"
     elif vix_val < 20:
-        vix_read = "normal range — 12 to 20"
+        vix_read, band = "normal range — 12 to 20", "clear"
     elif vix_val < 30:
-        vix_read = "elevated — 20 to 30"
+        vix_read, band = "elevated — 20 to 30", "amber"
     else:
-        vix_read = "high fear — 30 and up"
+        vix_read, band = "high fear — 30 and up", "veto"
+    band_color = f"var(--{band})"
+    # Colour, not bold text, marks the current band - a page that already
+    # leans on colour for GO/NO-GO and market open/closed reads it the same
+    # way here, rather than adding yet another word in bold.
     vix_tip = ("CBOE Volatility Index — the market's own pricing of how "
-               "much the S&P 500 is expected to move over the next 30 days. "
-               "Roughly: under 12 is very calm, 12–20 is a normal "
-               "market, 20–30 is elevated and jumpy, 30 and up is real "
-               f"fear. Right now: {vix_read}.")
+               "much the S&P 500 is expected to move over the next 30 "
+               "days.<br><br>"
+               "<span style='color:var(--faint)'>●</span> Under 12 — very calm<br>"
+               "<span style='color:var(--clear)'>●</span> 12–20 — normal market<br>"
+               "<span style='color:var(--amber)'>●</span> 20–30 — elevated, jumpy<br>"
+               "<span style='color:var(--veto)'>●</span> 30 and up — real fear<br><br>"
+               f"Right now: <span style='color:{band_color}'>{vix_read}</span>.")
     H.append(f'<div class="inst"><span class="k">{_tip(vix_tip, "VIX")}</span>'
-             f'<span class="v">{_esc(vix)}</span>'
-             f'<span class="s">{_esc(vix_read.capitalize())}</span></div>')
+             f'<span class="v" style="color:{band_color}">{_esc(vix)}</span>'
+             f'<span class="s" style="color:{band_color}">{_esc(vix_read.capitalize())}</span></div>')
     condor_tip = ("An iron condor overlay: a call spread sold on top of "
                   "an existing put spread position, for extra premium. It "
                   "only turns on when conditions line up — "
@@ -2818,14 +2889,16 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         # by hand rather than by strftime flag.
         pretty = tgt_d.strftime("%A %d %B").replace(" 0", " ")
         dte_s = (str(tgt_dte) + " DTE · ") if tgt_dte else ""
+        dte_tip = ("DTE = Days To Expiry, counted from today. %W = the "
+                   "credit required as a percentage of the spread's "
+                   "width — the floor this page enforces before a "
+                   "spread counts as worth selling.")
         H.append(f'<div class="bhead">'
                  f'<span class="date">{_esc(pretty)}</span>'
-                 f'<span class="dte">{dte_s}'
-                 f'{CREDIT_FLOOR*100:.0f}%W credit floor</span></div>')
-        H.append(f'<p class="bnote">Every strike below is priced against this '
-                 f'expiry. The floor is <b>yours to enforce at the ticket</b> '
-                 f'\u2014 this page tells you the number to beat, it does not '
-                 f'quote options.</p>')
+                 f'<span class="dte">{_tip(dte_tip, dte_s + f"{CREDIT_FLOOR*100:.0f}%W credit floor")}</span></div>')
+        H.append(f'<p class="bnote"><b>Yours to enforce at the ticket</b> '
+                 f'\u2014 this page names the floor, it does not quote '
+                 f'options.</p>')
     else:
         H.append('<div class="bhead"><span class="date">No target expiry</span></div>')
 
@@ -2860,7 +2933,9 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                     when = ("expiry day" if off == 0 else
                             f"{abs(off)} day{'' if abs(off) == 1 else 's'} "
                             f"{'before' if off < 0 else 'after'} expiry")
-                    tip = f"{lbl} on {d.strftime('%a %d %b')}, {when}."
+                    blurb = MACRO_BLURB.get(lbl)
+                    tip = (f"<b>{lbl}</b>" + (f" — {blurb}" if blurb else "")
+                           + f".<br>{d.strftime('%a %d %b')}, {when}.")
                     if off == 0:
                         tip += (f" {lbl} prints at 8:30am on the day these "
                                 f"settle — hours before, with every "
@@ -2941,9 +3016,10 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     n_trend = len(dropped.get("trend") or [])
     n_earn = len(dropped.get("earnings") or []) + len(dropped.get("postearn") or [])
     pct_out = (n_uni - len(rows)) / n_uni * 100 if n_uni else 0
-    H.append(f'<div class="sec"><h2>How {n_uni} became {len(rows)}</h2>'
+    H.append(f'<div class="sec"><h2>The Gauntlet</h2>'
              f'<span class="c">{pct_out:.0f}% cut</span>'
-             f'<p>One strike and you’re out — each gate is a hard no, not a point score, and a name that fails early never even sees the gates after it. Nothing here is a rejection, either: most of what gets cut just needs a better day.</p></div>')
+             f'<p>{n_uni} liquid large caps walk in. One strike and you’re '
+             f'out — no points, no rejections, just a hard no for today.</p></div>')
     H.append('<div class="flow">')
     H.append(f'<div class="stn"><span class="n">{n_uni}</span>'
              f'<span class="k">Names in</span>'
@@ -2981,7 +3057,7 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                  f'<span class="g">{_tip(tip, label)}</span></div></div>')
     H.append('</div>')
     H.append(f'<div class="stn out"><span class="n">{len(rows)}</span>'
-             f'<span class="k">Through</span>'
+             f'<span class="k">Through <span aria-hidden="true">🏁</span></span>'
              f'<span class="s">Gate 3 is yours</span></div>')
     # The list itself, as marks rather than a wall of tickers: it is context
     # for everything above, not something anyone needs to read.
@@ -2995,20 +3071,14 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     # ------------------------------------------------ survivors
     hot_live = any(f in HOT_FLAGS
                    for r in rows for f in r["notes"].split(",") if f)
-    red_line = (' And a card wearing a red flag gets a second look before '
-                'you touch it \u2014 it may not mean what it looks like at '
-                'a glance.'
+    red_line = (' A red flag gets a second look before you touch it.'
                 if hot_live else '')
     H.append(f'<div class="sec"><h2>Survivors</h2>'
              f'<span class="c">{len(rows)} name{"" if len(rows) == 1 else "s"}</span>'
-             f'<p>Each cluster below is one bet wearing several tickers, not '
-             f'several independent ones \u2014 they tend to fall together, '
-             f'so holding three from one group is closer to one bigger '
-             f'position than three small ones. How much of any of it to '
-             f'hold, if any, is entirely on you; this page only screens, it '
-             f'does not size.{red_line} And clearing every gate is not a '
-             f'summons to trade \u2014 most days the smart move is to do '
-             f'nothing.</p></div>')
+             f'<p>Each cluster is one bet wearing several tickers \u2014 they '
+             f'tend to fall together. It screens; it does not size, so '
+             f'how much to hold is on you.{red_line} Clearing every gate '
+             f'is not a summons to trade; most days, do nothing.</p></div>')
     if not rows:
         H.append('<div class="empty"><b>Nothing passed.</b> Cash is a valid '
                  'outcome \u2014 most days, the honest answer is to do '
@@ -3030,6 +3100,49 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
             for r in sorted(grp, key=lambda x: -(x["iv"] or 0)):
                 H.append(_card(r, dot, news_out))
             H.append('</div>')
+
+    # ------------------------------------------------ data disagreements
+    # Conflicts and single-source reads used to end up as a line of small
+    # print at the very bottom - easy to miss on a name that is sitting
+    # right there in Survivors above it. Named tickers, placed where the
+    # decision is actually made, say plainly which side of the gate each
+    # one landed on.
+    single_src = regime.get("single_src") or []
+    if conflicts or single_src:
+        survivor_ts = {r["t"] for r in rows}
+        earn_ts = {nm.split("(")[0] for nm in (dropped.get("earnings") or [])}
+
+        def _verdict(t):
+            if t in survivor_ts:
+                return "up", "Passed — sitting in Survivors above"
+            if t in earn_ts:
+                return "down", "Benched — earnings inside the window"
+            return "down", "Benched on another gate"
+
+        items = []
+        for c in conflicts:
+            t, _, detail = c.partition(": ")
+            detail = _friendly_conflict(detail)
+            cls, verdict = _verdict(t)
+            items.append((t, cls, verdict, detail))
+        for s in single_src:
+            t = s.split("(")[0]
+            cls, verdict = _verdict(t)
+            items.append((t, cls, verdict, "Only one earnings source "
+                          "answered — the date could not be "
+                          "cross-checked."))
+        H.append(f'<div class="sec"><h2>Data Disagreements</h2>'
+                 f'<span class="c">{len(items)} '
+                 f'name{"" if len(items) == 1 else "s"}</span>'
+                 f'<p>Earnings-date sources did not agree here — '
+                 f'passed or benched, check the date yourself before '
+                 f'acting.</p></div>')
+        H.append('<div class="disagree">')
+        for t, cls, verdict, detail in items:
+            H.append(f'<div class="disrow"><span class="dist">{_esc(t)}</span>'
+                     f'<span class="distag {cls}">{_esc(verdict)}</span>'
+                     f'<span class="disdetail">{_esc(detail)}</span></div>')
+        H.append('</div>')
 
     # ------------------------------------------------ the bench
     bench = [("trend", "Below its 20-day average",
@@ -3061,9 +3174,13 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                      f'<div class="benchrow">')
             for nm in names:
                 # Some reasons arrive as "AMD(5%W=$4.10)" - the ticker is
-                # what goes on the chip, the parenthetical into its tooltip.
+                # what goes on the chip, the parenthetical into its tooltip,
+                # translated out of its compact debug spelling first.
                 base = nm.split("(")[0]
                 extra = nm[len(base):].strip("()")
+                if extra.startswith("5%W=$"):
+                    extra = (f"5% of the spot price is only {extra[4:]} "
+                             f"— short of the ${WIDTH_MIN:.0f} minimum width")
                 full = f"{base} {tip}" + (f" ({extra})" if extra else "")
                 H.append(f'<span class="dead" tabindex="0" '
                          f'data-tip="{_esc(full)}">{_mark(base, "pic", "picx")}'
@@ -3071,11 +3188,6 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                          f'<span class="arrow" aria-hidden="true">\u25bc</span>'
                          f'</span>')
             H.append('</div>')
-        if dropped.get("trend"):
-            H.append('<p class="benchnote">Everything under the first heading '
-                     'sat <b>below its own 20-day average</b> when the screen '
-                     'ran. One green session puts any of them back in the '
-                     'list.</p>')
         H.append('</div>')
 
     # ------------------------------------------------ gate 3, behind the rows
@@ -3098,16 +3210,9 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         H.append(f'<script>window.__news={_jsdata(payload)};</script>')
 
     # ------------------------------------------------ the small print
-    bits = []
-    if conflicts:
-        bits.append("Earnings sources disagree on: "
-                    + "; ".join(conflicts) + ".")
-    if regime.get("single_src"):
-        bits.append("Only one earnings source answered for "
-                    + ", ".join(regime["single_src"]) + ".")
     H.append('<p class="sig">')
-    if bits:
-        H.append("<b>" + _esc(" ".join(bits)) + "</b><br>")
+    # Conflicts and single-source reads now live in Data Disagreements,
+    # named by ticker where the decision is made - not restated here.
     # Everything else this paragraph used to restate - what the gates check,
     # that pricing and sizing aren't covered, that Gate 3 is manual - is
     # already said once, where it is actually needed: in the flow above and
@@ -4252,7 +4357,8 @@ Producer Price Index for October 2026
     # The flow's arithmetic has to agree with itself: what went in, minus
     # what each gate took, is what came out.
     chk("the flow adds up",
-        f'<h2>How {len(UNIVERSE)} became {len(rows)}</h2>' in html
+        '<h2>The Gauntlet</h2>' in html
+        and f'{len(UNIVERSE)} liquid large caps' in html
         and sum(len(dropped.get(k) or []) for k in
                 ("trend", "earnings", "postearn", "width", "data"))
             == len(UNIVERSE) - len(rows))
@@ -4260,20 +4366,18 @@ Producer Price Index for October 2026
     print("MARKET OPEN/CLOSED INDICATOR")
     mkt_html = render_html(rows, dropped, conflicts, news,
                            dict(regime, repo="me/repo"), today)
-    chk("the indicator sits beside the live clock, not off on its own",
-        'id="ustime">' in mkt_html
-        and mkt_html.index('id="ustime"') < mkt_html.index('id="mktstate"')
-        and mkt_html.index('id="mktstate"') - mkt_html.index('id="ustime"')
-        < 80)
+    mkt_tile = mkt_html.split('<div class="inst">')[1].split('</div>')[0]
+    chk("the indicator sits in the same tile as the live clock",
+        'id="ustime">' in mkt_tile and 'id="mktstate"' in mkt_tile)
     chk("it reads the actual clock instead of a second, driftable clock",
         "mins=(+parts.hour)*60+(+parts.minute)" in mkt_html)
     chk("open is 9:30-16:00 ET on a weekday, stated as minutes not magic",
         "mins>=570&&mins<960" in mkt_html
         and "['Sat','Sun'].indexOf(parts.weekday)===-1" in mkt_html)
-    # The pill belonged to the condor verdict, and two different things
-    # wearing one badge read as one thing. The clock gets an LED instead.
-    chk("the clock's own state is an LED, not the condor's pill",
-        "led.className='led'+(isOpen?' on':'')" in mkt_html
+    # Its own badge, distinct from the condor verdict's — two different
+    # questions, so two different pills, never the same one reused.
+    chk("the clock's own state gets its own pill, not the condor's",
+        "mktState.className='mktpill'+(isOpen?' open':' closed')" in mkt_html
         and "className='pill '+(isOpen?'go':'nogo')" not in mkt_html)
     chk("no indicator at all when the page ships no JS to keep it honest",
         'id="mktstate"' not in html)
@@ -4293,8 +4397,8 @@ Producer Price Index for October 2026
                           dict(regime, repo="me/repo", run_id="999",
                                run_number="14",
                                built_utc="2026-08-23T08:20:11Z"), today)
-    chk("run time is on the page, converted to Singapore time",
-        "16:20 SGT" in stamped)
+    chk("run time is on the page, converted to Singapore time, to the second",
+        "16:20:11 SGT" in stamped)
     chk("the run number is not printed twice over — once was enough",
         "run #" not in stamped)
     chk("the script runs after the markup it touches",
