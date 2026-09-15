@@ -2226,19 +2226,25 @@ a{color:var(--amber)}
 
 /* ---- the bench ---- */
 .bench{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:20px 22px}
-.benchrow{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:16px}
-.benchrow:last-child{margin-bottom:0}
-.dead{font-family:var(--mono);font-size:14.5px;font-weight:500;color:var(--dim);
-  border:1px solid var(--line);border-radius:999px;padding:6px 16px 6px 8px;
-  background:var(--panel2);display:inline-flex;align-items:center;gap:9px;
-  box-shadow:0 2px 6px rgba(0,0,0,.18);
-  transition:color .16s ease,border-color .16s ease,transform .16s ease,
-    background .16s ease,box-shadow .16s ease}
-.dead:hover{color:var(--ink);border-color:var(--line2);background:var(--raise);
-  transform:translateY(-2px);box-shadow:0 8px 18px rgba(0,0,0,.32)}
+/* Names on the bench, sitting on one - each row is a wooden seat: the
+   logos line up along its top edge (align-items:flex-end), the plank
+   itself drawn as the row's own bottom edge, not a chip per name. */
+.benchrow{display:flex;flex-wrap:wrap;align-items:flex-end;gap:20px 24px;
+  padding:0 10px 18px;margin-bottom:28px;position:relative}
+.benchrow:last-child{margin-bottom:4px}
+.benchrow::after{content:"";position:absolute;left:-2px;right:-2px;bottom:8px;
+  height:9px;border-radius:5px;background:linear-gradient(180deg,#a3742f,#6b451c);
+  box-shadow:0 5px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.14)}
+.benchrow::before{content:"";position:absolute;left:18px;right:18px;bottom:2px;
+  height:7px;border-radius:0 0 4px 4px;background:#3B2711;opacity:.85}
+.dead{display:inline-flex;flex-direction:column;align-items:center;gap:7px;
+  position:relative;z-index:1;cursor:pointer}
+.dead .lbl{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);
+  font-size:13px;font-weight:500;color:var(--dim);transition:color .16s ease}
+.dead:hover .lbl,.dead:focus-visible .lbl{color:var(--ink)}
 .dead .arrow{display:inline-flex;align-items:center;justify-content:center;
-  width:16px;height:16px;border-radius:50%;background:rgba(255,96,118,.14);
-  color:var(--veto);font-size:9px;opacity:.9}
+  width:14px;height:14px;border-radius:50%;background:rgba(255,96,118,.16);
+  color:var(--veto);font-size:8px;font-style:normal}
 .benchk{font-family:var(--mono);font-size:11.5px;letter-spacing:.15em;text-transform:uppercase;
   color:var(--faint);margin-bottom:9px}
 .empty{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);
@@ -3230,8 +3236,8 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                 full = f"{base} {tip}" + (f" ({extra})" if extra else "")
                 H.append(f'<span class="dead" tabindex="0" '
                          f'data-tip="{_esc(full)}">{_mark(base, "pic", "picx")}'
-                         f'{_esc(base)}'
-                         f'<span class="arrow" aria-hidden="true">\u25bc</span>'
+                         f'<span class="lbl">{_esc(base)}'
+                         f'<i class="arrow" aria-hidden="true">\u25bc</i></span>'
                          f'</span>')
             H.append('</div>')
         H.append('</div>')
