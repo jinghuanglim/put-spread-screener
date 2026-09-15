@@ -106,7 +106,12 @@ FALLBACK = {
 }
 DELTA_HARD_CAP = 0.20     # workflow 2-1-12: "Hard cap 0.20\u0394". Absolute.
 BLOWOFF_STRETCH = 0.15        # never tilt delta on a blow-off
-DTE_MIN, DTE_MAX, DTE_BIAS = 18, 21, (18, 21)   # 18-21 hard range, prefer 18
+DTE_MIN, DTE_MAX, DTE_BIAS = 18, 24, (18, 21)   # 18-24 hard range, prefer 18-21.
+# Weeklies land every 7 days, so a 4-day hard range (the old 18-21) periodically
+# slides all the way between two Fridays and finds nothing - a real calendar
+# gap, not a data failure, but one that killed every name in the universe at
+# once. 7 wide (18-24) always spans a full cycle so that can't happen again;
+# DTE_BIAS keeps the old 18-21 sweet spot as the preferred pick when it's there.
 WIDTH_PCT   = 0.05
 WIDTH_MIN   = 5.0
 CREDIT_FLOOR = 0.12        # reference only; JH prices at ticket
@@ -888,10 +893,7 @@ class YFProvider:
             pass
         return None
     def expiries(self, t):
-        try:
-            return list(self._tk(t).options)
-        except Exception:
-            return []
+        return list(self._tk(t).options)
     def put_chain(self, t, expiry):
         try:
             df = self._tk(t).option_chain(expiry).puts
@@ -1219,7 +1221,11 @@ def run(provider, today, do_news=True, tickers=None,
         width_raw, width, width_inc = round_width(spot)
         if width_raw < WIDTH_MIN:
             dropped["width"].append(f"{t}(5%W=${width_raw:.2f})"); continue
-        exp, dte = pick_expiry(provider.expiries(t), us_today)
+        try:
+            exps = provider.expiries(t)
+        except Exception as e:
+            dropped["data"].append(f"{t}(expiries:{type(e).__name__})"); continue
+        exp, dte = pick_expiry(exps, us_today)
         if exp is None:
             dropped["data"].append(f"{t}(no expiry {DTE_MIN}-{DTE_MAX}d)"); continue
         expd = datetime.strptime(exp, "%Y-%m-%d").date()
