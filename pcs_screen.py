@@ -2176,7 +2176,6 @@ a{color:var(--amber)}
   display:flex;align-items:center;gap:6px;transition:color .15s,border-color .15s}
 .nb:hover{color:var(--ink);border-color:var(--amber-d)}
 .nb.hot{color:var(--veto);border-color:rgba(255,96,118,.4)}
-.nbc{color:var(--amber)}
 
 /* The 20 closes Gate 1 judged, against the mean it judged them by. The gate
    that let the name through was the one thing the old page never showed. */
@@ -3272,11 +3271,10 @@ def _card(r, dot, news_out):
                     f"directly relevant \u2014 tap to read" if dir_n else
                     f"{n} headline{'s' if n != 1 else ''}, none flagged as "
                     f"directly relevant \u2014 tap to read")
-            badge = f'<span class="nbc">{dir_n}</span>/' if dir_n else ""
             nb = (f'<button class="nb" data-news="{_esc(r["t"])}" '
                   f'data-tip="{_esc(ntip)}" aria-label="News for {_esc(r["t"])}: '
                   f'{dir_n} of {n} directly relevant">'
-                  f'\U0001f4f0 {badge}{n}</button>')
+                  f'\U0001f4f0 {n}</button>')
 
     lg = f"{r['long']:.1f}" if r.get("long") is not None else "\u2014"
     wd = r.get("act_width") or r["width"]
