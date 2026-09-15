@@ -950,8 +950,9 @@ class YFProvider:
                 return v
         return ""
 
-    def news(self, t, n=8, tries=3):
-        """Headlines for Gate 3. Retried, because a miss reads as a clearance.
+    def news(self, t, today=None, tries=3):
+        """Headlines for Gate 3, from the last 3 days. Retried, because a miss
+        reads as a clearance.
 
         yfinance's news endpoint fails intermittently — ANET returned nothing
         on one run and ten items on the next, minutes apart, with no change to
@@ -959,6 +960,9 @@ class YFProvider:
         section, and a blank section is exactly what a name with no bad news
         looks like. Retrying is cheap; mistaking a dropped connection for an
         all-clear is not.
+
+        No count cap: a name with a dozen headlines in three days gets shown
+        a dozen, not the first five. Only recency limits the list.
         """
         items = []
         for attempt in range(tries):
@@ -972,11 +976,20 @@ class YFProvider:
                 import time
                 time.sleep(0.6 * (attempt + 1))
                 self._cache.pop(t, None)      # fresh Ticker, fresh cookie
+        if today is None:
+            today = date.today()
         out = []
-        for it in items[:n]:
+        for it in items:
             c = it.get("content", it)
             title = c.get("title") or ""
             pub = c.get("pubDate") or c.get("providerPublishTime") or ""
+            pub_s = str(pub)[:10]
+            try:
+                pub_d = datetime.strptime(pub_s, "%Y-%m-%d").date()
+                if (today - pub_d).days > 3:
+                    continue
+            except ValueError:
+                pass            # unparsable date: keep it rather than hide it
             related = []
             for st in ((c.get("finance") or {}).get("stockTickers") or []):
                 if isinstance(st, dict):
@@ -985,10 +998,10 @@ class YFProvider:
                     related.append(str(st))
             related += [str(x) for x in (it.get("relatedTickers") or [])]
             direct = news_is_direct(t, title, related)
-            out.append((str(pub)[:10], title, direct, self._news_url(c)))
+            out.append((pub_s, title, direct, self._news_url(c)))
         # direct hits first — a guidance cut must not sit under four sector pieces
         out.sort(key=lambda x: (not x[2], x[0]), reverse=False)
-        return out[:5]
+        return out
 class FakeProvider:
     """Deterministic synthetic data for --selftest. No network."""
     def __init__(self, today):
@@ -1052,7 +1065,7 @@ class FakeProvider:
                     ("nasdaq", self.today + timedelta(days=40))]
         d = self.today + timedelta(days=55)
         return [("yf.earnings_dates", d), ("nasdaq", d)]
-    def news(self, t, n=4):
+    def news(self, t, today=None, n=4):
         return [(self.today.isoformat(), f"{t} synthetic headline 1", True,
                  f"https://example.invalid/{t.lower()}-1"),
                 (self.today.isoformat(), "unrelated sector piece", False,
@@ -1340,7 +1353,7 @@ def run(provider, today, do_news=True, tickers=None,
             "notes": ",".join(notes),
         })
         if do_news:
-            news_out[t] = provider.news(t) or []
+            news_out[t] = provider.news(t, today=us_today) or []
     regime["single_src"] = single_src
     regime["nq_cover"] = nq_cover
     regime["nq_clear"] = nq_clear
@@ -2171,11 +2184,11 @@ a{color:var(--amber)}
   object-fit:contain;flex:none;box-shadow:0 2px 8px rgba(0,0,0,.35)}
 .lgx{width:34px;height:34px;border-radius:9px;flex:none;display:flex;align-items:center;
   justify-content:center;font-size:16px;font-weight:500;color:#0B0F16;background:var(--dim)}
-.nb{background:var(--raise);border:1px solid var(--line);color:var(--dim);border-radius:9px;
-  padding:7px 11px;font-family:var(--mono);font-size:13.5px;cursor:pointer;
-  display:flex;align-items:center;gap:6px;transition:color .15s,border-color .15s}
-.nb:hover{color:var(--ink);border-color:var(--amber-d)}
-.nb.hot{color:var(--veto);border-color:rgba(255,96,118,.4)}
+.nb{background:none;border:none;color:var(--dim);padding:4px;
+  font-family:var(--mono);font-size:13.5px;cursor:pointer;
+  display:flex;align-items:center;gap:5px;transition:color .15s}
+.nb:hover{color:var(--ink)}
+.nb.hot{color:var(--veto)}
 
 /* The 20 closes Gate 1 judged, against the mean it judged them by. The gate
    that let the name through was the one thing the old page never showed. */
@@ -3832,7 +3845,7 @@ Producer Price Index for October 2026
                      "oi": 900} for k in range(150, 200, 5)]
         def earnings(self, t):
             return [("nasdaq", today - timedelta(days=self.gap))]
-        def news(self, t, n=4): return []
+        def news(self, t, today=None, n=4): return []
     for gap, expect in ((0, "drop"), (1, "drop"), (2, "keep"), (5, "keep")):
         rws, drp, _, _, _ = run(TPlus(gap), today, do_news=False, tickers=["NVDA"],
                                 us_today_override=today,
@@ -3872,7 +3885,7 @@ Producer Price Index for October 2026
                      "oi": 900} for k in range(150, 200, 5)]
         def earnings(self, t):
             return [("nasdaq", today + timedelta(days=55))]
-        def news(self, t, n=4): return []
+        def news(self, t, today=None, n=4): return []
     mrows, mdrop, _, _, mregime = run(
         DteMix(), today, do_news=False, tickers=["NVDA", "AMD", "ODD"],
         us_today_override=today, earn_src=NullEarnings(), macro_src=StubMacro())
@@ -4032,14 +4045,14 @@ Producer Price Index for October 2026
                                       "finance": {"stockTickers": [{"symbol": "ANET"}]}}}])
             return TK()
     fl = Flaky()
-    got = YFProvider.news(fl, "ANET")
+    got = YFProvider.news(fl, "ANET", today=date(2026, 8, 24))
     chk("a flaky news endpoint is retried, not read as an all-clear",
         len(got) == 1 and fl.calls == 3, f"calls={fl.calls} items={len(got)}")
     chk("the retried item carries its URL",
         got[0][3] == "https://x.example/1")
     fl2 = Flaky(); fl2.calls = -99          # never succeeds
     chk("a genuinely dead endpoint still returns empty, so the report flags it",
-        YFProvider.news(fl2, "ANET", tries=2) == [])
+        YFProvider.news(fl2, "ANET", today=date(2026, 8, 24), tries=2) == [])
 
     print("HTML PAGE")
     html = render_html(rows, dropped, conflicts, news, regime, today)
@@ -4204,7 +4217,7 @@ Producer Price Index for October 2026
                      "ask": 1.05, "oi": 900} for k in range(-4, 15)]
         def earnings(self, t):
             return [("nasdaq", today + timedelta(days=55))]
-        def news(self, t, n=4): return []
+        def news(self, t, today=None, n=4): return []
     trows, tdrop, _, _, _ = run(
         PriceTierMix(), today, do_news=False, tickers=["LLY", "AAPL"],
         us_today_override=today, earn_src=NullEarnings(), macro_src=StubMacro())
