@@ -2224,28 +2224,42 @@ a{color:var(--amber)}
 .chip.hot{color:var(--veto);border-color:rgba(255,96,118,.4);background:rgba(255,96,118,.1)}
 .chip .dot{width:9px;height:9px;border-radius:50%;margin-right:7px}
 
-/* ---- the bench ---- */
+/* ---- the bench, an actual one ---- */
 .bench{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:20px 22px}
-/* Names on the bench, sitting on one. A single plank spanning the whole
-   row only sat under its LAST line once the row wrapped (a phone with 9
-   names wraps to two lines) - the first line's names floated with no
-   seat under them at all. A slat under each name instead of one bar
-   under the row survives wrapping for free: it travels with the item,
-   whichever line it lands on, and lined-up slats read as a bench too. */
-.benchrow{display:flex;flex-wrap:wrap;align-items:flex-start;gap:22px 20px;
-  padding:0 4px;margin-bottom:22px}
+/* Five names to a seat, then a new bench starts (see the Python loop that
+   chunks names into fives) - a real bench seats a handful, not twenty,
+   and capping the count keeps a bench's own width fixed so CSS can only
+   ever wrap a WHOLE bench to the next line, never break one apart mid-row
+   the way a single shared plank under an unbounded, wrapping icon row
+   used to. */
+.benchrow{display:flex;flex-wrap:wrap;align-items:flex-end;gap:22px 30px;
+  padding:6px 4px 0;margin-bottom:8px}
 .benchrow:last-child{margin-bottom:0}
-.dead{display:inline-flex;flex-direction:column;align-items:center;gap:0;cursor:pointer}
-.dead .slat{width:38px;height:7px;border-radius:3px;margin-top:6px;
-  background:linear-gradient(180deg,#a3742f,#6b451c);
-  box-shadow:0 3px 6px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.14)}
-.dead .lbl{display:inline-flex;align-items:center;gap:5px;margin-top:8px;
-  font-family:var(--mono);font-size:13px;font-weight:500;color:var(--dim);
-  transition:color .16s ease}
-.dead:hover .lbl,.dead:focus-visible .lbl{color:var(--ink)}
-.dead .arrow{display:inline-flex;align-items:center;justify-content:center;
-  width:14px;height:14px;border-radius:50%;background:rgba(255,96,118,.16);
-  color:var(--veto);font-size:8px;font-style:normal}
+.benchseat{display:inline-flex;flex-direction:column;align-items:stretch;
+  width:max-content;margin-bottom:14px}
+.backrest{position:relative;z-index:1;height:28px;border-radius:8px 8px 0 0;
+  background-image:repeating-linear-gradient(90deg,#8a5a22 0 15px,
+    transparent 15px 21px);opacity:.85}
+.perch{position:relative;z-index:2;display:flex;justify-content:center;
+  gap:16px;padding:0 16px;margin-bottom:-15px}
+.seat{position:relative;z-index:1;height:8px;margin:0 -2px;border-radius:4px;
+  background:linear-gradient(180deg,#c98d3f,#8a5a22);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 2px 4px rgba(0,0,0,.35)}
+.seat.s2{margin-top:5px;background:linear-gradient(180deg,#b87d34,#78491c)}
+.legs{position:relative;height:26px;margin-top:2px}
+.leg{position:absolute;top:0;width:8px;height:100%;border-radius:0 0 2px 2px;
+  background:linear-gradient(180deg,#5b3b18,#2e1c0a);
+  box-shadow:0 4px 6px rgba(0,0,0,.4)}
+.leg::after{content:"";position:absolute;left:50%;bottom:-3px;
+  width:22px;height:6px;border-radius:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.45);filter:blur(2px)}
+.leg.l{left:10px}
+.leg.r{right:10px}
+.dead{position:relative;display:inline-flex;cursor:pointer}
+.dead .arrow{position:absolute;right:-4px;bottom:-4px;display:inline-flex;
+  align-items:center;justify-content:center;width:15px;height:15px;
+  border-radius:50%;background:var(--veto);color:#3a0a10;font-size:7px;
+  border:2px solid var(--panel);font-style:normal}
 .benchk{font-family:var(--mono);font-size:11.5px;letter-spacing:.15em;text-transform:uppercase;
   color:var(--faint);margin-bottom:9px}
 .empty{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);
@@ -3225,22 +3239,34 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                 continue
             H.append(f'<div class="benchk">{_esc(label)}</div>'
                      f'<div class="benchrow">')
-            for nm in names:
-                # Some reasons arrive as "AMD(5%W=$4.10)" - the ticker is
-                # what goes on the chip, the parenthetical into its tooltip,
-                # translated out of its compact debug spelling first.
-                base = nm.split("(")[0]
-                extra = nm[len(base):].strip("()")
-                if extra.startswith("5%W=$"):
-                    extra = (f"5% of the spot price is only {extra[4:]} "
-                             f"— short of the ${WIDTH_MIN:.0f} minimum width")
-                full = f"{base} {tip}" + (f" ({extra})" if extra else "")
-                H.append(f'<span class="dead" tabindex="0" '
-                         f'data-tip="{_esc(full)}">{_mark(base, "pic", "picx")}'
-                         f'<span class="slat"></span>'
-                         f'<span class="lbl">{_esc(base)}'
-                         f'<i class="arrow" aria-hidden="true">\u25bc</i></span>'
-                         f'</span>')
+            # A real bench seats a handful, not twenty - five names to a
+            # bench, then a new one starts. Capping each bench's own width
+            # like this (rather than letting CSS wrap the icons wherever
+            # they run out of room) is what keeps a bench from breaking
+            # apart mid-row: the wrap unit is a whole bench, never a
+            # fraction of one.
+            for start in range(0, len(names), 5):
+                H.append('<div class="benchseat"><div class="backrest">'
+                         '</div><div class="perch">')
+                for nm in names[start:start + 5]:
+                    # Some reasons arrive as "AMD(5%W=$4.10)" - the ticker is
+                    # what goes into the tooltip's prose, translated out of
+                    # its compact debug spelling first. The logo already
+                    # names the ticker, so nothing repeats it as text.
+                    base = nm.split("(")[0]
+                    extra = nm[len(base):].strip("()")
+                    if extra.startswith("5%W=$"):
+                        extra = (f"5% of the spot price is only {extra[4:]} "
+                                 f"short of the ${WIDTH_MIN:.0f} minimum width")
+                    full = f"{base} {tip}" + (f" ({extra})" if extra else "")
+                    H.append(f'<span class="dead" tabindex="0" '
+                             f'data-tip="{_esc(full)}" aria-label="{_esc(full)}">'
+                             f'{_mark(base, "pic", "picx")}'
+                             f'<i class="arrow" aria-hidden="true">▼</i>'
+                             f'</span>')
+                H.append('</div><div class="seat"></div><div class="seat s2">'
+                         '</div><div class="legs"><span class="leg l"></span>'
+                         '<span class="leg r"></span></div></div>')
             H.append('</div>')
         H.append('</div>')
 
