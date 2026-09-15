@@ -2979,21 +2979,26 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                          exp_tip, exp_tags)])
             H.append('<div class="rail"><div class="track"></div>'
                      '<div class="fill" id="railfill"></div>')
-            seen = set()
+            # Today and Expiry are fixed anchors, so they seed this rather
+            # than being placed by the loop below. An event a day or two off
+            # either one - FOMC landing the day after Today, say - is close
+            # enough in percent terms to print its label on top of the
+            # anchor's on a phone-width rail; a plain "same day" check only
+            # caught two mid-events landing on the identical date, not one
+            # merely close to an anchor. Nudging by minimum distance instead
+            # of exact match covers both.
+            MIN_GAP = 9   # percentage points of rail width
+            placed = [0.0, 100.0]
             for d, lbl, cls, tip, pretags in nodes:
                 pos = max(0.0, min(100.0, (d - us_d).days / span * 100))
-                # Two events between today and expiry landing on the same
-                # day (never Today or Expiry themselves - those are fixed
-                # anchors) would print on top of each other; the second
-                # nudges along rather than disappearing. Bounded, because
-                # at 100% the nudge has nowhere left to go and an unbounded
-                # loop there never returns.
+                # Bounded, because at 100% the nudge has nowhere left to go
+                # and an unbounded loop there never returns.
                 if cls not in ("now", "end", "end hit"):
-                    for _ in range(6):
-                        if round(pos) not in seen:
+                    for _ in range(8):
+                        if not any(abs(pos - p) < MIN_GAP for p in placed):
                             break
                         pos = pos + 6 if pos <= 94 else pos - 6
-                seen.add(round(pos))
+                placed.append(pos)
                 lbl_html = "" if pretags else _esc(lbl)
                 br = "" if pretags else "<br>"
                 body = (f'{pretags}<div class="dot"></div>'
