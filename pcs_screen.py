@@ -2198,16 +2198,6 @@ a{color:var(--amber)}
 .st .sub{font-family:var(--mono);font-size:12px;color:var(--faint);display:block;margin-top:2px}
 .st.credit .v{color:var(--amber)}
 .st .drift{color:var(--faint)}
-/* IV against HV in words. The ratio is context, never a gate, and "1.34"
-   asked most readers to do a translation the page can just do for them. */
-.prem{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:11px 13px;
-  border-radius:10px;background:var(--raise);border:1px solid var(--line);
-  font-size:15px;color:var(--dim)}
-.prem .v{font-size:16px}
-.prem.cheap{border-color:rgba(255,176,32,.3);background:rgba(255,176,32,.07)}
-.prem.cheap .v{color:var(--amber)}
-.prem.rich{border-color:rgba(68,223,169,.3);background:rgba(68,223,169,.07)}
-.prem.rich .v{color:var(--clear)}
 .chips{display:flex;flex-wrap:wrap;gap:7px}
 .chip{font-family:var(--mono);font-size:12.5px;color:var(--dim);background:var(--raise);
   border:1px solid var(--line);border-radius:7px;padding:5px 9px;
@@ -3311,24 +3301,6 @@ def _card(r, dot, news_out):
         dtip += (f" Screened at {r['delta']:.2f}; the nearest listed strike "
                  f"is {r['act_delta']:.2f}.")
 
-    # The ratio is the one number on the card most people cannot translate,
-    # and nothing is ever rejected for it. So it says what it means in words
-    # and keeps the arithmetic in its tooltip.
-    ivhv = r.get("ivhv") or 0
-    if ivhv >= 1.10:
-        prem_cls, prem_word = "rich", "Paying well"
-    elif ivhv >= 0.90:
-        prem_cls, prem_word = "", "About fair"
-    elif ivhv:
-        prem_cls, prem_word = "cheap", "Thin for the risk"
-    else:
-        prem_cls, prem_word = "", "Not read"
-    hv_s = f"{r['hv']*100:.0f}%" if r.get("hv") else "n/a"
-    prem_tip = (f"The option is priced for a {r['iv']*100:.0f}% move; the "
-                f"stock has actually been doing {hv_s} \u2014 a ratio of "
-                f"{ivhv:.2f}. Context, not a gate: nothing here is rejected "
-                f"for it.")
-
     tg = f"${r['target']:.2f}" if r.get("target") is not None else "\u2014"
     credit_tip = (f"{CREDIT_FLOOR*100:.0f}% of the ${wd:.0f} width \u2014 the "
                   f"least this spread may be sold for. Aim at or above it "
@@ -3362,10 +3334,6 @@ def _card(r, dot, news_out):
     out.append(f'<div class="st"><span class="k">{_tip(dtip, "Short &Delta;")}'
                f'</span><span class="v">{dcell}</span>'
                f'<span class="sub">odds of finishing ITM</span></div>')
-    out.append(f'<div class="prem {prem_cls}" tabindex="0" '
-               f'data-tip="{_esc(prem_tip)}"><span>Premium vs the move</span>'
-               f'<span class="v">{prem_word}</span>'
-               f'<i class="ii" aria-hidden="true">i</i></div>')
     out.append('</div>')
     if chips:
         out.append(f'<div class="chips">{chips}</div>')
@@ -4254,16 +4222,6 @@ Producer Price Index for October 2026
     chk("the $120 name is not over-warned",
         "Confirm the actual listed strikes" not in tip_for("AAPL", thtml),
         tip_for("AAPL", thtml))
-    # A ratio nobody translates is a number nobody reads. It says what it
-    # means, and keeps the arithmetic behind the tap for whoever wants it.
-    chk("implied against realised is stated in words, not as a bare ratio",
-        'class="prem' in html
-        and any(w in html for w in ("Paying well", "About fair",
-                                    "Thin for the risk")))
-    chk("the two percentages and the ratio are still one tap away",
-        "the stock has actually been doing" in html and "a ratio of" in html)
-    chk("and it says outright that nothing is rejected for it",
-        "Context, not a gate" in html)
     chk("DTE is said once, on the board, not once per row",
         html.count(" DTE ") <= 1)
 
