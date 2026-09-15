@@ -2226,21 +2226,22 @@ a{color:var(--amber)}
 
 /* ---- the bench ---- */
 .bench{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:20px 22px}
-/* Names on the bench, sitting on one - each row is a wooden seat: the
-   logos line up along its top edge (align-items:flex-end), the plank
-   itself drawn as the row's own bottom edge, not a chip per name. */
-.benchrow{display:flex;flex-wrap:wrap;align-items:flex-end;gap:20px 24px;
-  padding:0 10px 18px;margin-bottom:28px;position:relative}
-.benchrow:last-child{margin-bottom:4px}
-.benchrow::after{content:"";position:absolute;left:-2px;right:-2px;bottom:8px;
-  height:9px;border-radius:5px;background:linear-gradient(180deg,#a3742f,#6b451c);
-  box-shadow:0 5px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.14)}
-.benchrow::before{content:"";position:absolute;left:18px;right:18px;bottom:2px;
-  height:7px;border-radius:0 0 4px 4px;background:#3B2711;opacity:.85}
-.dead{display:inline-flex;flex-direction:column;align-items:center;gap:7px;
-  position:relative;z-index:1;cursor:pointer}
-.dead .lbl{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);
-  font-size:13px;font-weight:500;color:var(--dim);transition:color .16s ease}
+/* Names on the bench, sitting on one. A single plank spanning the whole
+   row only sat under its LAST line once the row wrapped (a phone with 9
+   names wraps to two lines) - the first line's names floated with no
+   seat under them at all. A slat under each name instead of one bar
+   under the row survives wrapping for free: it travels with the item,
+   whichever line it lands on, and lined-up slats read as a bench too. */
+.benchrow{display:flex;flex-wrap:wrap;align-items:flex-start;gap:22px 20px;
+  padding:0 4px;margin-bottom:22px}
+.benchrow:last-child{margin-bottom:0}
+.dead{display:inline-flex;flex-direction:column;align-items:center;gap:0;cursor:pointer}
+.dead .slat{width:38px;height:7px;border-radius:3px;margin-top:6px;
+  background:linear-gradient(180deg,#a3742f,#6b451c);
+  box-shadow:0 3px 6px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.14)}
+.dead .lbl{display:inline-flex;align-items:center;gap:5px;margin-top:8px;
+  font-family:var(--mono);font-size:13px;font-weight:500;color:var(--dim);
+  transition:color .16s ease}
 .dead:hover .lbl,.dead:focus-visible .lbl{color:var(--ink)}
 .dead .arrow{display:inline-flex;align-items:center;justify-content:center;
   width:14px;height:14px;border-radius:50%;background:rgba(255,96,118,.16);
@@ -3236,6 +3237,7 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                 full = f"{base} {tip}" + (f" ({extra})" if extra else "")
                 H.append(f'<span class="dead" tabindex="0" '
                          f'data-tip="{_esc(full)}">{_mark(base, "pic", "picx")}'
+                         f'<span class="slat"></span>'
                          f'<span class="lbl">{_esc(base)}'
                          f'<i class="arrow" aria-hidden="true">\u25bc</i></span>'
                          f'</span>')
