@@ -2155,6 +2155,10 @@ a{color:var(--amber)}
 .card:hover{border-color:var(--line2)}
 .chead{display:flex;align-items:flex-start;gap:12px}
 .chead .sp{flex:1;min-width:0}
+.cbody{display:contents}
+.cx{display:none;flex:none;color:var(--faint);font-size:13px;
+  transition:transform .16s ease;align-self:center}
+.card.open .cx{transform:rotate(180deg)}
 .tk{font-size:27px;font-weight:500;letter-spacing:-.01em;line-height:1.05;color:var(--c)}
 .spotln{font-family:var(--mono);font-size:14px;color:var(--dim);margin-top:3px}
 .lg{width:34px;height:34px;border-radius:9px;background:#fff;padding:4px;
@@ -2285,6 +2289,10 @@ a{color:var(--amber)}
   .stn.out .n{font-size:40px}
   .cards{grid-template-columns:1fr}
   #nv .nvbox{max-height:92vh}
+  .chead{cursor:pointer}
+  .cx{display:block}
+  .card .cbody{display:none}
+  .card.open .cbody{display:flex;flex-direction:column;gap:18px}
 }
 @media (prefers-reduced-motion:reduce){
   *{transition:none!important;animation:none!important}
@@ -2522,6 +2530,16 @@ function initRun(cfg){
       if(e.key==='Escape'&&!nv.hidden)closeNews();
     });
   }
+
+  // Cards collapse to just a name on a phone (see the .cbody media rule) -
+  // tapping the head is the only way back in there, so it has to work even
+  // though the head also hosts the news button.
+  document.addEventListener('click',function(e){
+    var h=e.target.closest?e.target.closest('.chead'):null;
+    if(!h||e.target.closest('.nb'))return;
+    var card=h.closest('.card');
+    if(card)card.classList.toggle('open');
+  });
 
   var b=document.getElementById('built');
   if(b&&b.dataset.utc){
@@ -3320,7 +3338,9 @@ def _card(r, dot, news_out):
     out = [f'<article class="card" style="--c:{dot}">']
     out.append(f'<div class="chead">{_mark(r["t"])}<div class="sp">'
                f'<div class="tk">{_esc(r["t"])}</div>'
-               f'<div class="spotln">{r["spot"]:.2f} spot</div></div>{nb}</div>')
+               f'<div class="spotln">{r["spot"]:.2f} spot</div></div>{nb}'
+               f'<span class="cx" aria-hidden="true">▾</span></div>')
+    out.append('<div class="cbody">')
     spark = _spark(r.get("closes"), r.get("sma20") or 0)
     if spark:
         out.append(f'<div class="sparkwrap" tabindex="0" data-tip="'
@@ -3349,6 +3369,7 @@ def _card(r, dot, news_out):
     out.append('</div>')
     if chips:
         out.append(f'<div class="chips">{chips}</div>')
+    out.append('</div>')
     out.append('</article>')
     return "".join(out)
 
