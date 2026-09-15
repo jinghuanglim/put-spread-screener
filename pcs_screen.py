@@ -2166,6 +2166,7 @@ a{color:var(--amber)}
 .clus h3{font-size:15px;font-weight:500;letter-spacing:.14em;text-transform:uppercase}
 .clus .n{font-family:var(--mono);font-size:13px;color:var(--faint)}
 .clus .ln{flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+.taphint{display:none}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
 .card{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);
   padding:20px 20px 18px;display:flex;flex-direction:column;gap:18px;position:relative;
@@ -2227,11 +2228,17 @@ a{color:var(--amber)}
 .bench{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:20px 22px}
 .benchrow{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:16px}
 .benchrow:last-child{margin-bottom:0}
-.dead{font-family:var(--mono);font-size:15px;color:var(--faint);border:1px solid var(--line);
-  border-radius:9px;padding:9px 14px;background:var(--panel2);display:inline-flex;
-  align-items:center;gap:8px;transition:color .16s,border-color .16s,transform .16s}
-.dead:hover{color:var(--ink);border-color:var(--line2);transform:translateY(-2px)}
-.dead .arrow{color:var(--veto);font-size:12px;opacity:.7}
+.dead{font-family:var(--mono);font-size:14.5px;font-weight:500;color:var(--dim);
+  border:1px solid var(--line);border-radius:999px;padding:6px 16px 6px 8px;
+  background:var(--panel2);display:inline-flex;align-items:center;gap:9px;
+  box-shadow:0 2px 6px rgba(0,0,0,.18);
+  transition:color .16s ease,border-color .16s ease,transform .16s ease,
+    background .16s ease,box-shadow .16s ease}
+.dead:hover{color:var(--ink);border-color:var(--line2);background:var(--raise);
+  transform:translateY(-2px);box-shadow:0 8px 18px rgba(0,0,0,.32)}
+.dead .arrow{display:inline-flex;align-items:center;justify-content:center;
+  width:16px;height:16px;border-radius:50%;background:rgba(255,96,118,.14);
+  color:var(--veto);font-size:9px;opacity:.9}
 .benchk{font-family:var(--mono);font-size:11.5px;letter-spacing:.15em;text-transform:uppercase;
   color:var(--faint);margin-bottom:9px}
 .empty{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);
@@ -2301,6 +2308,10 @@ a{color:var(--amber)}
   .cx{display:block}
   .card .cbody{display:none}
   .card.open .cbody{display:flex;flex-direction:column;gap:18px}
+  .taphint{display:block;font-family:var(--mono);font-size:12px;
+    color:var(--faint);margin:-6px 0 14px}
+  .node{width:70px}
+  .node .lbl{font-size:11px}
 }
 @media (prefers-reduced-motion:reduce){
   *{transition:none!important;animation:none!important}
@@ -2987,7 +2998,9 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
             # caught two mid-events landing on the identical date, not one
             # merely close to an anchor. Nudging by minimum distance instead
             # of exact match covers both.
-            MIN_GAP = 9   # percentage points of rail width
+            # Wide enough that two 70px mobile label boxes (see the 520px
+            # media query) don't touch even on a narrow phone's rail.
+            MIN_GAP = 16   # percentage points of rail width
             placed = [0.0, 100.0]
             for d, lbl, cls, tip, pretags in nodes:
                 pos = max(0.0, min(100.0, (d - us_d).days / span * 100))
@@ -3115,6 +3128,8 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                  'outcome \u2014 most days, the honest answer is to do '
                  'nothing.</div>')
     else:
+        H.append('<p class="taphint">Tap a name to see the rest of its '
+                 'card.</p>')
         by_c = {}
         for r in rows:
             by_c.setdefault(r["cluster"], []).append(r)
