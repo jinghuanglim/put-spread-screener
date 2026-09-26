@@ -425,7 +425,7 @@ a{color:var(--amber)}
 </div>
 <div class="strip">
 <div class="inst"><span class="k"><span tabindex="0" data-tip="The US trading day this screen read data for — in US/Eastern time. Nothing about the gates; just which session everything below is dated to.">Market date<i class="ii" aria-hidden="true">i</i></span></span><span class="v">Sat 26 Sep, <span id="ustime"></span></span><span class="s">US/Eastern · <span class="mktpill" id="mktstate"></span></span></div>
-<div class="inst"><span class="k"><span tabindex="0" data-tip="When this page was last generated, in Singapore time. Everything on it — spot prices, VIX, the gates, the cards below — is only as current as this moment. A run from hours ago may not reflect where the market is right now.">Last run<i class="ii" aria-hidden="true">i</i></span></span><span class="v"><span id="built" data-utc="2026-09-26T05:39:10Z">Sat 26 Sep, 13:39:10 SGT</span></span><span class="s">Singapore time · Prices are live (yfinance, ~15–20 min delayed)</span></div>
+<div class="inst"><span class="k"><span tabindex="0" data-tip="When this page was last generated, in Singapore time. Everything on it — spot prices, VIX, the gates, the cards below — is only as current as this moment. A run from hours ago may not reflect where the market is right now.">Last run<i class="ii" aria-hidden="true">i</i></span></span><span class="v"><span id="built" data-utc="2026-09-26T05:55:18Z">Sat 26 Sep, 13:55:18 SGT</span></span><span class="s">Singapore time · Prices are live (yfinance, ~15–20 min delayed)</span></div>
 <div class="inst"><span class="k"><span tabindex="0" data-tip="CBOE Volatility Index — the market's own pricing of how much the S&amp;P 500 is expected to move over the next 30 days.&lt;br&gt;&lt;br&gt;&lt;span style='color:var(--faint)'&gt;●&lt;/span&gt; Under 12 — very calm&lt;br&gt;&lt;span style='color:var(--clear)'&gt;●&lt;/span&gt; 12–20 — normal market&lt;br&gt;&lt;span style='color:var(--amber)'&gt;●&lt;/span&gt; 20–30 — elevated, jumpy&lt;br&gt;&lt;span style='color:var(--veto)'&gt;●&lt;/span&gt; 30 and up — real fear&lt;br&gt;&lt;br&gt;Right now: &lt;span style='color:var(--clear)'&gt;normal range — 12 to 20&lt;/span&gt;.">VIX<i class="ii" aria-hidden="true">i</i></span></span><span class="v" style="color:var(--clear)">14.87</span><span class="s" style="color:var(--clear)">Normal range — 12 to 20</span></div>
 <div class="inst"><span class="k"><span tabindex="0" data-tip="An iron condor overlay: a call spread sold on top of an existing put spread position, for extra premium. It only turns on when conditions line up — VIX at 20 or above, the S&amp;P 500 within -2% to +3% of its own 20-day average, and no major scheduled macro event nearby — that last part checked by a person, not this page.">Condor overlay<i class="ii" aria-hidden="true">i</i></span></span><span class="v"><span class="pill nogo">NO-GO</span></span><span class="s">VIX 14.87 &lt; 20</span></div>
 </div>
@@ -787,22 +787,6 @@ function initRun(cfg){
       if(!document.hidden)idleWatch();});
   }
 
-  // cooldown() only knows the build baked into THIS page load, so a refresh
-  // taken mid-run - after the 2-minute click-guard but before the new page
-  // is published - shows the button as idle even though a run is still
-  // going. The Worker still knows, straight from the Actions API, so ask it
-  // once on load and switch into the same watching mode a 409 would have.
-  if(cfg.dispatch&&go.tagName==='BUTTON'){
-    fetch(cfg.dispatch,{method:'GET'})
-      .then(function(r){return r.ok?r.json():Promise.reject(0);})
-      .then(function(v){
-        if(!v.running||waiting)return;
-        mine=false;began=0;waiting=Date.now();watching=true;
-        busy();timer=setInterval(check,5000);check();
-      })
-      .catch(function(){});
-  }
-
   // One floating tooltip, shown on hover with no delay. The native title
   // attribute waits about a second, cannot be styled, and wrapped badly at the
   // edge of the table. Tap still works for touch, where there is no hover.
@@ -848,5 +832,5 @@ function initRun(cfg){
   window.addEventListener('resize',function(){
     pinned=null;tipEl.classList.remove('show');});
 }
-</script><script>initRun({runNumber:"105",builtUtc:"2026-09-26T05:39:10Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
+</script><script>initRun({runNumber:"106",builtUtc:"2026-09-26T05:55:18Z",dispatch:"https://pcs-dispatch.put-screener.workers.dev",actions:"https://github.com/jinghuanglim/put-spread-screener/actions/workflows/screen.yml"});</script>
 </div></body></html>
