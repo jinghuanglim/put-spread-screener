@@ -991,8 +991,16 @@ class YFProvider:
             today = date.today()
         out = []
         for it in items:
-            c = it.get("content", it)
+            if not it:
+                continue          # yfinance has returned bare None entries
+            # .get("content", it) only falls back to `it` when the key is
+            # ABSENT - yfinance has started sending {"content": None, ...},
+            # where the key is present but null, so .get() happily returns
+            # None and the next line blew up three runs in a row on this.
+            c = it.get("content") or it
             title = c.get("title") or ""
+            if not title:
+                continue           # nothing to show for this one
             pub = c.get("pubDate") or c.get("providerPublishTime") or ""
             pub_s = str(pub)[:10]
             try:
@@ -4163,6 +4171,22 @@ Producer Price Index for October 2026
     fl2 = Flaky(); fl2.calls = -99          # never succeeds
     chk("a genuinely dead endpoint still returns empty, so the report flags it",
         YFProvider.news(fl2, "ANET", today=date(2026, 8, 24), tries=2) == [])
+
+    class NullContent:
+        """{"content": None} - the run 107 failure. Present key, null value,
+        so .get("content", it) does not fall back and crashes on the next
+        .get(). A bare None entry in the list is the same failure shape."""
+        _news_url = staticmethod(YFProvider._news_url)
+        def __init__(self):
+            self._cache = {}
+        def _tk(self, t):
+            class TK:
+                news = [None, {"content": None},
+                        {"content": {"title": "ok", "pubDate": "2026-08-22"}}]
+            return TK()
+    chk("a null content value does not crash, and the null entries are skipped",
+        [x[1] for x in YFProvider.news(NullContent(), "ANET",
+                                        today=date(2026, 8, 24))] == ["ok"])
 
     print("HTML PAGE")
     html = render_html(rows, dropped, conflicts, news, regime, today)
