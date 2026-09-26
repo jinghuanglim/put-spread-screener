@@ -58,6 +58,8 @@ a{color:var(--amber)}
   background:transparent;border:1px solid var(--line);border-radius:99px;
   padding:4px 11px;cursor:pointer}
 .clbtn:hover{color:var(--ink);border-color:var(--line2)}
+.clts{color:var(--faint);opacity:.7;margin-left:2px}
+.clbtn:hover .clts{color:var(--dim)}
 .who{grid-column:1/2;color:var(--dim);font-size:15px;margin:0;max-width:74ch}
 
 /* ---- the launch pad. The one control on the page, so it gets the one
@@ -411,7 +413,7 @@ a{color:var(--amber)}
 <div class="mast"><div class="mtitle">
 <h1>Options <em>Screening Room</em></h1>
 <span class="ver">v1.6</span>
-<button class="clbtn" id="clbtn" type="button">Changelog</button>
+<button class="clbtn" id="clbtn" type="button">Changelog <span class="clts">2026-09-26</span></button>
 </div>
 <div class="launch"><div class="launchwrap">
 <button class="btn" id="go"><span class="bolt" aria-hidden="true">⚡</span>Run Screen</button>
