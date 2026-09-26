@@ -82,7 +82,15 @@ jobs:
           git commit -m "run $GITHUB_RUN_NUMBER failed"
           for attempt in 1 2 3; do
             if git push; then exit 0; fi
-            git pull --rebase --autostash || exit 1
+            # A conflict here is always two writers touching the same
+            # generated file (docs/version.json, maybe docs/index.html) —
+            # nobody hand-edits either, so the freshest write wins rather
+            # than failing a red build a second time over its own status line.
+            git pull --rebase --autostash || {
+              git diff --name-only --diff-filter=U | xargs -r git checkout --theirs --
+              git diff --name-only --diff-filter=U | xargs -r git add
+              git rebase --continue || exit 1
+            }
           done
           exit 1
 
@@ -111,8 +119,17 @@ jobs:
             fi
             echo "push rejected - rebasing onto the remote and retrying"
             git pull --rebase --autostash || {
-              echo "::error::rebase failed - resolve by hand"
-              exit 1
+              # Same reasoning as the failure-publish step: everything under
+              # docs/ is generated, nobody hand-edits it, so on a conflict this
+              # run's own freshly-built output is the correct resolution, not
+              # a hand-merge of two machine-written files.
+              echo "conflict on a generated file - taking this run's own output"
+              git diff --name-only --diff-filter=U | xargs -r git checkout --theirs --
+              git diff --name-only --diff-filter=U | xargs -r git add
+              git rebase --continue || {
+                echo "::error::rebase failed - resolve by hand"
+                exit 1
+              }
             }
           done
           echo "::error::could not push after 3 attempts"
