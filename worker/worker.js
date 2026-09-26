@@ -20,7 +20,7 @@ const UA = "pcs-dispatch";
 function cors(origin) {
   return {
     "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Max-Age": "86400",
     "Vary": "Origin",
   };
@@ -39,14 +39,23 @@ async function gh(path, env, init = {}) {
   });
 }
 
+// The one fact the page cannot get anywhere else: is a run unfinished right
+// now. `docs/version.json` only changes when a run ENDS, so a page loaded or
+// refreshed while a run is in flight has no way to tell — this is what
+// answers that, straight from the Actions API the dispatch call already
+// trusts.
+async function latestRun(env) {
+  const r = await gh(`/actions/workflows/${WORKFLOW}/runs?per_page=1`, env);
+  if (!r.ok) return null;
+  return ((await r.json()).workflow_runs || [])[0] || null;
+}
+
 export default {
   async fetch(req, env) {
     const allowed = env.ORIGIN || "*";
     const h = cors(allowed);
 
     if (req.method === "OPTIONS") return new Response(null, { headers: h });
-    if (req.method !== "POST")
-      return new Response("POST only", { status: 405, headers: h });
 
     // Same-origin enforcement. A browser cannot forge Origin, so this stops
     // another site from quietly using your Worker as a free button. It is not
@@ -56,6 +65,18 @@ export default {
     const origin = req.headers.get("Origin");
     if (allowed !== "*" && origin && origin !== allowed)
       return new Response("bad origin", { status: 403, headers: h });
+
+    // Read-only: lets a page loaded or refreshed mid-run find out a run is
+    // already going, instead of only learning that from its own click.
+    if (req.method === "GET") {
+      const run = await latestRun(env).catch(() => null);
+      const running = !!run && run.conclusion === null;
+      return new Response(JSON.stringify({ running, run: run && run.run_number }),
+        { headers: { ...h, "Content-Type": "application/json" } });
+    }
+
+    if (req.method !== "POST")
+      return new Response("GET or POST only", { status: 405, headers: h });
 
     // Refuse to pile runs on top of each other.
     //
@@ -73,15 +94,12 @@ export default {
     // but is not yet listed.
     const COOLDOWN_MS = 120000;
     try {
-      const r = await gh(`/actions/workflows/${WORKFLOW}/runs?per_page=1`, env);
-      if (r.ok) {
-        const run = ((await r.json()).workflow_runs || [])[0];
-        if (run) {
-          if (run.conclusion === null)
-            return new Response("already running", { status: 409, headers: h });
-          if (Date.now() - Date.parse(run.created_at) < COOLDOWN_MS)
-            return new Response("just ran", { status: 409, headers: h });
-        }
+      const run = await latestRun(env);
+      if (run) {
+        if (run.conclusion === null)
+          return new Response("already running", { status: 409, headers: h });
+        if (Date.now() - Date.parse(run.created_at) < COOLDOWN_MS)
+          return new Response("just ran", { status: 409, headers: h });
       }
     } catch (e) {
       // A failed pre-check should not block the run it was only guarding.
