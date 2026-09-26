@@ -23,6 +23,17 @@ from datetime import datetime, date, timedelta
 # them. Independent of the workflow doc's own 2-1-N numbering, which tracks
 # strategy/rule changes, not this file's.
 SCREEN_VERSION = "1.6"
+# The last few entries a viewer would actually want to know about - newest
+# first. Hand-maintained, not derived from git log, because most commits here
+# are automated "screen <date>" runs with nothing to report.
+CHANGELOG = [
+    {"d": "2026-09-26", "x": "fix", "t": "Run Screen now recognizes a run "
+     "already in progress after a refresh, instead of looking idle."},
+    {"d": "2026-09-15", "x": "feature", "t": "Bench chart redrawn with a "
+     "real backrest, seat slats and legs."},
+    {"d": "2026-09-15", "x": "fix", "t": "Fixed a shared plank disappearing "
+     "from the bench once its row wrapped."},
+]
 # ---------------------------------------------------------------- config
 UNIVERSE = ["AAPL","AMD","AMZN","ANET","AVGO","CRM","CRWD","DELL","GOOGL",
             "JNJ","JPM","META","MSFT","NFLX","NVDA","PANW","PLTR","TSLA",
@@ -1990,6 +2001,10 @@ a{color:var(--amber)}
 .mast h1 em{font-style:normal;color:var(--amber)}
 .ver{font-family:var(--mono);font-size:13px;color:var(--faint);
   border:1px solid var(--line);border-radius:99px;padding:4px 11px}
+.clbtn{font-family:var(--mono);font-size:13px;color:var(--faint);
+  background:transparent;border:1px solid var(--line);border-radius:99px;
+  padding:4px 11px;cursor:pointer}
+.clbtn:hover{color:var(--ink);border-color:var(--line2)}
 .who{grid-column:1/2;color:var(--dim);font-size:15px;margin:0;max-width:74ch}
 
 /* ---- the launch pad. The one control on the page, so it gets the one
@@ -2279,14 +2294,15 @@ a{color:var(--amber)}
 .distag.down{color:var(--faint);background:rgba(255,255,255,.06)}
 .disdetail{color:var(--dim);font-size:14px;flex-basis:100%}
 
-/* ---- gate 3 reader ---- */
-#nv[hidden]{display:none}
-#nv{position:fixed;inset:0;z-index:120;background:rgba(4,7,12,.78);
+/* ---- gate 3 reader, and the changelog dialog reusing the same shell ---- */
+#nv[hidden],#cl[hidden]{display:none}
+#nv,#cl{position:fixed;inset:0;z-index:120;background:rgba(4,7,12,.78);
   display:flex;align-items:center;justify-content:center;padding:24px}
 .nvbox{background:var(--panel);border:1px solid var(--line2);border-radius:18px;
   width:100%;max-width:760px;max-height:82vh;display:flex;flex-direction:column}
+#cl .nvbox{max-width:520px}
 @media (max-width:600px){
-  #nv{align-items:flex-end;padding:0}
+  #nv,#cl{align-items:flex-end;padding:0}
   .nvbox{border-radius:18px 18px 0 0;max-height:88vh}
 }
 .nvhead{display:flex;align-items:center;gap:14px;padding:18px 20px;
@@ -2571,6 +2587,19 @@ function initRun(cfg){
     });
   }
 
+  // The changelog dialog - same shell as the news reader, a fixed list
+  // baked in at build time rather than anything fetched.
+  var cl=document.getElementById('cl'),clbtn=document.getElementById('clbtn');
+  if(cl&&clbtn){
+    clbtn.addEventListener('click',function(){cl.hidden=false;});
+    document.addEventListener('click',function(e){
+      if(e.target===cl||e.target.id==='clx')cl.hidden=true;
+    });
+    document.addEventListener('keydown',function(e){
+      if(e.key==='Escape'&&!cl.hidden)cl.hidden=true;
+    });
+  }
+
   // Cards collapse to just a name on a phone (see the .cbody media rule) -
   // tapping the head is the only way back in there, so it has to work even
   // though the head also hosts the news button.
@@ -2763,7 +2792,7 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     """
     go, why = condor_verdict(regime)
     who = regime.get("author") or ""
-    page_name = f"{who}’s Screen Room" if who else "The Screen Room"
+    page_name = "Options Screening Room"
     H = ['<!doctype html><html lang="en"><head><meta charset="utf-8">',
          '<meta name="viewport" content="width=device-width,initial-scale=1">',
          f'<title>{_esc(page_name)}</title>',
@@ -2777,9 +2806,9 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
 
     # ------------------------------------------------ masthead + launch pad
     H.append('<div class="mast"><div class="mtitle">')
-    h1_lead = f"{_esc(who)}’s" if who else "The"
-    H.append(f'<h1>{h1_lead} <em>Screen Room</em></h1>')
+    H.append('<h1>Options <em>Screening Room</em></h1>')
     H.append(f'<span class="ver">v{_esc(SCREEN_VERSION)}</span>')
+    H.append('<button class="clbtn" id="clbtn" type="button">Changelog</button>')
     H.append('</div>')
 
     tail_js = ""
@@ -3271,6 +3300,17 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         H.append('</div>')
 
     # ------------------------------------------------ gate 3, behind the rows
+    cl_items = "".join(
+        f'<div class="item"><span class="d">{_esc(e["d"])}</span>'
+        f'<span class="x">{_esc(e["x"])}</span><br>{_esc(e["t"])}</div>'
+        for e in CHANGELOG
+    )
+    H.append('<div id="cl" hidden><div class="nvbox" role="dialog" '
+             'aria-modal="true" aria-labelledby="clt">'
+             '<div class="nvhead"><b id="clt">Changelog</b>'
+             '<button id="clx" aria-label="Close">&times;</button></div>'
+             f'<div class="nvbody">{cl_items}</div></div></div>')
+
     if news_out:
         payload = {}
         for t, items in news_out.items():
