@@ -2013,6 +2013,8 @@ a{color:var(--amber)}
   background:transparent;border:1px solid var(--line);border-radius:99px;
   padding:4px 11px;cursor:pointer}
 .clbtn:hover{color:var(--ink);border-color:var(--line2)}
+.clts{color:var(--faint);opacity:.7;margin-left:2px}
+.clbtn:hover .clts{color:var(--dim)}
 .who{grid-column:1/2;color:var(--dim);font-size:15px;margin:0;max-width:74ch}
 
 /* ---- the launch pad. The one control on the page, so it gets the one
@@ -2832,7 +2834,10 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     H.append('<div class="mast"><div class="mtitle">')
     H.append('<h1>Options <em>Screening Room</em></h1>')
     H.append(f'<span class="ver">v{_esc(SCREEN_VERSION)}</span>')
-    H.append('<button class="clbtn" id="clbtn" type="button">Changelog</button>')
+    cl_latest = CHANGELOG[0]["d"] if CHANGELOG else ""
+    H.append('<button class="clbtn" id="clbtn" type="button">Changelog'
+              + (f' <span class="clts">{_esc(cl_latest)}</span>' if cl_latest else "")
+              + '</button>')
     H.append('</div>')
 
     tail_js = ""
@@ -3064,28 +3069,33 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
                          exp_tip, exp_tags)])
             H.append('<div class="rail"><div class="track"></div>'
                      '<div class="fill" id="railfill"></div>')
-            # Today and Expiry are fixed anchors, so they seed this rather
-            # than being placed by the loop below. An event a day or two off
-            # either one - FOMC landing the day after Today, say - is close
-            # enough in percent terms to print its label on top of the
-            # anchor's on a phone-width rail; a plain "same day" check only
-            # caught two mid-events landing on the identical date, not one
-            # merely close to an anchor. Nudging by minimum distance instead
-            # of exact match covers both.
+            # Today and Expiry are fixed anchors at 0% and 100%; only the
+            # mid events between them need spacing, and `nodes` is already
+            # in date order end to end, which is also position order.
+            #
+            # A per-node greedy nudge (try +6%, check, repeat) used to do
+            # this, and it worked for one crowded pair. Three events a day
+            # apart - CPI, PPI, Expiry - is three positions within a few
+            # percent of each other and of the Expiry anchor: nudging one
+            # of them rightward walks it straight toward Expiry, which is
+            # also within MIN_GAP, so it bounces there and back for all 8
+            # tries and settles still overlapping.
+            #
+            # A sweep in each direction instead: push every mid event at
+            # least MIN_GAP past the one before it, left to right, then
+            # pull the whole cluster back below Expiry, right to left, so
+            # crowding always resolves toward the middle of the gap rather
+            # than oscillating against either end.
             # Wide enough that two 70px mobile label boxes (see the 520px
             # media query) don't touch even on a narrow phone's rail.
             MIN_GAP = 16   # percentage points of rail width
-            placed = [0.0, 100.0]
-            for d, lbl, cls, tip, pretags in nodes:
-                pos = max(0.0, min(100.0, (d - us_d).days / span * 100))
-                # Bounded, because at 100% the nudge has nowhere left to go
-                # and an unbounded loop there never returns.
-                if cls not in ("now", "end", "end hit"):
-                    for _ in range(8):
-                        if not any(abs(pos - p) < MIN_GAP for p in placed):
-                            break
-                        pos = pos + 6 if pos <= 94 else pos - 6
-                placed.append(pos)
+            pos_list = [max(0.0, min(100.0, (d - us_d).days / span * 100))
+                        for d, *_ in nodes]
+            for i in range(1, len(pos_list) - 1):
+                pos_list[i] = max(pos_list[i], pos_list[i - 1] + MIN_GAP)
+            for i in range(len(pos_list) - 2, 0, -1):
+                pos_list[i] = min(pos_list[i], pos_list[i + 1] - MIN_GAP)
+            for (d, lbl, cls, tip, pretags), pos in zip(nodes, pos_list):
                 lbl_html = "" if pretags else _esc(lbl)
                 br = "" if pretags else "<br>"
                 body = (f'{pretags}<div class="dot"></div>'
