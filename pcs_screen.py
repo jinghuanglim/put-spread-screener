@@ -2642,6 +2642,22 @@ function initRun(cfg){
       if(!document.hidden)idleWatch();});
   }
 
+  // cooldown() only knows the build baked into THIS page load, so a refresh
+  // taken mid-run - after the 2-minute click-guard but before the new page
+  // is published - shows the button as idle even though a run is still
+  // going. The Worker still knows, straight from the Actions API, so ask it
+  // once on load and switch into the same watching mode a 409 would have.
+  if(cfg.dispatch&&go.tagName==='BUTTON'){
+    fetch(cfg.dispatch,{method:'GET'})
+      .then(function(r){return r.ok?r.json():Promise.reject(0);})
+      .then(function(v){
+        if(!v.running||waiting)return;
+        mine=false;began=0;waiting=Date.now();watching=true;
+        busy();timer=setInterval(check,5000);check();
+      })
+      .catch(function(){});
+  }
+
   // One floating tooltip, shown on hover with no delay. The native title
   // attribute waits about a second, cannot be styled, and wrapped badly at the
   // edge of the table. Tap still works for touch, where there is no hover.
