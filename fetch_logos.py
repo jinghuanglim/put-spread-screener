@@ -9,7 +9,7 @@ free logo API (the old default answer to "how do I get a company logo") is
 being sunset in 2026, and every replacement found (Logo.dev, CompaniesLogo,
 LogoKit) wants an account and an API key. Putting a key in a page anyone can
 view means anyone can lift and use it. This universe is small and fixed
-(~19 names) and rarely changes, so fetching once and committing the result
+(~25 names) and rarely changes, so fetching once and committing the result
 is both simpler and more durable than a live dependency — the page keeps
 its "nothing external is ever loaded" guarantee, and a dead API key can
 never turn every ticker into a broken image icon.
@@ -68,9 +68,11 @@ WIKI_TITLE = {
     "GOOGL": "Alphabet Inc.", "JNJ": "Johnson & Johnson",
     "JPM": "JPMorgan Chase", "LLY": "Eli Lilly and Company",
     "META": "Meta Platforms", "MSFT": "Microsoft",
-    "NFLX": "Netflix", "NVDA": "Nvidia",
+    "NVDA": "Nvidia",
     "PANW": "Palo Alto Networks", "PLTR": "Palantir Technologies",
     "TSLA": "Tesla, Inc.", "TSM": "TSMC", "V": "Visa Inc.",
+    "CAT": "Caterpillar Inc.", "COST": "Costco", "HD": "The Home Depot",
+    "MCD": "McDonald's", "XOM": "ExxonMobil",
 }
 
 

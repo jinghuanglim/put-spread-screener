@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
 Put Credit Spread screener — Part 1 (market-data half, no IBKR required).
-Replicates workflow 2-1-12 Gates 1-3 using free data:
+Replicates workflow 2-1-13 Gates 1-3 using free data:
   Gate 1 TREND     close > 20-day SMA (prior 20 completed bars)
   Gate 2 EARNINGS  aggregator dates, conflicts listed not resolved
   Gate 3 NEWS      headlines printed for human veto
   Width pre-filter 5% of spot, hard min $5
+  Tiers           volatile 12%W / calm 10%W credit floor, from a fixed list
   Context         IV at anchor-delta strike, HV30, IV/HV
-20-name universe, no index slots. NOT in this half (needs IBKR): caps block,
+25-name universe, no index slots. NOT in this half (needs IBKR): caps block,
 Step 6b expiry week, logs.
 Usage:
   python pcs_screen.py                 # live, yfinance
@@ -22,11 +23,17 @@ from datetime import datetime, date, timedelta
 # job the run number does for a single run but for the code across all of
 # them. Independent of the workflow doc's own 2-1-N numbering, which tracks
 # strategy/rule changes, not this file's.
-SCREEN_VERSION = "1.6"
+SCREEN_VERSION = "1.7"
 # The last few entries a viewer would actually want to know about - newest
 # first. Hand-maintained, not derived from git log, because most commits here
 # are automated "screen <date>" runs with nothing to report.
 CHANGELOG = [
+    {"d": "2026-10-17", "x": "feature", "t": "Workflow 2-1-13: 25 names in "
+     "two tiers. Volatile names need 12% of the width, calm names 10%."},
+    {"d": "2026-10-17", "x": "feature", "t": "Expiry is 18-21 days; when no "
+     "Friday lands there, the nearest one is shown and flagged."},
+    {"d": "2026-10-17", "x": "feature", "t": "Names that reported yesterday "
+     "now show, with the target raised by 3% of the width."},
     {"d": "2026-09-26", "x": "fix", "t": "Run Screen now recognizes a run "
      "already in progress after a refresh, instead of looking idle."},
     {"d": "2026-09-15", "x": "feature", "t": "Bench chart redrawn with a "
@@ -35,31 +42,42 @@ CHANGELOG = [
      "from the bench once its row wrapped."},
 ]
 # ---------------------------------------------------------------- config
-UNIVERSE = ["AAPL","AMD","AMZN","ANET","AVGO","CRM","CRWD","DELL","GOOGL",
-            "JNJ","JPM","META","MSFT","NFLX","NVDA","PANW","PLTR","TSLA",
-            "TSM","V"]
+UNIVERSE = ["AAPL","AMD","AMZN","ANET","AVGO","CAT","COST","CRM","CRWD","DELL",
+            "GOOGL","HD","JNJ","JPM","LLY","MCD","META","MSFT","NVDA","PANW",
+            "PLTR","TSLA","TSM","V","XOM"]
+# Two tiers split by median 1-yr realised vol (35% line), read from the
+# workflow's monthly list - never re-tiered from a live read. The credit floor
+# is a volatility filter: one floor across names of different vol silently
+# picks a sector, so calm names get a lower one.
+CALM = {"JNJ","MCD","COST","V","JPM","AAPL","HD","XOM","MSFT","GOOGL","AMZN",
+        "LLY"}
+FLOOR = {"V": 0.12, "C": 0.10}
+T1_FLOOR_ADD = 0.03          # T+1 entry only at floor + 3%W
+# New in 2-1-13; flagged until each has traded once. Remove by hand.
+NEW_NAMES = {"CAT","COST","HD","LLY","MCD","XOM"}
+# For the max-4 tech cap. Calm tech counts: it still falls with tech.
+TECH = {"NVDA","TSM","AMD","AVGO","DELL","CRWD","PANW","ANET","PLTR","TSLA",
+        "META","CRM","AAPL","MSFT","GOOGL","AMZN"}
+TECH_MAX = 4
 CLUSTERS = {
-    # ANET filed under semis, not its own networking label: it tracked the
-    # group at 0.62/0.48/0.46 over 60/120/250 sessions (measured 23 Aug
-    # 2026), well above its own 0.57 correlation to SPY — closer to a semi
-    # than to a name on its own.
-    #
-    # NFLX stays unclustered on measured evidence: its best match is Mega-cap
-    # platform at 0.22 / 0.18 / 0.15 over 60 / 120 / 250 sessions, barely above
-    # its correlation to the market itself. Genuinely idiosyncratic, so a
-    # cluster would be a label rather than a fact.
-    "Semis & hardware":     ["NVDA","AMD","AVGO","TSM","DELL","ANET"],
+    "Semis & hardware":     ["NVDA","AMD","AVGO","TSM","DELL"],
     "Security":             ["CRWD","PANW"],
     "Mega-cap platform":    ["AAPL","MSFT","GOOGL","AMZN","META"],
     "Software":             ["CRM"],
     "High-beta":            ["PLTR","TSLA"],
-    "Healthcare":           ["JNJ"],
+    "Networking":           ["ANET"],
+    "Healthcare":           ["JNJ","LLY"],
     "Financial":            ["V","JPM"],
+    "Energy":               ["XOM"],
+    "Industrial":           ["CAT"],
+    "Consumer":             ["COST","HD","MCD"],
 }
 CLUSTER_MAX = {"Semis & hardware":2,"Security":1,"Mega-cap platform":3,
-               "Software":1,"High-beta":1,"Healthcare":1,"Financial":2}
+               "Software":1,"High-beta":1,"Networking":1,"Healthcare":2,
+               "Financial":2,"Energy":1,"Industrial":1,"Consumer":2}
 CLUSTER_ORDER = ["Semis & hardware","Security","Mega-cap platform","Software",
-                 "High-beta","Healthcare","Financial","Unclustered"]
+                 "High-beta","Networking","Healthcare","Financial","Energy",
+                 "Industrial","Consumer","Unclustered"]
 
 # A colour per cluster, used only as a small dot beside the group header —
 # never as the only signal (the name is still printed in full), just a
@@ -69,7 +87,9 @@ CLUSTER_ORDER = ["Semis & hardware","Security","Mega-cap platform","Software",
 CLUSTER_COLOR = {
     "Semis & hardware": "#3b82f6", "Security": "#ec4899",
     "Mega-cap platform": "#06b6d4", "Software": "#8b5cf6",
-    "High-beta": "#f97316", "Healthcare": "#14b8a6", "Financial": "#eab308",
+    "High-beta": "#f97316", "Networking": "#6366f1",
+    "Healthcare": "#14b8a6", "Financial": "#eab308",
+    "Energy": "#84cc16", "Industrial": "#d97706", "Consumer": "#f43f5e",
     "Unclustered": "#a8a29e",
 }
 
@@ -77,11 +97,9 @@ CLUSTER_COLOR = {
 # them. A cluster line is a statement about the names inside it; it says nothing
 # about two names in different clusters that happen to move together, and the
 # per-name cap will not catch that either. Measured, dated, and stated as a
-# number so it can be re-measured rather than believed. Empty for now \u2014 ANET,
-# the one name this ever fired for, moved into Semis & hardware directly
-# instead once its correlation there was this clear; kept as a mechanism for
-# whichever name is next to sit between two clusters without belonging in
-# either.
+# number so it can be re-measured rather than believed. Empty for now; kept as
+# a mechanism for whichever name is next to sit between two clusters without
+# belonging in either.
 CROSS_CLUSTER = []
 
 
@@ -107,25 +125,18 @@ def _cross_cluster_node(tickers):
     return c, CLUSTER_COLOR.get(c, "#a8a29e")
 DELTA_ANCHOR = {"NVDA":0.20, "TSM":0.20}          # everything else 0.15
 DEFAULT_DELTA = 0.15
-# Fallback delta, used ONLY if live worst-case credit fails the 12% floor at
-# 0.15-0.16. None = no fallback exists. "SKIP" = never step up, skip the name.
-FALLBACK = {
-    "TSM": 0.18, "AAPL": 0.18, "AMZN": 0.18, "GOOGL": 0.18, "JPM": 0.18,
-    "V": 0.20,
-    "JNJ": "SKIP", "MSFT": "SKIP",
-    "CRWD": None, "META": None, "CRM": None, "DELL": None,
-}
-DELTA_HARD_CAP = 0.20     # workflow 2-1-12: "Hard cap 0.20\u0394". Absolute.
+# Fallback delta, used ONLY if live worst-case credit fails the floor at
+# 0.15-0.16. Every other name has none: 2-1-13 suspended the calm-tier
+# fallbacks, because the 10%W floor now does that job and stacking both is
+# untested double loosening.
+FALLBACK = {"TSM": 0.18}
+DELTA_HARD_CAP = 0.20     # workflow 2-1-13: "Hard cap 0.20Δ". Absolute.
 BLOWOFF_STRETCH = 0.15        # never tilt delta on a blow-off
-DTE_MIN, DTE_MAX, DTE_BIAS = 18, 24, (18, 21)   # 18-24 hard range, prefer 18-21.
-# Weeklies land every 7 days, so a 4-day hard range (the old 18-21) periodically
-# slides all the way between two Fridays and finds nothing - a real calendar
-# gap, not a data failure, but one that killed every name in the universe at
-# once. 7 wide (18-24) always spans a full cycle so that can't happen again;
-# DTE_BIAS keeps the old 18-21 sweet spot as the preferred pick when it's there.
+# 18-21 hard range, prefer 18. The window often holds no listed Friday; then
+# the nearest expiry outside it is taken and flagged, never priced silently.
+DTE_MIN, DTE_MAX, DTE_REACH = 18, 21, 7
 WIDTH_PCT   = 0.05
 WIDTH_MIN   = 5.0
-CREDIT_FLOOR = 0.12        # reference only; JH prices at ticket
 RISK_FREE   = 0.042
 PROV_TREND_MARGIN = 0.02   # <2% above SMA20 -> flag prov
 # ---------------------------------------------------------------- macro calendar
@@ -539,9 +550,11 @@ ALIASES = {
     "GOOGL": ["google", "alphabet"], "JNJ": ["johnson & johnson", "johnson and johnson", "j&j"],
     "JPM": ["jpmorgan", "jp morgan", "chase"],
     "META": ["meta platforms", "meta ", "facebook"], "MSFT": ["microsoft"],
-    "NFLX": ["netflix"], "NVDA": ["nvidia"], "PANW": ["palo alto"],
+    "NVDA": ["nvidia"], "PANW": ["palo alto"],
     "PLTR": ["palantir"], "TSLA": ["tesla"], "TSM": ["tsmc", "taiwan semi"],
-    "V": ["visa"],
+    "V": ["visa"], "CAT": ["caterpillar"], "COST": ["costco"],
+    "HD": ["home depot"], "LLY": ["eli lilly", "lilly"],
+    "MCD": ["mcdonald"], "XOM": ["exxon"],
 }
 def news_is_direct(ticker, title, related):
     """True if the item is about THIS name, not merely its sector.
@@ -624,11 +637,12 @@ def us_market_date():
     d = datetime.now(timezone.utc) - timedelta(hours=4)
     return d.date(), "ET~(no tzdata: pip install tzdata)"
 LISTING = {
-    "JNJ": "NYSE", "JPM": "NYSE", "V": "NYSE",
+    "JNJ": "NYSE", "JPM": "NYSE", "V": "NYSE", "CAT": "NYSE", "HD": "NYSE",
+    "LLY": "NYSE", "MCD": "NYSE", "XOM": "NYSE", "COST": "Nasdaq",
     "TSM": "NYSE", "ANET": "NYSE", "CRM": "NYSE", "DELL": "NYSE",
     "AAPL": "Nasdaq", "AMD": "Nasdaq", "AMZN": "Nasdaq", "AVGO": "Nasdaq",
     "CRWD": "Nasdaq", "GOOGL": "Nasdaq", "META": "Nasdaq", "MSFT": "Nasdaq",
-    "NFLX": "Nasdaq", "NVDA": "Nasdaq", "PANW": "Nasdaq", "PLTR": "Nasdaq",
+    "NVDA": "Nasdaq", "PANW": "Nasdaq", "PLTR": "Nasdaq",
     "TSLA": "Nasdaq",
 }
 class NasdaqEarnings:
@@ -804,6 +818,10 @@ def cluster_of(t):
     return "Unclustered"
 def anchor_delta(t):
     return DELTA_ANCHOR.get(t, DEFAULT_DELTA)
+def tier_of(t):
+    return "C" if t in CALM else "V"
+def floor_of(t):
+    return FLOOR[tier_of(t)]
 def round_width(spot):
     """Return (raw 5% width, width snapped to listed increment, that increment).
     The $5 minimum is tested on the RAW figure. Snapping first would round
@@ -1031,7 +1049,7 @@ class FakeProvider:
         self.base[VIX_TICKER] = 23.0
         self.base[SPX_TICKER] = 6100.0
         # forced states, so each gate has at least one name exercising it (fixture)
-        self.base["NFLX"] = 82.0     # uptrend, must die on width not trend
+        self.base["XOM"] = 82.0      # uptrend, must die on width not trend
         self.base["AMD"]  = 500.0
         self.base["CRWD"] = 400.0
         self.base["PANW"] = 380.0
@@ -1091,7 +1109,8 @@ class FakeProvider:
                  "https://example.invalid/sector")]
 # ---------------------------------------------------------------- gates
 def pick_expiry(expiries, today):
-    """Nearest expiry inside DTE window, biased to 18-21."""
+    """Expiry closest to 18 inside 18-21; else the nearest one outside it,
+    within DTE_REACH days, which the caller flags."""
     cands = []
     for e in expiries:
         try:
@@ -1099,13 +1118,13 @@ def pick_expiry(expiries, today):
         except Exception:
             continue
         dte = (d - today).days
-        if DTE_MIN <= dte <= DTE_MAX:
-            pref = 0 if DTE_BIAS[0] <= dte <= DTE_BIAS[1] else 1
-            cands.append((pref, -dte, e, dte))
+        off = max(DTE_MIN - dte, dte - DTE_MAX, 0)
+        if off <= DTE_REACH:
+            cands.append((off, dte, e))
     if not cands:
         return None, None
-    cands.sort()
-    return cands[0][2], cands[0][3]
+    _, dte, e = min(cands)
+    return e, dte
 def gate1_trend(bars, us_today, live_spot=None):
     """SMA20 from COMPLETED bars only; spot from the live read where available.
     Two distinct numbers. The in-progress bar never enters the SMA. The last
@@ -1210,7 +1229,7 @@ def strike_at_delta(chain, spot, target, dte, cap=DELTA_HARD_CAP):
 def run(provider, today, do_news=True, tickers=None,
         us_today_override=None, earn_src=None, macro_src=None):
     tickers = tickers or UNIVERSE
-    rows, dropped = [], {"trend": [], "earnings": [], "width": [], "data": [], "postearn": []}
+    rows, dropped = [], {"trend": [], "earnings": [], "width": [], "data": []}
     conflicts, news_out = [], {}
     us_today, tzlabel = us_market_date()
     if us_today_override is not None:
@@ -1259,7 +1278,7 @@ def run(provider, today, do_news=True, tickers=None,
             dropped["data"].append(f"{t}(expiries:{type(e).__name__})"); continue
         exp, dte = pick_expiry(exps, us_today)
         if exp is None:
-            dropped["data"].append(f"{t}(no expiry {DTE_MIN}-{DTE_MAX}d)"); continue
+            dropped["data"].append(f"{t}(no expiry near {DTE_MIN}-{DTE_MAX}d)"); continue
         expd = datetime.strptime(exp, "%Y-%m-%d").date()
         srcs = list(provider.earnings(t))
         try:
@@ -1287,11 +1306,7 @@ def run(provider, today, do_news=True, tickers=None,
             single_src.append(f"{t}({nsrc} source)")
         if blocked:
             dropped["earnings"].append(f"{t}({nxt})"); continue
-        if past_earn is not None and (us_today - past_earn).days <= 1:
-            # T+1 entries are not permitted at all (JH, 22 Aug). T+2 is the
-            # earliest entry; no credit level buys an exception.
-            dropped["postearn"].append(f"{t}(reported {past_earn})")
-            continue
+        since_earn = (us_today - past_earn).days if past_earn else None
         chain = provider.put_chain(t, exp)
         if not chain:
             dropped["data"].append(f"{t}(no chain)"); continue
@@ -1303,7 +1318,7 @@ def run(provider, today, do_news=True, tickers=None,
         # the number that decides every trade - what you actually get paid -
         # was missing. Worst case by construction: sell the short at the BID,
         # buy the long at the ASK. That is the side of the spread you land on
-        # when nothing goes your way, and it is the figure the 12%W floor is
+        # when nothing goes your way, and it is the figure the %W floor is
         # defined against. Anything friendlier would flatter the row.
         long_k = leg["strike"] - width
         cands = [c for c in chain if c["strike"] < leg["strike"]]
@@ -1320,7 +1335,10 @@ def run(provider, today, do_news=True, tickers=None,
             long_strike = longleg["strike"]
             act_width = leg["strike"] - long_strike
         eff_width = act_width or width
-        target = eff_width * CREDIT_FLOOR
+        # T+1 re-entry is allowed only at floor + 3%W (and a clean transcript,
+        # which is the reader's to judge).
+        floor = floor_of(t) + (T1_FLOOR_ADD if since_earn == 1 else 0)
+        target = eff_width * floor
         h = hv30(g1["closes"])
         ivhv = (leg["iv"]/h) if h else None
         notes = []
@@ -1332,21 +1350,24 @@ def run(provider, today, do_news=True, tickers=None,
             notes.append("stale")
         if ivhv and ivhv < 1.0:
             notes.append("inv")
-        if past_earn and (us_today - past_earn).days <= 42:
+        if since_earn is not None and since_earn <= 42:
             # 30 trading returns is ~6 calendar weeks; an earnings gap inside
             # that window inflates HV and manufactures a false IV/HV inversion
-            notes.append(f"gap{(us_today-past_earn).days}d")
+            notes.append(f"gap{since_earn}d")
         if cluster_of(t) == "Unclustered":
             notes.append("unclus")
-        fb = FALLBACK.get(t, "none")
-        if fb == "SKIP":
-            notes.append("nofb")
-        elif isinstance(fb, float):
-            notes.append(f"fb{fb:.2f}")
+        if t in FALLBACK:
+            notes.append(f"fb{FALLBACK[t]:.2f}")
         if g1["margin"] > BLOWOFF_STRETCH:
             notes.append(f"blowoff{g1['margin']*100:.0f}%")
-        if past_earn is not None and (us_today - past_earn).days == 2:
-            notes.append("T+2")
+        if since_earn in (1, 2):
+            notes.append(f"T+{since_earn}")
+        if not DTE_MIN <= dte <= DTE_MAX:
+            notes.append(f"dte{dte}")
+        if t in CALM:
+            notes.append("trial")
+        if t in NEW_NAMES:
+            notes.append("new")
         if leg.get("capped"):
             notes.append(f"cap{adelta:.2f}")
         if leg["oi"] < 500:
@@ -1357,7 +1378,8 @@ def run(provider, today, do_news=True, tickers=None,
         elif (leg["ask"] - leg["bid"]) / mid > 0.10:
             notes.append("ba")
         rows.append({
-            "t": t, "cluster": cluster_of(t), "delta": adelta,
+            "t": t, "cluster": cluster_of(t), "tier": tier_of(t),
+            "floor": floor, "delta": adelta,
             "spot": spot, "sma_margin": g1["margin"], "spot_src": g1["spot_src"],
             "sma20": g1["sma20"], "sma_from": g1["sma_from"], "sma_to": g1["sma_to"],
             "sma_n": g1["sma_n"], "width": width, "width_inc": width_inc,
@@ -1396,7 +1418,7 @@ def run(provider, today, do_news=True, tickers=None,
     regime["target_expiry"] = tgt
     if tgt:
         for r in rows:
-            if r["expiry"] != tgt:
+            if r["expiry"] != tgt and f"dte{r['dte']}" not in r["notes"]:
                 r["notes"] = (r["notes"] + "," if r["notes"] else "") \
                     + f"dte{r['dte']}"
         td = datetime.strptime(tgt, "%Y-%m-%d").date()
@@ -1458,18 +1480,25 @@ def explain_notes(r, verbose=False):
             d = n[3:-1]
             out.append(f"Earnings {d}d ago \u2014 that jump inflates HV, so "
                        f"the IV flag above may just be the earnings gap.")
-        elif n == "nofb":
-            out.append(f"No fallback \u2014 if {CREDIT_FLOOR*100:.0f}% fails at "
-                       f"0.15\u0394, skip. Never step closer to the money.")
-        elif n.startswith("fb") and n != "nofb":
+        elif n.startswith("fb"):
             out.append(f"Fallback {n[2:]}\u0394 \u2014 may step here only after "
-                       f"{CREDIT_FLOOR*100:.0f}% fails live. No further.")
+                       f"the floor fails live. No further.")
         elif n.startswith("blowoff"):
             out.append(f"Blow-off run \u2014 {n[7:]} above 20-day avg. Vertical "
                        f"run, not trend. Never step \u0394 up.")
         elif n == "T+2":
-            out.append("T+2, earliest entry \u2014 reported 2d ago. The "
-                       "earliest entry allowed.")
+            out.append("T+2 earnings \u2014 reported 2d ago. The preferred "
+                       "re-entry.")
+        elif n == "T+1":
+            out.append(f"T+1 earnings \u2014 reported yesterday. Entry only at "
+                       f"floor + {T1_FLOOR_ADD*100:.0f}%W (target raised to "
+                       f"{r.get('floor', 0)*100:.0f}%W) and a clean transcript.")
+        elif n == "trial":
+            out.append("Calm tier on trial \u2014 half size (~3.5% risk) until "
+                       "live credits prove the 10%W floor.")
+        elif n == "new":
+            out.append("New name \u2014 added in 2-1-13, not traded yet. Check "
+                       "bid/ask and open interest on the first ticket.")
         elif n.startswith("oi"):
             out.append(f"Low open interest \u2014 {n[2:]} open vs the 500 "
                        f"minimum. Worse fills, harder to exit.")
@@ -1490,6 +1519,10 @@ def explain_notes(r, verbose=False):
         elif n == "stale":
             out.append("Stale price \u2014 live read failed, using previous "
                        "close. Strike may shift.")
+        elif n.startswith("dte") and not DTE_MIN <= int(n[3:]) <= DTE_MAX:
+            out.append(f"Outside {DTE_MIN}-{DTE_MAX} DTE — no listed "
+                       f"Friday in the window, so this is {n[3:]} DTE. Your "
+                       f"call whether to take it.")
         elif n.startswith("dte"):
             out.append(f"Different expiry \u2014 this one cleared at "
                        f"{n[3:]} DTE, not the target date above. Confirm "
@@ -1516,14 +1549,16 @@ def _flag_label(code):
         return f"Earnings {code[3:-1]}d ago"
     if code == "unclus":
         return "No cluster cap"
-    if code == "nofb":
-        return "No fallback"
-    if code.startswith("fb") and code != "nofb":
+    if code.startswith("fb"):
         return f"Fallback {code[2:]}\u0394"
     if code.startswith("blowoff"):
         return f"Blow-off {code[7:]}"
-    if code == "T+2":
-        return "T+2 earnings"
+    if code in ("T+1", "T+2"):
+        return f"{code} earnings"
+    if code == "trial":
+        return "Calm tier trial"
+    if code == "new":
+        return "New name"
     if code.startswith("oi"):
         return f"Low OI ({code[2:]})"
     if code == "ba":
@@ -1542,18 +1577,20 @@ FLAG_LEGEND = [
     ("inv",   "IV below HV — paid less than the stock actually moved"),
     ("gapNd", "reported N days ago; the gap inflates HV, so `inv` may be an artifact"),
     ("unclus","no cluster cap applies — only per-name and total bind"),
-    ("nofb",  f"no fallback: if {CREDIT_FLOOR*100:.0f}%W fails at 0.15\u0394, "
-              "skip. Never step closer"),
-    ("fbN",   f"may step to N\u0394 only after {CREDIT_FLOOR*100:.0f}%W fails "
-              "live. No further"),
+    ("fbN",   "may step to N\u0394 only after the floor fails live. No "
+              "further. Only TSM has one"),
     ("capN",  "nearest strike to N\u0394 breached the 0.20 hard cap — stepped out, less credit"),
     ("blowoffN", "N% above SMA20 — vertical run, not trend. Never step \u0394 up"),
-    ("T+2",   "reported 2 days ago — the earliest entry allowed"),
+    ("T+1",   f"reported yesterday — entry only at floor + "
+              f"{T1_FLOOR_ADD*100:.0f}%W and a clean transcript"),
+    ("T+2",   "reported 2 days ago — the preferred re-entry"),
+    ("trial", "calm tier — half size (~3.5% risk) until live credits prove out"),
+    ("new",   "added in 2-1-13, not yet traded — check bid/ask and OI"),
     ("oiN",   "N open interest vs the 500 minimum — worse fills, harder to exit"),
     ("ba",    "bid/ask spread over 10% of mid — paid twice on a spread"),
     ("noq",   "no bid/ask posted — the price shown is not tradeable"),
-    ("dteN",  "expiry differs from the target date above — confirm which "
-              "Friday before pricing"),
+    ("dteN",  f"outside {DTE_MIN}-{DTE_MAX} DTE, or differs from the target "
+              "date above — confirm which Friday before pricing"),
 ]
 
 
@@ -1565,7 +1602,7 @@ def _legend_key(code):
         return "capN"
     if code.startswith("blowoff"):
         return "blowoffN"
-    if code.startswith("fb") and code != "nofb":
+    if code.startswith("fb"):
         return "fbN"
     if code.startswith("oi"):
         return "oiN"
@@ -1640,11 +1677,11 @@ def report(rows, dropped, conflicts, news_out, regime, today, verbose=False):
     L.append("")
     rule()
     L.append(f"CANDIDATES \u2014 Gates 1-2 passed. Gate 3 is yours, headlines "
-             f"below. {CREDIT_FLOOR*100:.0f}%W floor yours at ticket.")
+             f"below. Floor 12%W (V) / 10%W (C) yours at ticket.")
     rule()
     if rows:
         d_h, ad_h = "\u0394", "act\u0394"
-        L.append(f"{'Ticker':<7}{d_h:>5}{'Spot':>9}{'Short':>8}{'Long':>8}"
+        L.append(f"{'Ticker':<7}{'Tier':<5}{d_h:>5}{'Spot':>9}{'Short':>8}{'Long':>8}"
                  f"{'Width':>7}{ad_h:>6}{'Target':>8}"
                  f"{'IV':>7}{'HV':>7}{'IV/HV':>7}{'DTE':>5}  Flags")
     by_c = {}
@@ -1669,7 +1706,7 @@ def report(rows, dropped, conflicts, news_out, regime, today, verbose=False):
             tg = f"{r['target']:.2f}" if r.get("target") is not None else "n/a"
             lg = f"{r['long']:.1f}" if r.get("long") is not None else "n/a"
             wd = r.get("act_width") or r["width"]
-            L.append(f"{r['t']:<7}{r['delta']:>5.2f}{r['spot']:>9.2f}"
+            L.append(f"{r['t']:<7}{r['tier']:<5}{r['delta']:>5.2f}{r['spot']:>9.2f}"
                      f"{r['short']:>8.1f}{lg:>8}{wd:>7.1f}{r['act_delta']:>6.2f}"
                      f"{tg:>8}"
                      f"{r['iv']*100:>6.1f}%{hv:>7}{ivhv:>7}{r['dte']:>5}  "
@@ -1680,6 +1717,10 @@ def report(rows, dropped, conflicts, news_out, regime, today, verbose=False):
                         L.append(("      \u00b7 " if j == 0 else "        ") + seg)
     if not rows:
         L.append("Nothing passed. Cash is a valid outcome.")
+    else:
+        n_tech = sum(1 for r in rows if r["t"] in TECH)
+        L.append(f"  Tech candidates {n_tech} \u2014 max {TECH_MAX} tech "
+                 f"spreads open, counted at IBKR")
     L.append("")
     if rows:
         L.append(f"All expiries {rows[0]['expiry']} unless a row says otherwise.")
@@ -1738,7 +1779,6 @@ def report(rows, dropped, conflicts, news_out, regime, today, verbose=False):
     rule()
     L.append("DROPPED")
     for k, label in [("trend", "Gate 1 trend"), ("earnings", "Gate 2 earnings"),
-                     ("postearn", "post-earnings T+1"),
                      ("width", "width pre-filter"), ("data", "data failure")]:
         if dropped[k]:
             L.append(f"  {label:<18} {', '.join(dropped[k])}")
@@ -1778,16 +1818,18 @@ def report(rows, dropped, conflicts, news_out, regime, today, verbose=False):
     # ---------------------------------------------------------- FOOTER
     if rows:
         L.append("")
-        L.append("IV needed for 12%W (18 DTE, 5%-of-spot width) \u2014 reference, "
+        L.append("IV needed (18 DTE, 5%-of-spot width) \u2014 reference, "
                  "never pass/fail:")
-        L.append("  0.15\u0394 60.3%  0.16\u0394 52.5%  0.17\u0394 46.2%  "
+        L.append("  12%W (V)  0.15\u0394 60.3%  0.16\u0394 52.5%  0.17\u0394 46.2%  "
                  "0.18\u0394 40.9%  0.20\u0394 33.1%")
+        L.append("  10%W (C)  0.15\u0394 42.4%  0.16\u0394 37.4%  0.17\u0394 33.3%  "
+                 "0.18\u0394 30.0%  0.20\u0394 24.9%")
         L.append("  Flat 0.90 haircut, understates real bid/ask drag \u00b7 "
                  "calibrated to 18 DTE \u00b7 not a gate.")
     L.append("")
     L.append("\u0394 target short-leg delta \u00b7 act\u0394 delta of the strike "
              "actually picked \u00b7 Short sold \u00b7 Long bought")
-    L.append(f"Target = {CREDIT_FLOOR*100:.0f}% of the width: the least this "
+    L.append(f"Target = tier floor x width (12% V, 10% C; +3% at T+1): the least this "
              f"spread may be sold for. Aim at or above it when you price the "
              f"ticket live.")
     L.append("IV priced-in move \u00b7 HV actual recent move \u00b7 IV per-strike and "
@@ -3008,10 +3050,12 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         dte_tip = ("DTE = Days To Expiry, counted from today. %W = the "
                    "credit required as a percentage of the spread's "
                    "width — the floor this page enforces before a "
-                   "spread counts as worth selling.")
+                   "spread counts as worth selling: 12% for volatile names, "
+                   "10% for calm ones (median 1-yr realised vol at or under "
+                   "35%).")
         H.append(f'<div class="bhead">'
                  f'<span class="date">{_esc(pretty)}</span>'
-                 f'<span class="dte">{_tip(dte_tip, dte_s + f"{CREDIT_FLOOR*100:.0f}%W credit floor")}</span></div>')
+                 f'<span class="dte">{_tip(dte_tip, dte_s + "12% / 10%W credit floor")}</span></div>')
         H.append(f'<p class="bnote"><b>Yours to enforce at the ticket</b> '
                  f'\u2014 this page names the floor, it does not quote '
                  f'options.</p>')
@@ -3142,7 +3186,7 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
     # ------------------------------------------------ the flow
     n_uni = len(UNIVERSE)
     n_trend = len(dropped.get("trend") or [])
-    n_earn = len(dropped.get("earnings") or []) + len(dropped.get("postearn") or [])
+    n_earn = len(dropped.get("earnings") or [])
     pct_out = (n_uni - len(rows)) / n_uni * 100 if n_uni else 0
     H.append(f'<div class="sec"><h2>The Gauntlet</h2>'
              f'<span class="c">{pct_out:.0f}% cut</span>'
@@ -3281,9 +3325,6 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
              ("earnings", "Earnings inside the window",
               "has results due on or before expiry \u2014 the overnight gap "
               "this structure cannot survive."),
-             ("postearn", "Just reported",
-              "reported too recently; the post-earnings drift rule holds it "
-              "back a day."),
              ("width", "Too cheap to spread",
               "cannot make a $5-wide spread at this price."),
              ("data", "No usable data",
@@ -3447,7 +3488,9 @@ def _card(r, dot, news_out):
                  f"is {r['act_delta']:.2f}.")
 
     tg = f"${r['target']:.2f}" if r.get("target") is not None else "\u2014"
-    credit_tip = (f"{CREDIT_FLOOR*100:.0f}% of the ${wd:.0f} width \u2014 the "
+    tier = "calm" if r["tier"] == "C" else "volatile"
+    credit_tip = (f"{r['floor']*100:.0f}% of the ${wd:.0f} width, the "
+                  f"{tier}-tier floor \u2014 the "
                   f"least this spread may be sold for. Aim at or above it "
                   f"when you price the ticket. This page does not quote "
                   f"options; it tells you the number to beat.")
@@ -3475,7 +3518,8 @@ def _card(r, dot, news_out):
     out.append(f'<div class="st credit"><span class="k">'
                f'{_tip(credit_tip, "Target credit")}</span>'
                f'<span class="v">{tg}</span>'
-               f'<span class="sub">{CREDIT_FLOOR*100:.0f}% of ${wd:.0f} wide</span></div>')
+               f'<span class="sub">{r["floor"]*100:.0f}% of ${wd:.0f} wide '
+               f'\u00b7 {tier}</span></div>')
     out.append(f'<div class="st"><span class="k">{_tip(dtip, "Short &Delta;")}'
                f'</span><span class="v">{dcell}</span>'
                f'<span class="sub">odds of finishing ITM</span></div>')
@@ -3593,7 +3637,7 @@ def selftest():
     rows, dropped, conflicts, news, regime = run(
         p, today, do_news=True, us_today_override=today,
         earn_src=NullEarnings(), macro_src=StubMacro(FIXTURE_MACRO))
-    chk("NFLX killed by width", any("NFLX" in x for x in dropped["width"]))
+    chk("sub-$100 name killed by width", any("XOM" in x for x in dropped["width"]))
     chk("downtrend names killed by Gate 1",
         {"TSLA","AVGO"} <= set(dropped["trend"]),
         f"got {dropped['trend']}")
@@ -3612,8 +3656,7 @@ def selftest():
         cluster_of("DELL") == "Semis & hardware"
         and CLUSTER_MAX["Semis & hardware"] == 2)
     chk("neither carries a fallback delta",
-        FALLBACK.get("CRM") is None and FALLBACK.get("DELL") is None
-        and "CRM" in FALLBACK and "DELL" in FALLBACK)
+        "CRM" not in FALLBACK and "DELL" not in FALLBACK)
     chk("both are listed on NYSE",
         LISTING.get("CRM") == "NYSE" and LISTING.get("DELL") == "NYSE")
     chk("both have a news alias for Gate 3 matching",
@@ -3663,6 +3706,13 @@ def selftest():
     chk("all widths >= min", all(r["width"] >= WIDTH_MIN for r in rows))
     chk("all DTE in window",
         all(DTE_MIN <= r["dte"] <= DTE_MAX for r in rows))
+    thu = date(2026, 10, 22)
+    fris = [(date(2026, 10, 23) + timedelta(days=7*k)).isoformat()
+            for k in range(6)]
+    chk("no Friday in 18-21 -> nearest one outside it",
+        pick_expiry(fris, thu) == ("2026-11-13", 22))
+    chk("an out-of-window DTE explains itself",
+        "Outside 18-21" in explain_notes({"notes": "dte22"})[0])
     chk("no name both listed and dropped",
         not (set(r["t"] for r in rows) &
              set(x.split("(")[0] for v in dropped.values() for x in v)))
@@ -3721,8 +3771,7 @@ def selftest():
         f"orphans: {[c for c in codes if _legend_key(c) not in {k for k,_ in FLAG_LEGEND}]}")
     chk("gap38d maps to the gapNd entry", _legend_key("gap38d") == "gapNd")
     chk("oi114 maps to the oiN entry", _legend_key("oi114") == "oiN")
-    chk("fb0.18 maps to fbN, nofb does not",
-        _legend_key("fb0.18") == "fbN" and _legend_key("nofb") == "nofb")
+    chk("fb0.18 maps to fbN", _legend_key("fb0.18") == "fbN")
     chk("cap0.20 maps to capN", _legend_key("cap0.20") == "capN")
     chk("legend lists only the flags actually used",
         all((code in txt) or (code not in {_legend_key(c) for c in codes})
@@ -3733,7 +3782,8 @@ def selftest():
         f"missing: {[t for t in UNIVERSE if t not in LISTING]}")
     chk("seven NYSE names identified",
         sorted(t for t in UNIVERSE if LISTING.get(t) == "NYSE") ==
-        ["ANET", "CRM", "DELL", "JNJ", "JPM", "TSM", "V"])
+        ["ANET", "CAT", "CRM", "DELL", "HD", "JNJ", "JPM", "LLY", "MCD",
+         "TSM", "V", "XOM"])
     print("STRIKE INCREMENTS")
     chk("high-scale spot snaps to $20 grid", round_width(1255.40)[1] == 60.0,
         f"= {round_width(1255.40)[1]}")
@@ -3746,7 +3796,7 @@ def selftest():
     chk("every flag on every row produces an explanation",
         all(len(explain_notes(r)) == len([c for c in r["notes"].split(",") if c])
             for r in rows))
-    probe = {"notes": "prov,inv,gap19d,nofb,oi114,ba,unclus,stale",
+    probe = {"notes": "prov,inv,gap19d,fb0.18,oi114,ba,unclus,stale",
              "sma_margin": 0.008, "iv": 0.479, "hv": 0.904,
              "bid": 1.0, "ask": 1.3}
     ex = explain_notes(probe)
@@ -3898,19 +3948,15 @@ Producer Price Index for October 2026
         not any(g.startswith("2026-08") for g in m4._gaps(date(2026, 10, 3))))
 
     print("NEW FLAGS")
-    chk("V carries a 0.20 fallback", FALLBACK["V"] == 0.20)
-    chk("JNJ and MSFT are SKIP, never step up",
-        FALLBACK["JNJ"] == "SKIP" and FALLBACK["MSFT"] == "SKIP")
-    chk("no-fallback names carry an explicit None, not a missing key",
-        all(FALLBACK.get(t) is None and t in FALLBACK
-            for t in ("CRWD", "META", "CRM", "DELL")))
+    chk("only TSM keeps a fallback (calm fallbacks suspended in 2-1-13)",
+        FALLBACK == {"TSM": 0.18})
     chk("blow-off threshold is 15%", BLOWOFF_STRETCH == 0.15)
     ex = explain_notes({"notes": "blowoff22%", "sma_margin": 0.22})
     chk("blow-off explanation forbids a delta step-up", "Never step" in ex[0])
-    chk("T+1 is no longer a flag", "T+1" not in str(explain_notes({"notes": "T+2"})))
+    ex = explain_notes({"notes": "T+1", "floor": 0.15})
+    chk("T+1 explains the raised floor", "15%W" in ex[0] and "transcript" in ex[0])
     ex = explain_notes({"notes": "T+2"})
-    chk("T+2 named as the earliest allowed entry", "earliest entry" in ex[0])
-    chk("postearn drop bucket exists", "postearn" in dropped)
+    chk("T+2 named as the preferred re-entry", "preferred" in ex[0])
     ed = today + timedelta(days=20)
     b, _, _, _, _ = gate2_earnings([("nasdaq", today)], today, ed)
     chk("same-day reporter still blocked by Gate 2", b is True)
@@ -3974,7 +4020,7 @@ Producer Price Index for October 2026
         def earnings(self, t):
             return [("nasdaq", today - timedelta(days=self.gap))]
         def news(self, t, today=None, n=4): return []
-    for gap, expect in ((0, "drop"), (1, "drop"), (2, "keep"), (5, "keep")):
+    for gap, expect in ((0, "drop"), (1, "keep"), (2, "keep"), (5, "keep")):
         rws, drp, _, _, _ = run(TPlus(gap), today, do_news=False, tickers=["NVDA"],
                                 us_today_override=today,
                                 earn_src=NullEarnings(), macro_src=StubMacro())
@@ -3986,11 +4032,13 @@ Producer Price Index for October 2026
         if gap == 5:
             chk("T+5 carries no post-earnings flag",
                 bool(rws) and "T+2" not in rws[0]["notes"])
-    rws, drp, _, _, _ = run(TPlus(1), today, do_news=False, tickers=["NVDA"],
-                            us_today_override=today,
-                            earn_src=NullEarnings(), macro_src=StubMacro())
-    chk("T+1 drop is reported under its own heading",
-        any("NVDA" in x for x in drp["postearn"]), f"{drp['postearn']}")
+    for t, want in (("NVDA", 0.15), ("AAPL", 0.13)):
+        rws, _, _, _, _ = run(TPlus(1), today, do_news=False, tickers=[t],
+                              us_today_override=today,
+                              earn_src=NullEarnings(), macro_src=StubMacro())
+        chk(f"T+1 {t} flagged, floor raised to {want*100:.0f}%W",
+            bool(rws) and "T+1" in rws[0]["notes"]
+            and abs(rws[0]["floor"] - want) < 1e-9)
     print("EXPIRY MODE, NOT ROW 0 (2-1-12 DTE column removal)")
     class DteMix:
         """Two names share the normal weekly list; one is one Friday short,
@@ -4500,7 +4548,7 @@ Producer Price Index for October 2026
         '<h2>The Gauntlet</h2>' in html
         and f'{len(UNIVERSE)} liquid large caps' in html
         and sum(len(dropped.get(k) or []) for k in
-                ("trend", "earnings", "postearn", "width", "data"))
+                ("trend", "earnings", "width", "data"))
             == len(UNIVERSE) - len(rows))
 
     print("MARKET OPEN/CLOSED INDICATOR")
@@ -4565,11 +4613,11 @@ Producer Price Index for October 2026
         ">Target credit<i" in html and ">Short &Delta;<i" in html)
     chk("target is the floor times the width",
         all(r.get("target") is not None and
-            abs(r["target"] - (r.get("act_width") or r["width"]) * CREDIT_FLOOR)
+            abs(r["target"] - (r.get("act_width") or r["width"]) * r["floor"])
             < 1e-9 for r in rows))
-    for wdt, want in ((10, 1.20), (20, 2.40), (60, 7.20), (25, 3.00)):
-        chk(f"a ${wdt} width targets ${want:.2f}",
-            abs(wdt * CREDIT_FLOOR - want) < 1e-9)
+    chk("floor follows the tier",
+        all(r["floor"] == (0.10 if r["t"] in CALM else 0.12) for r in rows))
+    chk("both tiers reach a row", {r["tier"] for r in rows} == {"V", "C"})
     chk("no delayed-quote estimate is shown any more",
         not any(k in html for k in ("%W mid", "worst-case fill")))
     chk("the removed flags are gone from the legend",
@@ -4577,12 +4625,21 @@ Producer Price Index for October 2026
     chk("rows no longer carry a credit estimate",
         all("pctW" not in r for r in rows))
 
-    print("ANET CLUSTERING")
-    chk("ANET is filed under Semis & hardware, not held out on its own",
-        cluster_of("ANET") == "Semis & hardware")
-    chk("Semis & hardware holds all six chip/hardware/networking names",
-        CLUSTERS["Semis & hardware"] ==
-        ["NVDA", "AMD", "AVGO", "TSM", "DELL", "ANET"])
+    print("CLUSTERS AND TIERS (2-1-13)")
+    chk("ANET sits in its own Networking cluster, capped at 1",
+        cluster_of("ANET") == "Networking" and CLUSTER_MAX["Networking"] == 1)
+    chk("eleven clusters", len(CLUSTERS) == 11)
+    chk("every universe name is clustered",
+        all(cluster_of(t) != "Unclustered" for t in UNIVERSE))
+    chk("Healthcare is JNJ+LLY at 2, Consumer COST/HD/MCD at 2",
+        CLUSTERS["Healthcare"] == ["JNJ", "LLY"] and CLUSTER_MAX["Healthcare"] == 2
+        and CLUSTER_MAX["Consumer"] == 2)
+    chk("12 calm, 13 volatile",
+        len(CALM) == 12 and CALM <= set(UNIVERSE)
+        and len(set(UNIVERSE) - CALM) == 13)
+    chk("tech set is in the universe, cap 4",
+        len(TECH) == 16 and TECH <= set(UNIVERSE) and TECH_MAX == 4)
+    chk("NFLX is out of the universe", "NFLX" not in UNIVERSE)
     chk("every cluster has a cap",
         all(c in CLUSTER_MAX for c in CLUSTERS))
     chk("every cluster is in the display order",
@@ -4593,8 +4650,6 @@ Producer Price Index for October 2026
     chk("the machinery still exists for whichever name is next",
         cross_cluster_hits(["ANET", "NVDA"]) == []
         and callable(_cross_cluster_node))
-    chk("NFLX stays unclustered - its best match was noise",
-        cluster_of("NFLX") == "Unclustered")
     chk("no name lands in two clusters",
         sum(len(v) for v in CLUSTERS.values()) ==
         len({t for v in CLUSTERS.values() for t in v}))
@@ -4823,7 +4878,7 @@ def main():
                     help="suppress the text report (for scheduled runs)")
     ap.add_argument("--tickers", nargs="+", default=None,
                     help="names to screen; commas and/or spaces both fine. "
-                         "Omit to run the full universe (20 names).")
+                         "Omit to run the full universe (25 names).")
     a = ap.parse_args()
     if a.selftest:
         return selftest()
