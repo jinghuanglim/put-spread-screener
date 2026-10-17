@@ -23,11 +23,14 @@ from datetime import datetime, date, timedelta
 # job the run number does for a single run but for the code across all of
 # them. Independent of the workflow doc's own 2-1-N numbering, which tracks
 # strategy/rule changes, not this file's.
-SCREEN_VERSION = "1.7"
+SCREEN_VERSION = "1.8"
 # The last few entries a viewer would actually want to know about - newest
 # first. Hand-maintained, not derived from git log, because most commits here
 # are automated "screen <date>" runs with nothing to report.
 CHANGELOG = [
+    {"d": "2026-10-17", "x": "fix", "t": "Spread width now rounds up to "
+     "at least 5% of spot. It used to round to nearest, so a $340 stock "
+     "came out $15 wide instead of $20."},
     {"d": "2026-10-17", "x": "feature", "t": "Workflow 2-1-13: 25 names in "
      "two tiers. Volatile names need 12% of the width, calm names 10%."},
     {"d": "2026-10-17", "x": "feature", "t": "Expiry is 18-21 days; when no "
@@ -846,7 +849,9 @@ def round_width(spot):
         inc = 10.0
     else:
         inc = 20.0
-    return raw, max(round(raw / inc) * inc, inc), inc
+    # Up, never to nearest: a width under 5% of spot hits full loss on a
+    # smaller move and makes the floor easy to clear (ticket discipline 1).
+    return raw, math.ceil(raw / inc - 1e-9) * inc, inc
 # ---------------------------------------------------------------- providers
 BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
               "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
@@ -1320,10 +1325,10 @@ def run(provider, today, do_news=True, tickers=None,
         # buy the long at the ASK. That is the side of the spread you land on
         # when nothing goes your way, and it is the figure the %W floor is
         # defined against. Anything friendlier would flatter the row.
-        long_k = leg["strike"] - width
-        cands = [c for c in chain if c["strike"] < leg["strike"]]
-        longleg = (min(cands, key=lambda c: abs(c["strike"] - long_k))
-                   if cands else None)
+        # Nearest listed long strike at or beyond 5% of spot, never inside it.
+        cands = [c for c in chain
+                 if c["strike"] <= leg["strike"] - width_raw + 1e-9]
+        longleg = max(cands, key=lambda c: c["strike"]) if cands else None
         # The number to carry to the ticket: what the floor costs in dollars at
         # this width. Not an estimate of the live premium - delayed chain
         # quotes were producing worst-case credits like LLY's 0.4%W, which says
@@ -3549,7 +3554,7 @@ def selftest():
     chk("hv of flat series = 0", abs(hv30(flat)) < 1e-9)
     grow = [100 * math.exp(0.01*i) for i in range(40)]
     chk("hv of pure drift ~ 0", hv30(grow) < 1e-6)
-    chk("width 5% of 420 -> 20", round_width(420.0)[1] == 20.0,
+    chk("width 5% of 420 ($21) rounds up to 25", round_width(420.0)[1] == 25.0,
         f"= {round_width(420.0)}")
     chk("width raw of 80 below min", round_width(80.0)[0] < WIDTH_MIN,
         f"raw = {round_width(80.0)[0]}")
@@ -3785,11 +3790,13 @@ def selftest():
         ["ANET", "CAT", "CRM", "DELL", "HD", "JNJ", "JPM", "LLY", "MCD",
          "TSM", "V", "XOM"])
     print("STRIKE INCREMENTS")
-    chk("high-scale spot snaps to $20 grid", round_width(1255.40)[1] == 60.0,
+    chk("high-scale spot snaps up on the $20 grid", round_width(1255.40)[1] == 80.0,
         f"= {round_width(1255.40)[1]}")
     chk("MSFT-scale spot keeps $5 grid", round_width(483.24)[1] == 25.0,
         f"= {round_width(483.24)[1]}")
-    chk("TSM-scale spot keeps $5 grid", round_width(418.95)[1] == 20.0)
+    chk("TSM-scale spot keeps $5 grid", round_width(418.95)[1] == 25.0)
+    chk("JPM at 339.72 ($16.99) is $20 wide, never $15",
+        round_width(339.72)[1] == 20.0)
     chk("a $713 stock uses the $10 tier",
         round_width(713.44)[1] == 40.0)
     print("NOTE EXPLANATIONS")
@@ -4385,7 +4392,7 @@ Producer Price Index for October 2026
         "% cushion" in html)
     print("WIDTH GUESS IS FLAGGED WHERE IT'S SHAKIEST (the LLY $60 case)")
     chk("round_width now names its own increment",
-        round_width(1255.40) == (1255.40 * WIDTH_PCT, 60.0, 20.0))
+        round_width(1255.40) == (1255.40 * WIDTH_PCT, 80.0, 20.0))
 
     class PriceTierMix:
         """LLY (~$1255, the real case that prompted this) beside a cheap,
