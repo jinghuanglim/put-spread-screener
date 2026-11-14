@@ -1,6 +1,6 @@
 # put-spread-screener
 
-Put-credit-spread screen, gates 1–3 of workflow 2-1-13. Market-data half
+Put-credit-spread screen, gates 1–3 of workflow 2-1-15. Market-data half
 only — no broker account, nothing about your positions or exposure.
 
 Runs **only when you press the button**. There is no schedule.

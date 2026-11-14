@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
 Put Credit Spread screener — Part 1 (market-data half, no IBKR required).
-Replicates workflow 2-1-13 Gates 1-3 using free data:
+Replicates workflow 2-1-15 Gates 1-3 using free data:
   Gate 1 TREND     close > 20-day SMA (prior 20 completed bars)
   Gate 2 EARNINGS  aggregator dates, conflicts listed not resolved
   Gate 3 NEWS      headlines printed for human veto
   Width pre-filter 5% of spot, hard min $5
-  Tiers           volatile 12%W / calm 10%W credit floor, from a fixed list
+  Floor           10%W credit floor, all names (2-1-15)
   Context         IV at anchor-delta strike, HV30, IV/HV
-25-name universe, no index slots. NOT in this half (needs IBKR): caps block,
-Step 6b expiry week, logs.
+25-name universe, no index slots, no caps (2-1-15). NOT in this half (needs
+IBKR): positions, room, expiry-week pin check, logs.
 Usage:
   python pcs_screen.py                 # live, yfinance
   python pcs_screen.py --selftest      # offline, synthetic data, verifies math
@@ -23,11 +23,17 @@ from datetime import datetime, date, timedelta
 # job the run number does for a single run but for the code across all of
 # them. Independent of the workflow doc's own 2-1-N numbering, which tracks
 # strategy/rule changes, not this file's.
-SCREEN_VERSION = "1.8"
+SCREEN_VERSION = "1.9"
 # The last few entries a viewer would actually want to know about - newest
 # first. Hand-maintained, not derived from git log, because most commits here
 # are automated "screen <date>" runs with nothing to report.
 CHANGELOG = [
+    {"d": "2026-11-14", "x": "feature", "t": "Workflow 2-1-15: one minimum "
+     "credit for every name, 10% of the width (was 12% volatile / 10% calm)."},
+    {"d": "2026-11-14", "x": "feature", "t": "No caps: cluster and tech "
+     "limits are gone. Clusters still group the list, nothing is blocked."},
+    {"d": "2026-11-14", "x": "feature", "t": "No fallback delta for any name "
+     "(TSM included). Never move the strike to clear the floor."},
     {"d": "2026-10-17", "x": "fix", "t": "Spread width now rounds up to "
      "at least 5% of spot. It used to round to nearest, so a $340 stock "
      "came out $15 wide instead of $20."},
@@ -54,14 +60,14 @@ UNIVERSE = ["AAPL","AMD","AMZN","ANET","AVGO","CAT","COST","CRM","CRWD","DELL",
 # picks a sector, so calm names get a lower one.
 CALM = {"JNJ","MCD","COST","V","JPM","AAPL","HD","XOM","MSFT","GOOGL","AMZN",
         "LLY"}
-FLOOR = {"V": 0.12, "C": 0.10}
+# 2-1-15: one floor for both tiers. Tiers are kept as a label only.
+FLOOR = {"V": 0.10, "C": 0.10}
 T1_FLOOR_ADD = 0.03          # T+1 entry only at floor + 3%W
 # New in 2-1-13; flagged until each has traded once. Remove by hand.
 NEW_NAMES = {"CAT","COST","HD","LLY","MCD","XOM"}
-# For the max-4 tech cap. Calm tech counts: it still falls with tech.
+# Tech set kept for reference only; 2-1-15 dropped the max-4 tech cap.
 TECH = {"NVDA","TSM","AMD","AVGO","DELL","CRWD","PANW","ANET","PLTR","TSLA",
         "META","CRM","AAPL","MSFT","GOOGL","AMZN"}
-TECH_MAX = 4
 CLUSTERS = {
     "Semis & hardware":     ["NVDA","AMD","AVGO","TSM","DELL"],
     "Security":             ["CRWD","PANW"],
@@ -75,9 +81,6 @@ CLUSTERS = {
     "Industrial":           ["CAT"],
     "Consumer":             ["COST","HD","MCD"],
 }
-CLUSTER_MAX = {"Semis & hardware":2,"Security":1,"Mega-cap platform":3,
-               "Software":1,"High-beta":1,"Networking":1,"Healthcare":2,
-               "Financial":2,"Energy":1,"Industrial":1,"Consumer":2}
 CLUSTER_ORDER = ["Semis & hardware","Security","Mega-cap platform","Software",
                  "High-beta","Networking","Healthcare","Financial","Energy",
                  "Industrial","Consumer","Unclustered"]
@@ -132,7 +135,7 @@ DEFAULT_DELTA = 0.15
 # 0.15-0.16. Every other name has none: 2-1-13 suspended the calm-tier
 # fallbacks, because the 10%W floor now does that job and stacking both is
 # untested double loosening.
-FALLBACK = {"TSM": 0.18}
+FALLBACK = {}             # 2-1-15: no fallback for any name, TSM included
 DELTA_HARD_CAP = 0.20     # workflow 2-1-13: "Hard cap 0.20Δ". Absolute.
 BLOWOFF_STRETCH = 0.15        # never tilt delta on a blow-off
 # 18-21 hard range, prefer 18. The window often holds no listed Friday; then
@@ -1682,7 +1685,7 @@ def report(rows, dropped, conflicts, news_out, regime, today, verbose=False):
     L.append("")
     rule()
     L.append(f"CANDIDATES \u2014 Gates 1-2 passed. Gate 3 is yours, headlines "
-             f"below. Floor 12%W (V) / 10%W (C) yours at ticket.")
+             f"below. Floor 10%W, yours at ticket.")
     rule()
     if rows:
         d_h, ad_h = "\u0394", "act\u0394"
@@ -1697,12 +1700,7 @@ def report(rows, dropped, conflicts, news_out, regime, today, verbose=False):
         grp = by_c.get(c)
         if not grp:
             continue
-        cap = CLUSTER_MAX.get(c)
-        if cap:
-            tag = f"{len(grp)}/{cap}" + ("  ** OVER CAP **" if len(grp) > cap else "")
-        else:
-            tag = f"{len(grp)}/\u2013"
-        L.append(f"  {c} {tag}")
+        L.append(f"  {c} ({len(grp)})")
         for r in sorted(grp, key=lambda x: -(x["iv"] or 0)):
             ivhv = f"{r['ivhv']:.2f}" if r["ivhv"] else "n/a"
             hv = f"{r['hv']*100:.1f}%" if r["hv"] else "n/a"
@@ -1722,10 +1720,6 @@ def report(rows, dropped, conflicts, news_out, regime, today, verbose=False):
                         L.append(("      \u00b7 " if j == 0 else "        ") + seg)
     if not rows:
         L.append("Nothing passed. Cash is a valid outcome.")
-    else:
-        n_tech = sum(1 for r in rows if r["t"] in TECH)
-        L.append(f"  Tech candidates {n_tech} \u2014 max {TECH_MAX} tech "
-                 f"spreads open, counted at IBKR")
     L.append("")
     if rows:
         L.append(f"All expiries {rows[0]['expiry']} unless a row says otherwise.")
@@ -1825,16 +1819,14 @@ def report(rows, dropped, conflicts, news_out, regime, today, verbose=False):
         L.append("")
         L.append("IV needed (18 DTE, 5%-of-spot width) \u2014 reference, "
                  "never pass/fail:")
-        L.append("  12%W (V)  0.15\u0394 60.3%  0.16\u0394 52.5%  0.17\u0394 46.2%  "
-                 "0.18\u0394 40.9%  0.20\u0394 33.1%")
-        L.append("  10%W (C)  0.15\u0394 42.4%  0.16\u0394 37.4%  0.17\u0394 33.3%  "
+        L.append("  10%W      0.15\u0394 42.4%  0.16\u0394 37.4%  0.17\u0394 33.3%  "
                  "0.18\u0394 30.0%  0.20\u0394 24.9%")
         L.append("  Flat 0.90 haircut, understates real bid/ask drag \u00b7 "
                  "calibrated to 18 DTE \u00b7 not a gate.")
     L.append("")
     L.append("\u0394 target short-leg delta \u00b7 act\u0394 delta of the strike "
              "actually picked \u00b7 Short sold \u00b7 Long bought")
-    L.append(f"Target = tier floor x width (12% V, 10% C; +3% at T+1): the least this "
+    L.append(f"Target = 10% x width (+3% at T+1): the least this "
              f"spread may be sold for. Aim at or above it when you price the "
              f"ticket live.")
     L.append("IV priced-in move \u00b7 HV actual recent move \u00b7 IV per-strike and "
@@ -3055,12 +3047,10 @@ def render_html(rows, dropped, conflicts, news_out, regime, today):
         dte_tip = ("DTE = Days To Expiry, counted from today. %W = the "
                    "credit required as a percentage of the spread's "
                    "width — the floor this page enforces before a "
-                   "spread counts as worth selling: 12% for volatile names, "
-                   "10% for calm ones (median 1-yr realised vol at or under "
-                   "35%).")
+                   "spread counts as worth selling: 10% for every name.")
         H.append(f'<div class="bhead">'
                  f'<span class="date">{_esc(pretty)}</span>'
-                 f'<span class="dte">{_tip(dte_tip, dte_s + "12% / 10%W credit floor")}</span></div>')
+                 f'<span class="dte">{_tip(dte_tip, dte_s + "10%W credit floor")}</span></div>')
         H.append(f'<p class="bnote"><b>Yours to enforce at the ticket</b> '
                  f'\u2014 this page names the floor, it does not quote '
                  f'options.</p>')
@@ -3655,11 +3645,10 @@ def selftest():
         all(r["delta"] == 0.20 for r in rows if r["t"] in ("NVDA","TSM")))
     print("NEW NAMES (CRM, DELL, added 2-1-12)")
     chk("both are in the universe", {"CRM","DELL"} <= set(UNIVERSE))
-    chk("CRM sits alone in Software, capped at 1",
-        cluster_of("CRM") == "Software" and CLUSTER_MAX["Software"] == 1)
-    chk("DELL joins Semis & hardware, capped at 2",
-        cluster_of("DELL") == "Semis & hardware"
-        and CLUSTER_MAX["Semis & hardware"] == 2)
+    chk("CRM sits alone in Software",
+        cluster_of("CRM") == "Software")
+    chk("DELL joins Semis & hardware",
+        cluster_of("DELL") == "Semis & hardware")
     chk("neither carries a fallback delta",
         "CRM" not in FALLBACK and "DELL" not in FALLBACK)
     chk("both are listed on NYSE",
@@ -3955,8 +3944,7 @@ Producer Price Index for October 2026
         not any(g.startswith("2026-08") for g in m4._gaps(date(2026, 10, 3))))
 
     print("NEW FLAGS")
-    chk("only TSM keeps a fallback (calm fallbacks suspended in 2-1-13)",
-        FALLBACK == {"TSM": 0.18})
+    chk("no name keeps a fallback (2-1-15)", FALLBACK == {})
     chk("blow-off threshold is 15%", BLOWOFF_STRETCH == 0.15)
     ex = explain_notes({"notes": "blowoff22%", "sma_margin": 0.22})
     chk("blow-off explanation forbids a delta step-up", "Never step" in ex[0])
@@ -4039,7 +4027,7 @@ Producer Price Index for October 2026
         if gap == 5:
             chk("T+5 carries no post-earnings flag",
                 bool(rws) and "T+2" not in rws[0]["notes"])
-    for t, want in (("NVDA", 0.15), ("AAPL", 0.13)):
+    for t, want in (("NVDA", 0.13), ("AAPL", 0.13)):
         rws, _, _, _, _ = run(TPlus(1), today, do_news=False, tickers=[t],
                               us_today_override=today,
                               earn_src=NullEarnings(), macro_src=StubMacro())
@@ -4466,10 +4454,8 @@ Producer Price Index for October 2026
             "one bet wearing several tickers" in html)
         chk("and the names in them are listed",
             all(r["t"] in html for c in multi_t for r in by_c_test[c]))
-    chk("the terminal report KEEPS the caps, it is JH's own view",
-        "OVER CAP" in txt or not any(
-            CLUSTER_MAX.get(c) and len(v) > CLUSTER_MAX[c]
-            for c, v in by_c_test.items()))
+    chk("the terminal report shows no caps (2-1-15)",
+        "OVER CAP" not in txt and "max 4 tech" not in txt)
     chk("the terminal report keeps the IBKR note",
         "NOT COMPUTED" in txt)
 
@@ -4622,8 +4608,8 @@ Producer Price Index for October 2026
         all(r.get("target") is not None and
             abs(r["target"] - (r.get("act_width") or r["width"]) * r["floor"])
             < 1e-9 for r in rows))
-    chk("floor follows the tier",
-        all(r["floor"] == (0.10 if r["t"] in CALM else 0.12) for r in rows))
+    chk("one 10% floor for every name (2-1-15)",
+        all(r["floor"] == 0.10 for r in rows))
     chk("both tiers reach a row", {r["tier"] for r in rows} == {"V", "C"})
     chk("no delayed-quote estimate is shown any more",
         not any(k in html for k in ("%W mid", "worst-case fill")))
@@ -4632,23 +4618,22 @@ Producer Price Index for October 2026
     chk("rows no longer carry a credit estimate",
         all("pctW" not in r for r in rows))
 
-    print("CLUSTERS AND TIERS (2-1-13)")
-    chk("ANET sits in its own Networking cluster, capped at 1",
-        cluster_of("ANET") == "Networking" and CLUSTER_MAX["Networking"] == 1)
+    print("CLUSTERS AND TIERS (2-1-15)")
+    chk("ANET sits in its own Networking cluster",
+        cluster_of("ANET") == "Networking")
     chk("eleven clusters", len(CLUSTERS) == 11)
     chk("every universe name is clustered",
         all(cluster_of(t) != "Unclustered" for t in UNIVERSE))
-    chk("Healthcare is JNJ+LLY at 2, Consumer COST/HD/MCD at 2",
-        CLUSTERS["Healthcare"] == ["JNJ", "LLY"] and CLUSTER_MAX["Healthcare"] == 2
-        and CLUSTER_MAX["Consumer"] == 2)
+    chk("Healthcare is JNJ+LLY, Consumer COST/HD/MCD",
+        CLUSTERS["Healthcare"] == ["JNJ", "LLY"]
+        and CLUSTERS["Consumer"] == ["COST", "HD", "MCD"])
     chk("12 calm, 13 volatile",
         len(CALM) == 12 and CALM <= set(UNIVERSE)
         and len(set(UNIVERSE) - CALM) == 13)
-    chk("tech set is in the universe, cap 4",
-        len(TECH) == 16 and TECH <= set(UNIVERSE) and TECH_MAX == 4)
+    chk("tech set is in the universe, no tech cap",
+        len(TECH) == 16 and TECH <= set(UNIVERSE) and "TECH_MAX" not in globals())
     chk("NFLX is out of the universe", "NFLX" not in UNIVERSE)
-    chk("every cluster has a cap",
-        all(c in CLUSTER_MAX for c in CLUSTERS))
+    chk("no cluster caps remain (2-1-15)", "CLUSTER_MAX" not in globals())
     chk("every cluster is in the display order",
         all(c in CLUSTER_ORDER for c in CLUSTERS))
     print("  the cross-cluster mechanism is dormant, not deleted")
@@ -4662,8 +4647,8 @@ Producer Price Index for October 2026
         len({t for v in CLUSTERS.values() for t in v}))
     chk("every clustered name is in the universe",
         all(t in UNIVERSE for v in CLUSTERS.values() for t in v))
-    chk("the Semis & hardware cap did not silently move",
-        CLUSTER_MAX["Semis & hardware"] == 2)
+    chk("Semis & hardware still groups five names",
+        len(CLUSTERS["Semis & hardware"]) == 5)
 
     print("NO GITHUB API, SO NO RATE LIMIT TO SHARE")
     chk("the page never calls api.github.com",
